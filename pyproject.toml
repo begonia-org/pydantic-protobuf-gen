@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "pydantic-protobuf"
+version = "0.1.0"
+description = ""
+authors = ["qinzhonghe <qinzhonghe@51qqt.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+protobuf = "^4.21.12"
+grpcio-tools = "^1.50.0"
+grpcio = "^1.62.2"
+pydantic = "^2.7.0"
+jinja2 = "^3.1.3"
+
+
+[[tool.poetry.source]]
+name = "mirrors"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
+priority = "primary"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

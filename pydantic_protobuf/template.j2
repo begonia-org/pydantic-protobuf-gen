@@ -1,0 +1,24 @@
+
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+'''
+@File    :   {{name}}.py
+@Time    :   {{datetime}}
+@Desc    :   
+'''
+
+
+{# Jinja2 template for generating Pydantic models from protobuf messages #}
+from pydantic import BaseModel, Field
+{% for import in imports %}
+{{ import }}
+{% endfor %}
+
+
+{% for message in messages %}
+class {{ message.message_name }}(BaseModel):
+    {%- for field in message.fields %}
+    {{ field.name }}: {% if field.optional %}Optional[{% endif %}{% if field.repeated %}List[{% endif %}{{ field.type }}{% if field.repeated %}]{% endif %}{% if field.optional %}]{% endif %} = Field({{ field.attributes}})
+    {%- endfor %}
+
+{% endfor %}

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+package pydantic;
+// Annotation is used to add metadata to the generated code.
+// The metadata is used to generate the pydantic model.
+// See https://pydantic-docs.helpmanual.io/usage/model_config/
+message Annotation {
+	string description = 1;
+	string example = 2;
+	string default = 3;
+	string alias = 4;
+	string title = 5;
+	bool optional = 6;
+
+}
+extend google.protobuf.FieldOptions {
+	Annotation field = 50001;
+}
