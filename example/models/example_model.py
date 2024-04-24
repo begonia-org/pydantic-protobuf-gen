@@ -11,9 +11,9 @@
 
 from pydantic import BaseModel, Field
 
-from typing import Optional, Dict, List
-
 import datetime
+
+from typing import List, Optional, Dict
 
 
 
