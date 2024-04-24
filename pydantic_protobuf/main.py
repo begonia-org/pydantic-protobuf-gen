@@ -151,6 +151,19 @@ def is_valid_expression(s):
         return f'"{s}"'
 
 
+def set_python_type_value(type_str: str, ext: dict):
+    if type_str == "str":
+        if "example" in ext:
+            ext["example"] = f'"{ext["example"]}"'
+        if "default" in ext:
+            ext["default"] = f'"{ext["default"]}"'
+    if "description" in ext:
+        ext["description"] = f'"{ext["description"]}"'
+    if "alias" in ext:
+        ext["alias"] = f'"{ext["alias"]}"'
+    return ext
+
+
 def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2.CodeGeneratorResponse):
     # pool.FileDescriptorProto(timestamp_pb2.Timestamp())
     for proto_file in request.proto_file:
@@ -179,6 +192,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2
                     type_imports.add("Any")
                 if ext:
                     ext = json.loads(ext)
+                    set_python_type_value(type_str, ext)
                 attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
                 if field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:

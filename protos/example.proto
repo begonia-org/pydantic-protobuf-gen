@@ -7,9 +7,9 @@ import "google/protobuf/timestamp.proto";
 package example;
 
 message Example {
-  string name = 1[(pydantic.field) = {description: "'Name of the example'",example: "'John Doe'",alias: "'full_name'",default: "'John Doe'"}];
-  optional int32 age = 2 [(pydantic.field) = {description: "'Age of the example'",example: "30",alias: "'years'",default: "30"}];
-  repeated string emails = 3 [(pydantic.field) = {description: "'Emails of the example'"}];
-  map<string, string> entry = 4 [(pydantic.field) = {description: "'Properties of the example'"}];
-  google.protobuf.Timestamp created_at = 5 [(pydantic.field) = {description: "'Creation date of the example'",default: "datetime.datetime.now()",required: true}];
+  string name = 1[(pydantic.field) = {description: "Name of the example",example: "'ohn Doe",alias: "full_name",default: "John Doe"}];
+  optional int32 age = 2 [(pydantic.field) = {description: "Age of the example",example: "30",alias: "years",default: "30"}];
+  repeated string emails = 3 [(pydantic.field) = {description: "Emails of the example"}];
+  map<string, string> entry = 4 [(pydantic.field) = {description: "Properties of the example"}];
+  google.protobuf.Timestamp created_at = 5 [(pydantic.field) = {description: "Creation date of the example",default: "datetime.datetime.now()",required: true}];
 }
