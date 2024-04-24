@@ -2,7 +2,7 @@
 name = "pydantic-protobuf"
 version = "0.1.0"
 description = ""
-authors = ["qinzhonghe <qinzhonghe@51qqt.com>"]
+authors = ["qinzhonghe <vforfreedom96@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -20,5 +20,8 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
 priority = "primary"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = [
+    "setuptools>=42",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
