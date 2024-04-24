@@ -11,7 +11,7 @@ message Annotation {
 	string default = 3;
 	string alias = 4;
 	string title = 5;
-	bool optional = 6;
+	bool required = 6;
 
 }
 extend google.protobuf.FieldOptions {

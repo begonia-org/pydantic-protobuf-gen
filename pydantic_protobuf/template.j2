@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 {% for message in messages %}
 class {{ message.message_name }}(BaseModel):
     {%- for field in message.fields %}
-    {{ field.name }}: {% if field.optional %}Optional[{% endif %}{% if field.repeated %}List[{% endif %}{{ field.type }}{% if field.repeated %}]{% endif %}{% if field.optional %}]{% endif %} = Field({{ field.attributes}})
+    {{ field.name }}: {% if not field.required %}Optional[{% endif %}{% if field.repeated %}List[{% endif %}{{ field.type }}{% if field.repeated %}]{% endif %}{% if not field.required %}]{% endif %} = Field({{ field.attributes}})
     {%- endfor %}
 
 {% endfor %}

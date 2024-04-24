@@ -8,11 +8,14 @@
 
 from contextlib import contextmanager
 import json
+import ast
 import sys
 import logging
 import os
+import time
 from typing import Iterator, Tuple, List
 from google.protobuf.compiler import plugin_pb2
+from google.protobuf import timestamp_pb2
 from google.protobuf import descriptor_pb2, descriptor_pool
 from google.protobuf.json_format import MessageToJson
 
@@ -27,15 +30,15 @@ from pydantic_protobuf import options_pb2
 __version__ = "0.0.1"
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-pool = descriptor_pool.Default()
+pool = descriptor_pool.DescriptorPool()
 
 
 class Field:
-    def __init__(self, name: str, type: str, repeated: bool, optional: bool, attributes: dict):
+    def __init__(self, name: str, type: str, repeated: bool, required: bool, attributes: dict):
         self.name = name
         self.type = type
         self.repeated = repeated
-        self.optional = optional
+        self.required = required
         self.attributes = attributes
 
         def __str__(self):
@@ -73,8 +76,11 @@ def get_field_type(field, imports: List[str]):
         descriptor_pb2.FieldDescriptorProto.TYPE_SINT32: "int",
         descriptor_pb2.FieldDescriptorProto.TYPE_SINT64: "int",
     }
+
     # 如果类型为消息或枚举，返回type_name，否则返回基本类型的名称
     if hasattr(field, "type_name") and field.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE:
+        if field.type_name == ".google.protobuf.Timestamp":
+            return "datetime.datetime"
         key_type, value_type = get_map_field_types(
             field, imports)
         if key_type and value_type:
@@ -136,18 +142,29 @@ def get_map_field_types(field, imports: List[str]):
     return key_type, value_type
 
 
-def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2.CodeGeneratorResponse):
+def is_valid_expression(s):
+    try:
+        ast.literal_eval(s)
+        return s
+    except:
+        return f'"{s}"'
 
+
+def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2.CodeGeneratorResponse):
+    # pool.FileDescriptorProto(timestamp_pb2.Timestamp())
     for proto_file in request.proto_file:
+
+        messages: List[Message] = []
+        try:
+            pool.Add(proto_file)
+        except Exception as err:
+            logging.error(
+                f"Error adding file {proto_file.name} to pool: {err}")
+            pass
         if proto_file.package == "pydantic":
             continue
         if "google/protobuf" in proto_file.name:
             continue  # 跳过 Protobuf 的内置类型文件
-        messages: List[Message] = []
-        try:
-            pool.Add(proto_file)
-        except Exception:
-            pass
         imports = set()
         type_imports = set()
         for message in proto_file.message_type:
@@ -161,7 +178,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2
                     type_imports.add("Any")
                 if ext:
                     ext = json.loads(ext)
-                attr = ",".join(f"{key}='{value}'" for key,
+                attr = ",".join(f"{key}={is_valid_expression(value)}" for key,
                                 value in ext.items())
                 if field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:
                     type_imports.add("List")
@@ -169,8 +186,11 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2
                     type_imports.add("Optional")
                 if field.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
                     imports.add("from enum import Enum")
+                if type_str == "datetime.datetime":
+                    imports.add("import datetime")
+
                 f = Field(field.name, type_str, field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED,
-                          field.label == descriptor_pb2.FieldDescriptorProto.LABEL_OPTIONAL, attr)
+                          ext.get("required", False), attr)
                 fields.append(f)
             type_imports_str = ", ".join(type_imports)
             type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
