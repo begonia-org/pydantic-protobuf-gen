@@ -146,7 +146,8 @@ def is_valid_expression(s):
     try:
         ast.literal_eval(s)
         return s
-    except:
+    except Exception as err:
+        logging.info(f"Error: {err} in {s}")
         return f'"{s}"'
 
 
@@ -178,7 +179,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2
                     type_imports.add("Any")
                 if ext:
                     ext = json.loads(ext)
-                attr = ",".join(f"{key}={is_valid_expression(value)}" for key,
+                attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
                 if field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:
                     type_imports.add("List")
