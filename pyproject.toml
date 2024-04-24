@@ -4,6 +4,8 @@ version = "0.1.0"
 description = ""
 authors = ["qinzhonghe <vforfreedom96@gmail.com>"]
 readme = "README.md"
+include = ["pydantic_protobuf/*.j2"]
+
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -25,3 +27,6 @@ requires = [
     "wheel",
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.poetry.scripts]
+protoc-gen-pydantic = 'pydantic_protobuf.main:main'
