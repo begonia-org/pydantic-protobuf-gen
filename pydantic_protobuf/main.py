@@ -167,6 +167,17 @@ def set_python_type_value(type_str: str, ext: dict):
     return ext
 
 
+def check_if_map_field(field_descriptor):
+    # 检查字段是否是 repeated 类型
+    if field_descriptor.label != descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:
+        return False
+    # 检查字段的类型是否是消息类型，因为 map 类型在 Protobuf 中实现为消息类型
+    if field_descriptor.type != descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE:
+        return False
+    # 检查消息类型是否以 'Entry' 结尾，这是一个通常的命名约定，用于 protobuf 中的 map entry 类型
+    return field_descriptor.type_name.endswith('Entry')
+
+
 def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2.CodeGeneratorResponse):
     # pool.FileDescriptorProto(timestamp_pb2.Timestamp())
     for proto_file in request.proto_file:
@@ -198,7 +209,9 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2
                     set_python_type_value(type_str, ext)
                 attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
-                if field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:
+                is_repeated = field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED and not check_if_map_field(
+                    field)
+                if is_repeated:
                     type_imports.add("List")
                 if field.label == descriptor_pb2.FieldDescriptorProto.LABEL_OPTIONAL:
                     type_imports.add("Optional")
@@ -206,8 +219,9 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2
                     imports.add("from enum import Enum")
                 if type_str == "datetime.datetime":
                     imports.add("import datetime")
-
-                f = Field(field.name, type_str, field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED,
+                logging.info(
+                    f"Field: {field.name} label:{field.label} {descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED} Type: {field.type_name} Attr: {attr}")
+                f = Field(field.name, type_str, is_repeated,
                           ext.get("required", False), attr)
                 fields.append(f)
             type_imports_str = ", ".join(type_imports)
