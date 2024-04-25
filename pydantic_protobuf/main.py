@@ -67,7 +67,7 @@ def get_field_type(field, imports: List[str]):
         descriptor_pb2.FieldDescriptorProto.TYPE_FIXED32: "int",
         descriptor_pb2.FieldDescriptorProto.TYPE_BOOL: "bool",
         descriptor_pb2.FieldDescriptorProto.TYPE_STRING: "str",
-        descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE: "message",  # 保持原样，因为指向特定消息
+        # descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE: "message",  # 保持原样，因为指向特定消息
         descriptor_pb2.FieldDescriptorProto.TYPE_BYTES: "bytes",
         descriptor_pb2.FieldDescriptorProto.TYPE_UINT32: "int",
         descriptor_pb2.FieldDescriptorProto.TYPE_ENUM: "Enum",  # Python 枚举类
@@ -86,6 +86,7 @@ def get_field_type(field, imports: List[str]):
         if key_type and value_type:
             imports.add("Dict")
             return f"Dict[{key_type},{value_type}]"
+        imports.add("Any")
         return "Any"
     else:
         return field_type_mapping.get(field.type, "Any")
@@ -139,6 +140,8 @@ def get_map_field_types(field, imports: List[str]):
             key_type = get_field_type(field, imports)
         elif field.name == "value":
             value_type = get_field_type(field, imports)
+            if value_type == "Any":
+                imports.add("Any")
     return key_type, value_type
 
 
