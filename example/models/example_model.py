@@ -11,11 +11,9 @@
 
 from pydantic import BaseModel, Field
 
-from .example_model import ExampleType
+from typing import List, Dict, Optional, Any
 
 from enum import Enum
-
-from typing import Any, List, Dict, Optional
 
 import datetime
 

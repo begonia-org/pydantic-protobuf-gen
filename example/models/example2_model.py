@@ -11,11 +11,11 @@
 
 from pydantic import BaseModel, Field
 
-from enum import Enum
-
 from .example_model import ExampleType
 
 from typing import Optional
+
+from enum import Enum
 
 
 

@@ -257,7 +257,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             imports.add(type_imports_str)
             messages.append(Message(message.name, fields))
         for msg_type in ext_message.keys():
-            if message_types.get(msg_type) != message.name:
+            if message_types.get(msg_type) != filename:
                 imports.add(
                     f"from .{message_types.get(msg_type)}_model import {msg_type}")
 
