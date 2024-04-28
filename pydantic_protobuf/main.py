@@ -9,6 +9,7 @@
 from contextlib import contextmanager
 import json
 import ast
+import re
 import sys
 import logging
 import os
@@ -22,7 +23,7 @@ from google.protobuf.json_format import MessageToJson
 from jinja2 import Template
 from distutils.log import log
 from pydantic_protobuf import options_pb2
-
+from pydantic_protobuf.utils import get_class_import_path
 
 # from .template import tpl_str
 
@@ -45,17 +46,27 @@ class Field:
             return f"FieldItem({self.name}, {self.type}, {self.repeated}, {self.optional})"
 
 
+class EnumField:
+    def __init__(self, name: str, value: str):
+        self.name = name
+        self.value = value
+
+        def __str__(self):
+            return f"EnumField({self.name}, {self.value})"
+
+
 class Message:
-    def __init__(self, name: str, fields: list):
+    def __init__(self, name: str, fields: list, message_type="class"):
         self.message_name = name
         self.fields = fields
         # self.imports = imports
+        self.type = message_type
 
         def __str__(self):
             return f"Message({self.messages}, {self.fields})"
 
 
-def get_field_type(field, imports: List[str]):
+def get_field_type(field, imports: List[str], out: dict, file_name: str):
     # 这个函数用于将field.type（枚举值）转换为对应的类型名称
     field_type_mapping = {
         descriptor_pb2.FieldDescriptorProto.TYPE_DOUBLE: "float",
@@ -82,13 +93,16 @@ def get_field_type(field, imports: List[str]):
         if field.type_name == ".google.protobuf.Timestamp":
             return "datetime.datetime"
         key_type, value_type = get_map_field_types(
-            field, imports)
+            field, imports, out, file_name)
         if key_type and value_type:
             imports.add("Dict")
             return f"Dict[{key_type},{value_type}]"
-        imports.add("Any")
-        return "Any"
+        out[field.type_name.split(".")[-1]] = file_name
+        return field.type_name.split(".")[-1]
     else:
+        if field.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
+            out[field.type_name.split(".")[-1]] = file_name
+            return field.type_name.split(".")[-1]
         return field_type_mapping.get(field.type, "Any")
 
 
@@ -97,14 +111,13 @@ def code_generation() -> Iterator[Tuple[plugin_pb2.CodeGeneratorRequest, plugin_
     if len(sys.argv) > 1 and sys.argv[1] in ("-V", "--version"):
         print("pydantic-protobuf " + __version__)
         sys.exit(0)
-
     # Read request message from stdin
     data = sys.stdin.buffer.read()
 
     # Parse request
     request = plugin_pb2.CodeGeneratorRequest()
-    request.ParseFromString(data)
 
+    request.ParseFromString(data)
     # Create response
     response = plugin_pb2.CodeGeneratorResponse()
 
@@ -120,15 +133,15 @@ def code_generation() -> Iterator[Tuple[plugin_pb2.CodeGeneratorRequest, plugin_
     sys.stdout.buffer.write(output)
 
 
-def applyTemplate(filename: str, messages: List[Message], imports: List[str]) -> str:
+def applyTemplate(filename: str, messages: List[Message], enums: List[Message], imports: List[str]) -> str:
     filepath = os.path.join(os.path.dirname(__file__), "template.j2")
     with open(filepath, "r", encoding="utf-8") as f:
         tpl_str = f.read()
         tpl = Template(tpl_str)
-        return tpl.render(name=filename, messages=messages, imports=imports)
+        return tpl.render(name=filename, messages=messages, enums=enums, imports=imports)
 
 
-def get_map_field_types(field, imports: List[str]):
+def get_map_field_types(field, imports: List[str], out: dict, file_name: str):
     # 此函数假设您可以访问到整个文件的描述符，以便查找相应的嵌套类型
     if field.type_name and field.type_name.startswith("."):
         field.type_name = field.type_name[1:]
@@ -137,9 +150,9 @@ def get_map_field_types(field, imports: List[str]):
     value_type = None
     for field in message_descriptor.fields:
         if field.name == "key":
-            key_type = get_field_type(field, imports)
+            key_type = get_field_type(field, imports, out, file_name)
         elif field.name == "value":
-            value_type = get_field_type(field, imports)
+            value_type = get_field_type(field, imports, out, file_name)
             if value_type == "Any":
                 imports.add("Any")
     return key_type, value_type
@@ -178,11 +191,15 @@ def check_if_map_field(field_descriptor):
     return field_descriptor.type_name.endswith('Entry')
 
 
-def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2.CodeGeneratorResponse):
-    # pool.FileDescriptorProto(timestamp_pb2.Timestamp())
+def generate_code(request: plugin_pb2.CodeGeneratorRequest,
+                  response: plugin_pb2.CodeGeneratorResponse):
+
+    message_types = {}
     for proto_file in request.proto_file:
+        filename = os.path.basename(proto_file.name).split('.')[0]
 
         messages: List[Message] = []
+        enums: List[Message] = []
         try:
             pool.Add(proto_file)
         except Exception as err:
@@ -195,13 +212,24 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2
             continue  # 跳过 Protobuf 的内置类型文件
         imports = set()
         type_imports = set()
+        ext_message = {}
+        for enum in proto_file.enum_type:
+            message_types[enum.name] = filename
+            fields = []
+            imports.add("from enum import Enum")
+
+            for value in enum.value:
+                fields.append(EnumField(value.name, value.number))
+            enums.append(Message(enum.name, fields, "enum"))
         for message in proto_file.message_type:
             fields = []
+            message_types[message.name] = filename
             for field in message.field:
                 field_extension = field.options.Extensions[options_pb2.field]
 
                 ext = MessageToJson(field_extension)
-                type_str = get_field_type(field, type_imports)
+                type_str = get_field_type(
+                    field, type_imports, ext_message, filename)
                 if type_str in ["Any", "message"]:
                     type_imports.add("Any")
                 if ext:
@@ -219,17 +247,21 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest, response: plugin_pb2
                     imports.add("from enum import Enum")
                 if type_str == "datetime.datetime":
                     imports.add("import datetime")
-                logging.info(
-                    f"Field: {field.name} label:{field.label} {descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED} Type: {field.type_name} Attr: {attr}")
+
                 f = Field(field.name, type_str, is_repeated,
                           ext.get("required", False), attr)
+
                 fields.append(f)
             type_imports_str = ", ".join(type_imports)
             type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
             imports.add(type_imports_str)
             messages.append(Message(message.name, fields))
-        filename = os.path.basename(proto_file.name).split('.')[0]
-        code = applyTemplate(filename, messages, imports)
+        for msg_type in ext_message.keys():
+            if message_types.get(msg_type) != message.name:
+                imports.add(
+                    f"from .{message_types.get(msg_type)}_model import {msg_type}")
+
+        code = applyTemplate(filename, messages, enums, imports)
         response.file.add(name=filename.lower() + '_model.py', content=code)
 
 

@@ -14,4 +14,13 @@ message Example {
   repeated string emails = 3 [(pydantic.field) = {description: "Emails of the example"}];
   map<string, google.protobuf.Any> entry = 4 [(pydantic.field) = {description: "Properties of the example"}];
   google.protobuf.Timestamp created_at = 5 [(pydantic.field) = {description: "Creation date of the example",default: "datetime.datetime.now()",required: true}];
+  ExampleType type = 6 [(pydantic.field) = {description: "Type of the example",default: "ExampleType.TYPE1"}];
+
+}
+
+enum ExampleType {
+  UNKNOWN = 0;
+  TYPE1 = 1;
+  TYPE2 = 2;
+  TYPE3 = 3;
 }

@@ -14,6 +14,13 @@ from pydantic import BaseModel, Field
 {{ import }}
 {% endfor %}
 
+{% for enum in enums %}
+class {{ enum.message_name }}(Enum):
+    {%- for value in enum.fields %}
+    {{ value.name }} = {{ value.value }}
+    {%- endfor %}
+
+{% endfor %}
 
 {% for message in messages %}
 class {{ message.message_name }}(BaseModel):
@@ -22,3 +29,4 @@ class {{ message.message_name }}(BaseModel):
     {%- endfor %}
 
 {% endfor %}
+

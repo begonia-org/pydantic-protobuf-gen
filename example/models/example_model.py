@@ -11,9 +11,21 @@
 
 from pydantic import BaseModel, Field
 
+from .example_model import ExampleType
+
+from enum import Enum
+
+from typing import Any, List, Dict, Optional
+
 import datetime
 
-from typing import Any, Optional, List, Dict
+
+
+class ExampleType(Enum):
+    UNKNOWN = 0
+    TYPE1 = 1
+    TYPE2 = 2
+    TYPE3 = 3
 
 
 
@@ -24,4 +36,6 @@ class Example(BaseModel):
     emails: Optional[List[str]] = Field(description="Emails of the example")
     entry: Optional[Dict[str,Any]] = Field(description="Properties of the example")
     created_at: datetime.datetime = Field(description="Creation date of the example",default=datetime.datetime.now(),required=True)
+    type: Optional[ExampleType] = Field(description="Type of the example",default=ExampleType.TYPE1)
+
 
