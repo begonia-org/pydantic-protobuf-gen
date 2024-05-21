@@ -8,13 +8,15 @@
 '''
 
 
+
 from pydantic import BaseModel, Field
 
-import datetime
+from typing import List, Any, Dict, Optional
 
 from enum import Enum
 
-from typing import Any, List, Optional, Dict
+import datetime
+
 
 
 class ExampleType(Enum):
@@ -24,15 +26,14 @@ class ExampleType(Enum):
     TYPE3 = 3
 
 
+
+
 class Example(BaseModel):
-    name: Optional[str] = Field(description="Name of the example",
-                                example="'ohn Doe", default="John Doe", alias="full_name")
-    age: Optional[int] = Field(
-        description="Age of the example", example=30, default=30, alias="years")
+    name: Optional[str] = Field(description="Name of the example",example="'ohn Doe",default="John Doe",alias="full_name")
+    age: Optional[int] = Field(description="Age of the example",example=30,default=30,alias="years")
     emails: Optional[List[str]] = Field(description="Emails of the example")
-    entry: Optional[Dict[str, Any]] = Field(
-        description="Properties of the example")
-    created_at: Optional[datetime.datetime] = Field(
-        description="Creation date of the example", default=datetime.datetime.now(), json_schema_extra=dict({'required': True}))
-    type: Optional[ExampleType] = Field(
-        description="Type of the example", default=ExampleType.TYPE1)
+    entry: Optional[Dict[str,Any]] = Field(description="Properties of the example")
+    created_at: Optional[datetime.datetime] = Field(description="Creation date of the example",default=datetime.datetime.now(),schema_extra={'required': True})
+    type: Optional[ExampleType] = Field(description="Type of the example",default=ExampleType.TYPE1)
+
+
