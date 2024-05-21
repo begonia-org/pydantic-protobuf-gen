@@ -11,11 +11,11 @@
 
 from pydantic import BaseModel, Field
 
-from typing import List, Dict, Optional, Any
-
 from enum import Enum
 
 import datetime
+
+from typing import Dict, Any, List, Optional
 
 
 
@@ -33,7 +33,7 @@ class Example(BaseModel):
     age: Optional[int] = Field(description="Age of the example",example=30,default=30,alias="years")
     emails: Optional[List[str]] = Field(description="Emails of the example")
     entry: Optional[Dict[str,Any]] = Field(description="Properties of the example")
-    created_at: datetime.datetime = Field(description="Creation date of the example",default=datetime.datetime.now(),required=True)
+    created_at: Optional[datetime.datetime] = Field(description="Creation date of the example",default=datetime.datetime.now(),json_schema_extra={'required': True})
     type: Optional[ExampleType] = Field(description="Type of the example",default=ExampleType.TYPE1)
 
 

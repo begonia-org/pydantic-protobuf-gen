@@ -234,6 +234,9 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     type_imports.add("Any")
                 if ext:
                     ext = json.loads(ext)
+                    if "required" in ext:
+                        ext["json_schema_extra"] = f"{{'required': {ext['required']}}}"
+                        ext.pop("required")
                     set_python_type_value(type_str, ext)
                 attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
