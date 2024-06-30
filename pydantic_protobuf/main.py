@@ -240,6 +240,9 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     set_python_type_value(type_str, ext)
                 attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
+                if type_str in ["message","List","Dict","Tuple"]:
+                    imports.add("from sqlmodel import JSON, Column")
+                    attr["sa_column"] = "Column(JSON)"
                 is_repeated = field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED and not check_if_map_field(
                     field)
                 if is_repeated:

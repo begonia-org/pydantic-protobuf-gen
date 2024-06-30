@@ -9,7 +9,7 @@
 
 
 {# Jinja2 template for generating Pydantic models from protobuf messages #}
-from pydantic import BaseModel, Field
+from sqlmodel import SQLModel, Field
 {% for import in imports %}
 {{ import }}
 {% endfor %}
@@ -23,10 +23,10 @@ class {{ enum.message_name }}(Enum):
 {% endfor %}
 
 {% for message in messages %}
-class {{ message.message_name }}(BaseModel):
+class {{ message.message_name }}(SQLModel,table=True):
+    {% if not message.table_name%}{{message.table_name}}{%endif%}
     {%- for field in message.fields %}
     {{ field.name }}: {% if not field.required %}Optional[{% endif %}{% if field.repeated %}List[{% endif %}{{ field.type }}{% if field.repeated %}]{% endif %}{% if not field.required %}]{% endif %} = Field({{ field.attributes}})
     {%- endfor %}
-
 {% endfor %}
 
