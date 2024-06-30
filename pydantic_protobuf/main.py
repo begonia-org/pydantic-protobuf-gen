@@ -228,6 +228,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 field_extension = field.options.Extensions[options_pb2.field]
 
                 ext = MessageToJson(field_extension)
+                required = False
                 type_str = get_field_type(
                     field, type_imports, ext_message, filename)
                 if type_str in ["Any", "message"]:
@@ -236,7 +237,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     ext = json.loads(ext)
                     if "required" in ext:
                         ext["schema_extra"] = f"{{'required': {ext['required']}}}"
-                        ext.pop("required")
+                        required = ext.pop("required")
                     set_python_type_value(type_str, ext)
                 attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
@@ -255,7 +256,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     imports.add("import datetime")
 
                 f = Field(field.name, type_str, is_repeated,
-                          ext.get("required", False), attr)
+                          required, attr)
 
                 fields.append(f)
             type_imports_str = ", ".join(type_imports)
