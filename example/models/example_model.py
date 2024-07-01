@@ -13,13 +13,13 @@ from sqlmodel import SQLModel, Field
 
 import datetime
 
-from enum import Enum
-
 from sqlmodel import JSON, Column
 
-from typing import List, Any, Dict, Optional
-
 from sqlmodel import Integer
+
+from enum import Enum
+
+from typing import List, Dict, Any, Optional
 
 
 

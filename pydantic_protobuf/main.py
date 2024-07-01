@@ -14,6 +14,8 @@ import sys
 import logging
 import os
 import time
+import inflection
+
 from typing import Iterator, Tuple, List
 from google.protobuf.compiler import plugin_pb2
 from google.protobuf import timestamp_pb2
@@ -60,7 +62,9 @@ class Message:
         self.fields = fields
         # self.imports = imports
         self.type = message_type
-        self.table_name = table_name or name.lower()
+        
+        self.table_name = table_name or name
+        self.table_name = inflection.underscore(self.table_name)
 
         def __str__(self):
             return f"Message({self.messages}, {self.fields})"
