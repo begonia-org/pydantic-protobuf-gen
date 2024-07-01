@@ -30,6 +30,7 @@ message Annotation {
 
 message DatabaseAnnotation {
     string table_name=1[json_name="table_name"];
+    
 }
 
 extend google.protobuf.FieldOptions {

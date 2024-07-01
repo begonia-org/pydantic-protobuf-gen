@@ -233,6 +233,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             for value in enum.value:
                 fields.append(EnumField(value.name, value.number))
             enums.append(Message(enum.name, fields, "enum"))
+        has_pydantic = False
         for message in proto_file.message_type:
             fields = []
             message_types[message.name] = filename
@@ -247,6 +248,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 if type_str in ["Any", "message"]:
                     type_imports.add("Any")
                 if ext:
+                    has_pydantic = True
                     ext = json.loads(ext)
                     logging.info(f"Field: {ext}")
                     if "required" in ext:
@@ -258,7 +260,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     ext.pop("field_type")
                     ext["sa_type"] = field_type_str
                     imports.add(f"from sqlmodel import {field_type_str}")
-
+                
                 logging.info(f"type str:{type_str}")
                 if is_JSON_field(type_str) and ext:
                     imports.add("from sqlmodel import JSON, Column")
@@ -279,6 +281,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 f = Field(field.name, type_str, is_repeated,
                           required, attr)
                 logging.info(f"Field: {attr}")
+                
                 fields.append(f)
             type_imports_str = ", ".join(type_imports)
             type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
@@ -289,6 +292,8 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 ext = json.loads(ext)
 
             messages.append(Message(message.name, fields, table_name=ext.get("table_name")))
+        if not has_pydantic:
+            continue
         for msg_type in ext_message.keys():
             import_from = message_types.get(msg_type)
             if import_from is None:
