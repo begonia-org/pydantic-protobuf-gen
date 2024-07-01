@@ -13,9 +13,11 @@ from sqlmodel import SQLModel, Field
 
 from enum import Enum
 
-from typing import Any, Dict, List, Optional
+from typing import List, Dict, Any, Optional
 
 import datetime
+
+from sqlmodel import Integer
 
 
 
@@ -36,4 +38,5 @@ class Example(SQLModel,table=True):
     entry: Optional[Dict[str,Any]] = Field(description="Properties of the example")
     created_at: datetime.datetime = Field(description="Creation date of the example",default=datetime.datetime.now(),schema_extra={'required': True})
     type: Optional[ExampleType] = Field(description="Type of the example",default=ExampleType.TYPE1)
+    score: Optional[float] = Field(description="Score of the example",default=0.0,le=100.0,sa_type=Integer)
 

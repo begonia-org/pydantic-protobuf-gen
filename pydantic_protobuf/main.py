@@ -241,6 +241,11 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                         ext["schema_extra"] = f"{{'required': {ext['required']}}}"
                         required = ext.pop("required")
                     set_python_type_value(type_str, ext)
+                if ext.get("field_type"):
+                    field_type_str = ext["field_type"]
+                    ext.pop("field_type")
+                    ext["sa_type"] = field_type_str
+                    imports.add("from sqlmodel import Integer")
                 attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
                 if type_str in ["message","List","Dict","Tuple"]:

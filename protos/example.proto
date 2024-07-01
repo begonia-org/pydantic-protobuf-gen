@@ -17,7 +17,7 @@ message Example {
   map<string, google.protobuf.Any> entry = 4 [(pydantic.field) = {description: "Properties of the example"}];
   google.protobuf.Timestamp created_at = 5 [(pydantic.field) = {description: "Creation date of the example",default: "datetime.datetime.now()",required: true}];
   ExampleType type = 6 [(pydantic.field) = {description: "Type of the example",default: "ExampleType.TYPE1"}];
-
+  float score = 7 [(pydantic.field) = {description: "Score of the example",default: "0.0",gt: 0.0,le: 100.0,field_type: "Integer"}];
 }
 
 enum ExampleType {
