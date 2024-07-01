@@ -55,7 +55,7 @@ class EnumField:
 
 
 class Message:
-    def __init__(self, name: str, fields: list, message_type="class",table_name=None):
+    def __init__(self, name: str, fields: list, message_type="class", table_name=None):
         self.message_name = name
         self.fields = fields
         # self.imports = imports
@@ -191,6 +191,14 @@ def check_if_map_field(field_descriptor):
     return field_descriptor.type_name.endswith('Entry')
 
 
+def is_JSON_field(type_str):
+    field_types = ["message", "List", "Dict", "Tuple","dict","list","tuple"]
+    for field_type in field_types:
+        if field_type in type_str:
+            return True
+    return False
+
+
 def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                   response: plugin_pb2.CodeGeneratorResponse):
 
@@ -246,11 +254,13 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     ext.pop("field_type")
                     ext["sa_type"] = field_type_str
                     imports.add(f"from sqlmodel import {field_type_str}")
+
+                logging.info(f"type str:{type_str}")
+                if is_JSON_field(type_str) and ext:
+                    imports.add("from sqlmodel import JSON, Column")
+                    ext["sa_column"] = "Column(JSON)"
                 attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
-                if type_str in ["message","List","Dict","Tuple"]:
-                    imports.add("from sqlmodel import JSON, Column")
-                    attr["sa_column"] = "Column(JSON)"
                 is_repeated = field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED and not check_if_map_field(
                     field)
                 if is_repeated:
@@ -274,7 +284,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             if ext:
                 ext = json.loads(ext)
 
-            messages.append(Message(message.name, fields,table_name=ext.get("table_name")))
+            messages.append(Message(message.name, fields, table_name=ext.get("table_name")))
         for msg_type in ext_message.keys():
             import_from = message_types.get(msg_type)
             if import_from is None:

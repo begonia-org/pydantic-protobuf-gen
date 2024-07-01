@@ -11,11 +11,13 @@
 
 from sqlmodel import SQLModel, Field
 
+import datetime
+
 from enum import Enum
 
-from typing import List, Dict, Any, Optional
+from sqlmodel import JSON, Column
 
-import datetime
+from typing import List, Any, Dict, Optional
 
 from sqlmodel import Integer
 
@@ -35,7 +37,7 @@ class Example(SQLModel,table=True):
     name: Optional[str] = Field(description="Name of the example",example="'ohn Doe",default="John Doe",alias="full_name",primary_key=True,max_length=128)
     age: Optional[int] = Field(description="Age of the example",example=30,default=30,alias="years")
     emails: Optional[List[str]] = Field(description="Emails of the example")
-    entry: Optional[Dict[str,Any]] = Field(description="Properties of the example")
+    entry: Optional[Dict[str,Any]] = Field(description="Properties of the example",sa_column=Column(JSON))
     created_at: datetime.datetime = Field(description="Creation date of the example",default=datetime.datetime.now(),schema_extra={'required': True})
     type: Optional[ExampleType] = Field(description="Type of the example",default=ExampleType.TYPE1)
     score: Optional[float] = Field(description="Score of the example",default=0.0,le=100.0,sa_type=Integer)
