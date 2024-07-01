@@ -7,6 +7,3 @@ message Example2 {
     ExampleType type = 1[(pydantic.field) = {description: "Type of the example",default: "ExampleType.TYPE1"}];
     
 }
-message Example3{
-    string name=1;
-}

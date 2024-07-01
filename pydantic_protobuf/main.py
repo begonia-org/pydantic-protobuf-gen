@@ -248,6 +248,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 if type_str in ["Any", "message"]:
                     type_imports.add("Any")
                 if ext:
+                    # logging.info(f"message: {message.name} field: {field.name} ext: {ext}")
                     has_pydantic = True
                     ext = json.loads(ext)
                     logging.info(f"Field: {ext}")
@@ -290,10 +291,10 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             ext = MessageToJson(message_ext)
             if ext:
                 ext = json.loads(ext)
-
+            if not has_pydantic:
+                continue
             messages.append(Message(message.name, fields, table_name=ext.get("table_name")))
-        if not has_pydantic:
-            continue
+
         for msg_type in ext_message.keys():
             import_from = message_types.get(msg_type)
             if import_from is None:

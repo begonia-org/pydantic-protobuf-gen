@@ -11,13 +11,13 @@
 
 from sqlmodel import SQLModel, Field
 
+from sqlmodel import Integer
+
 from sqlmodel import JSON, Column
 
 from enum import Enum
 
-from typing import List, Dict, Any, Optional
-
-from sqlmodel import Integer
+from typing import Any, Dict, Optional, List
 
 import datetime
 
