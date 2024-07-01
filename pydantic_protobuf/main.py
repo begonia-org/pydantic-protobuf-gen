@@ -62,7 +62,7 @@ class Message:
         self.fields = fields
         # self.imports = imports
         self.type = message_type
-        
+
         self.table_name = table_name or name
         self.table_name = inflection.underscore(self.table_name)
 
@@ -196,7 +196,7 @@ def check_if_map_field(field_descriptor):
 
 
 def is_JSON_field(type_str):
-    field_types = ["message", "List", "Dict", "Tuple","dict","list","tuple"]
+    field_types = ["message", "List", "Dict", "Tuple", "dict", "list", "tuple"]
     for field_type in field_types:
         if field_type in type_str:
             return True
@@ -249,8 +249,10 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     type_imports.add("Any")
                 if ext:
                     # logging.info(f"message: {message.name} field: {field.name} ext: {ext}")
-                    has_pydantic = True
                     ext = json.loads(ext)
+                    if ext:
+                        has_pydantic = True
+
                     logging.info(f"Field: {ext}")
                     if "required" in ext:
                         ext["schema_extra"] = f"{{'required': {ext['required']}}}"
@@ -261,7 +263,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     ext.pop("field_type")
                     ext["sa_type"] = field_type_str
                     imports.add(f"from sqlmodel import {field_type_str}")
-                
+
                 logging.info(f"type str:{type_str}")
                 if is_JSON_field(type_str) and ext:
                     imports.add("from sqlmodel import JSON, Column")
@@ -282,7 +284,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 f = Field(field.name, type_str, is_repeated,
                           required, attr)
                 logging.info(f"Field: {attr}")
-                
+
                 fields.append(f)
             type_imports_str = ", ".join(type_imports)
             type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
@@ -302,7 +304,8 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             if message_types.get(msg_type) != filename:
                 imports.add(
                     f"from .{message_types.get(msg_type)}_model import {msg_type}")
-
+        if len(messages) == 0:
+            continue
         code = applyTemplate(filename, messages, enums, imports)
         response.file.add(name=filename.lower() + '_model.py', content=code)
 
