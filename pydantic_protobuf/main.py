@@ -224,6 +224,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             continue  # 跳过 Protobuf 的内置类型文件
         imports = set()
         type_imports = set()
+        sqlmodel_imports = set()
         ext_message = {}
         for enum in proto_file.enum_type:
             message_types[enum.name] = filename
@@ -262,11 +263,13 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     field_type_str = ext["field_type"]
                     ext.pop("field_type")
                     ext["sa_type"] = field_type_str
-                    imports.add(f"from sqlmodel import {field_type_str}")
+                    sqlmodel_imports.add(field_type_str)
 
                 logging.info(f"type str:{type_str}")
                 if is_JSON_field(type_str) and ext:
-                    imports.add("from sqlmodel import JSON, Column")
+                    # imports.add("from sqlmodel import JSON, Column")
+                    sqlmodel_imports.add("JSON")
+                    sqlmodel_imports.add("Column")
                     ext["sa_column"] = "Column(JSON)"
                 attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
@@ -289,6 +292,9 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             type_imports_str = ", ".join(type_imports)
             type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
             imports.add(type_imports_str)
+            sqlmodel_imports_str = ", ".join(sqlmodel_imports)
+            sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
+            imports.add(sqlmodel_imports_str)
             message_ext = message.options.Extensions[options_pb2.database]
             ext = MessageToJson(message_ext)
             if ext:
