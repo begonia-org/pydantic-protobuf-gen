@@ -25,17 +25,21 @@ message Annotation {
     double lt=16;
     double le=17;
     string foreign_key=19;
+
 }
 
-
+message CompoundIndex {
+    repeated string indexs=1[json_name="indexs"];
+    string index_type=2[json_name="index_type"];
+    string name=3[json_name="name"];
+}
 message DatabaseAnnotation {
     string table_name=1[json_name="table_name"];
-    
-}
-
-extend google.protobuf.FieldOptions {
-	Annotation field = 50101;
+    repeated CompoundIndex compound_index=2[json_name="compound_index"];
 }
 extend google.protobuf.MessageOptions {
     DatabaseAnnotation database = 50201;
+}
+extend google.protobuf.FieldOptions {
+	Annotation field = 50101;
 }

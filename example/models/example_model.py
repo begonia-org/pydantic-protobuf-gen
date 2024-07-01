@@ -11,13 +11,13 @@
 
 from sqlmodel import SQLModel, Field
 
-from sqlmodel import Integer, JSON, Column
+from sqlmodel import PrimaryKeyConstraint, UniqueConstraint, Column, JSON, Integer
+
+from typing import Optional, List, Any, Dict
 
 import datetime
 
 from enum import Enum
-
-from typing import Any, Dict, List, Optional
 
 
 
@@ -32,6 +32,7 @@ class ExampleType(Enum):
 
 class Example(SQLModel,table=True):
     __tablename__="users"
+    __table_args__=(UniqueConstraint("name","age","uni_name_age"),PrimaryKeyConstraint("name","index_name"))
     name: Optional[str] = Field(description="Name of the example",example="'ohn Doe",default="John Doe",alias="full_name",primary_key=True,max_length=128)
     age: Optional[int] = Field(description="Age of the example",example=30,default=30,alias="years")
     emails: Optional[List[str]] = Field(description="Emails of the example")

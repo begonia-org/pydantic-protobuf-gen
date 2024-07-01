@@ -12,7 +12,7 @@ from peewee import (
     CompositeKey, IntegerField, TextField, FloatField, DateTimeField,
     Field, Model, Metadata
 )
-from sqlmodel import Field, SQLModel,JSON,Column,Integer,Text
+from sqlmodel import Field, SQLModel,JSON,Column,Integer,Text,UniqueConstraint,PrimaryKeyConstraint
 
 
 class PydanticModel:

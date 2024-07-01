@@ -16,7 +16,7 @@ import os
 import time
 import inflection
 
-from typing import Iterator, Tuple, List
+from typing import Iterator, Set, Tuple, List
 from google.protobuf.compiler import plugin_pb2
 from google.protobuf import timestamp_pb2
 from google.protobuf import descriptor_pb2, descriptor_pool
@@ -25,6 +25,8 @@ from google.protobuf.json_format import MessageToJson
 from jinja2 import Template
 from pydantic_protobuf import options_pb2
 from pydantic_protobuf.utils import get_class_import_path
+from sqlmodel import UniqueConstraint, PrimaryKeyConstraint
+
 
 # from .template import tpl_str
 
@@ -57,7 +59,7 @@ class EnumField:
 
 
 class Message:
-    def __init__(self, name: str, fields: list, message_type="class", table_name=None):
+    def __init__(self, name: str, fields: list, message_type="class", table_name=None, table_args=None):
         self.message_name = name
         self.fields = fields
         # self.imports = imports
@@ -65,6 +67,7 @@ class Message:
 
         self.table_name = table_name or name
         self.table_name = inflection.underscore(self.table_name)
+        self.table_args: Tuple[str] = table_args
 
         def __str__(self):
             return f"Message({self.messages}, {self.fields})"
@@ -203,6 +206,34 @@ def is_JSON_field(type_str):
     return False
 
 
+def get_table_args(ext: dict, pydantic_imports: Set[str]) -> List[str]:
+    logging.info(f"message ext: {ext}")
+    compound_indexs = ext.get("compound_index")
+    args = []
+    if compound_indexs:
+        for index in compound_indexs:
+            arg = [f'"{i}"' for i in index["indexs"]]
+            name = index.get("name")
+            arg.append(f'"{name}"')
+            if index.get("index_type", "").lower() == "UNIQUE".lower():
+                # args.append((UniqueConstraint,','.join(arg)))
+                # args.append(UniqueConstraint(','.join(arg)))
+                args.append(f"UniqueConstraint({','.join(arg)})")
+                # args.append(("UniqueConstraint",','.join(arg)))
+                # args.append(f"UniqueConstraint({','.join(arg)})")
+                # args.append(UniqueConstraint(*[f"{i}" for i in index["indexs"]], name))
+                pydantic_imports.add("UniqueConstraint")
+            if index.get("index_type", "").lower() == "PRIMARY".lower():
+                args.append(f"PrimaryKeyConstraint({','.join(arg)})")
+                # args.append((PrimaryKeyConstraint,','.join(arg)))
+                # args.append(("PrimaryKeyConstraint",','.join(arg)))
+                # args.append(f"PrimaryKeyConstraint({','.join(arg)})")
+                # args.append(PrimaryKeyConstraint(*[f"{i}" for i in index["indexs"]], name))
+
+                pydantic_imports.add("PrimaryKeyConstraint")
+    return args
+
+
 def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                   response: plugin_pb2.CodeGeneratorResponse):
 
@@ -290,18 +321,26 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
 
                 fields.append(f)
             type_imports_str = ", ".join(type_imports)
+
             type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
             imports.add(type_imports_str)
-            sqlmodel_imports_str = ", ".join(sqlmodel_imports)
-            sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
-            imports.add(sqlmodel_imports_str)
+
             message_ext = message.options.Extensions[options_pb2.database]
             ext = MessageToJson(message_ext)
             if ext:
                 ext = json.loads(ext)
+            table_args = get_table_args(ext, sqlmodel_imports)
+            sqlmodel_imports_str = ", ".join(set(sqlmodel_imports))
+            sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
+            imports.add(sqlmodel_imports_str)
             if not has_pydantic:
                 continue
-            messages.append(Message(message.name, fields, table_name=ext.get("table_name")))
+            messages.append(
+                Message(
+                    message.name,
+                    fields,
+                    table_name=ext.get("table_name"),
+                    table_args=",".join(table_args)))
 
         for msg_type in ext_message.keys():
             import_from = message_types.get(msg_type)

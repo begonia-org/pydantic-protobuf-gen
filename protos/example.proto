@@ -9,7 +9,19 @@ import "google/protobuf/any.proto";
 package example;
 
 message Example {
-    option (pydantic.database) = { table_name: "users" };
+    option (pydantic.database) = { 
+        table_name: "users",
+        compound_index:{
+            indexs:["name","age"],
+            index_type:"UNIQUE",
+            name:"uni_name_age"
+        },
+        compound_index:{
+            indexs:["name"],
+            index_type:"PRIMARY",
+            name:"index_name"
+        }
+    };
 
   string name = 1[(pydantic.field) = {description: "Name of the example",example: "'ohn Doe",alias: "full_name",default: "John Doe",max_length:128,primary_key:true}];
   optional int32 age = 2 [(pydantic.field) = {description: "Age of the example",example: "30",alias: "years",default: "30"}];
