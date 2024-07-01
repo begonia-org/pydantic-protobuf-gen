@@ -21,7 +21,6 @@ from google.protobuf import descriptor_pb2, descriptor_pool
 from google.protobuf.json_format import MessageToJson
 
 from jinja2 import Template
-from distutils.log import log
 from pydantic_protobuf import options_pb2
 from pydantic_protobuf.utils import get_class_import_path
 
@@ -56,11 +55,12 @@ class EnumField:
 
 
 class Message:
-    def __init__(self, name: str, fields: list, message_type="class"):
+    def __init__(self, name: str, fields: list, message_type="class",table_name=None):
         self.message_name = name
         self.fields = fields
         # self.imports = imports
         self.type = message_type
+        self.table_name = table_name or name.lower()
 
         def __str__(self):
             return f"Message({self.messages}, {self.fields})"
@@ -225,6 +225,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             fields = []
             message_types[message.name] = filename
             for field in message.field:
+                logging.info(f"Field: {field.options.Extensions}")
                 field_extension = field.options.Extensions[options_pb2.field]
 
                 ext = MessageToJson(field_extension)
@@ -235,6 +236,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     type_imports.add("Any")
                 if ext:
                     ext = json.loads(ext)
+                    logging.info(f"Field: {ext}")
                     if "required" in ext:
                         ext["schema_extra"] = f"{{'required': {ext['required']}}}"
                         required = ext.pop("required")
@@ -257,12 +259,17 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
 
                 f = Field(field.name, type_str, is_repeated,
                           required, attr)
-
+                logging.info(f"Field: {attr}")
                 fields.append(f)
             type_imports_str = ", ".join(type_imports)
             type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
             imports.add(type_imports_str)
-            messages.append(Message(message.name, fields))
+            message_ext = message.options.Extensions[options_pb2.database]
+            ext = MessageToJson(message_ext)
+            if ext:
+                ext = json.loads(ext)
+
+            messages.append(Message(message.name, fields,table_name=ext.get("table_name")))
         for msg_type in ext_message.keys():
             import_from = message_types.get(msg_type)
             if import_from is None:

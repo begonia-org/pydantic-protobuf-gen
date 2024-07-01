@@ -25,80 +25,15 @@ message Annotation {
     double lt=16;
     double le=17;
     string foreign_key=19;
-
-
-
-
-
 }
 
-// default: Any = Undefined,
-// *,
-// default_factory: Optional[NoArgAnyCallable] = None,
-// alias: Optional[str] = None,
-// title: Optional[str] = None,
-// description: Optional[str] = None,
-// exclude: Union[
-//     AbstractSet[Union[int, str]], Mapping[Union[int, str], Any], Any
-// ] = None,
-// include: Union[
-//     AbstractSet[Union[int, str]], Mapping[Union[int, str], Any], Any
-// ] = None,
-// const: Optional[bool] = None,
-// gt: Optional[float] = None,
-// ge: Optional[float] = None,
-// lt: Optional[float] = None,
-// le: Optional[float] = None,
-// multiple_of: Optional[float] = None,
-// max_digits: Optional[int] = None,
-// decimal_places: Optional[int] = None,
-// min_items: Optional[int] = None,
-// max_items: Optional[int] = None,
-// unique_items: Optional[bool] = None,
-// min_length: Optional[int] = None,
-// max_length: Optional[int] = None,
-// allow_mutation: bool = True,
-// regex: Optional[str] = None,
-// discriminator: Optional[str] = None,
-// repr: bool = True,
-// primary_key: Union[bool, UndefinedType] = Undefined,
-// foreign_key: Any = Undefined,
-// unique: Union[bool, UndefinedType] = Undefined,
-// nullable: Union[bool, UndefinedType] = Undefined,
-// index: Union[bool, UndefinedType] = Undefined,
-// sa_type: Union[Type[Any], UndefinedType] = Undefined,
-// sa_column_args: Union[Sequence[Any], UndefinedType] = Undefined,
-// sa_column_kwargs: Union[Mapping[str, Any], UndefinedType] = Undefined,
-// schema_extra: Optional[Dict[str, Any]] = None,
-message ORMAnnotation {
-    string field_type=1[json_name="field_type"];
-    string column_name=2[json_name="column_name"];
-    string help_text=3[json_name="help_text"];
-    bool null=4[json_name="null"];
-    bool index=5[json_name="index"];
-    bool unique=6[json_name="unique"];
-    string default=7[json_name="default"];
-    bool primary_key=8[json_name="primary_key"];
-    // 字段约束，例如[Check('price > 0')]
-   repeated string constraints=9[json_name="constraints"];
-    string sequence=10[json_name="sequence"];
-    // 字段的排序规则（collation）。通常用于字符串字段，指定如何比较和排序
-    string collation=11[json_name="collation"];
-    bool unindexed=12[json_name="unindexed"];
-    string choices=13[json_name="choices"];
-    string verbose_name=14[json_name="verbose_name"];
-    string index_type=15[json_name="index_type"];
-    int32 max_length=16[json_name="max_length"];  
-    string db_table=17[json_name="db_table"];  
-    bool auto_increment=18[json_name="auto_increment"];
-}
+
 message DatabaseAnnotation {
-    string db_table=1[json_name="db_table"];
+    string table_name=1[json_name="table_name"];
 }
 
 extend google.protobuf.FieldOptions {
 	Annotation field = 50101;
-    ORMAnnotation orm = 50102;
 }
 extend google.protobuf.MessageOptions {
     DatabaseAnnotation database = 50201;
