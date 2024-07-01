@@ -216,20 +216,10 @@ def get_table_args(ext: dict, pydantic_imports: Set[str]) -> List[str]:
             name = index.get("name")
             arg.append(f'"{name}"')
             if index.get("index_type", "").lower() == "UNIQUE".lower():
-                # args.append((UniqueConstraint,','.join(arg)))
-                # args.append(UniqueConstraint(','.join(arg)))
                 args.append(f"UniqueConstraint({','.join(arg)})")
-                # args.append(("UniqueConstraint",','.join(arg)))
-                # args.append(f"UniqueConstraint({','.join(arg)})")
-                # args.append(UniqueConstraint(*[f"{i}" for i in index["indexs"]], name))
                 pydantic_imports.add("UniqueConstraint")
             if index.get("index_type", "").lower() == "PRIMARY".lower():
                 args.append(f"PrimaryKeyConstraint({','.join(arg)})")
-                # args.append((PrimaryKeyConstraint,','.join(arg)))
-                # args.append(("PrimaryKeyConstraint",','.join(arg)))
-                # args.append(f"PrimaryKeyConstraint({','.join(arg)})")
-                # args.append(PrimaryKeyConstraint(*[f"{i}" for i in index["indexs"]], name))
-
                 pydantic_imports.add("PrimaryKeyConstraint")
     return args
 
@@ -349,8 +339,8 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             if message_types.get(msg_type) != filename:
                 imports.add(
                     f"from .{message_types.get(msg_type)}_model import {msg_type}")
-        if len(messages) == 0:
-            continue
+        # if len(messages) == 0:
+        #     continue
         code = applyTemplate(filename, messages, enums, imports)
         response.file.add(name=filename.lower() + '_model.py', content=code)
 
