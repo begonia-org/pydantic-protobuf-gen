@@ -245,7 +245,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     field_type_str = ext["field_type"]
                     ext.pop("field_type")
                     ext["sa_type"] = field_type_str
-                    imports.add("from sqlmodel import Integer")
+                    imports.add(f"from sqlmodel import {field_type_str}")
                 attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
                 if type_str in ["message","List","Dict","Tuple"]:
