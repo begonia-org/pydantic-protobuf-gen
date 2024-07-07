@@ -207,7 +207,7 @@ def is_JSON_field(type_str):
 
 
 def get_table_args(ext: dict, pydantic_imports: Set[str]) -> List[str]:
-    logging.info(f"message ext: {ext}")
+    # logging.info(f"message ext: {ext}")
     compound_indexs = ext.get("compound_index")
     args = []
     if compound_indexs:
@@ -260,7 +260,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             fields = []
             message_types[message.name] = filename
             for field in message.field:
-                logging.info(f"Field: {field.options.Extensions}")
+                # logging.info(f"Field: {field.options.Extensions}")
                 field_extension = field.options.Extensions[options_pb2.field]
 
                 ext = MessageToJson(field_extension)
@@ -275,7 +275,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     if ext:
                         has_pydantic = True
 
-                    logging.info(f"Field: {ext}")
+                    # logging.info(f"Field: {ext}")
                     if "required" in ext:
                         ext["schema_extra"] = f"{{'required': {ext['required']}}}"
                         required = ext.pop("required")
@@ -286,7 +286,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     ext["sa_type"] = field_type_str
                     sqlmodel_imports.add(field_type_str)
 
-                logging.info(f"type str:{type_str}")
+                # logging.info(f"type str:{type_str}")
                 if is_JSON_field(type_str) and ext:
                     # imports.add("from sqlmodel import JSON, Column")
                     sqlmodel_imports.add("JSON")
@@ -307,7 +307,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
 
                 f = Field(field.name, type_str, is_repeated,
                           required, attr)
-                logging.info(f"Field: {attr}")
+                # logging.info(f"Field: {attr}")
 
                 fields.append(f)
             type_imports_str = ", ".join(type_imports)
