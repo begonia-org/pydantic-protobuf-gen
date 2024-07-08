@@ -214,12 +214,12 @@ def get_table_args(ext: dict, pydantic_imports: Set[str]) -> List[str]:
         for index in compound_indexs:
             arg = [f'"{i}"' for i in index["indexs"]]
             name = index.get("name")
-            arg.append(f'"{name}"')
+            # arg.append(f'"{name}"')
             if index.get("index_type", "").lower() == "UNIQUE".lower():
-                args.append(f"UniqueConstraint({','.join(arg)})")
+                args.append(f"UniqueConstraint({','.join(arg)},name='{name}')")
                 pydantic_imports.add("UniqueConstraint")
             if index.get("index_type", "").lower() == "PRIMARY".lower():
-                args.append(f"PrimaryKeyConstraint({','.join(arg)})")
+                args.append(f"PrimaryKeyConstraint({','.join(arg)},name='{name}')")
                 pydantic_imports.add("PrimaryKeyConstraint")
     return args
 

@@ -25,7 +25,7 @@ class {{ enum.message_name }}(Enum):
 {% for message in messages %}
 class {{ message.message_name }}(SQLModel,table=True):
     {% if message.table_name%}__tablename__="{{message.table_name}}"{%endif%}
-    {% if message.table_args%}__table_args__=({{message.table_args}}){%endif%}
+    {% if message.table_args%}__table_args__=({{message.table_args}},){%endif%}
     {%- for field in message.fields %}
     {{ field.name }}: {% if not field.required %}Optional[{% endif %}{% if field.repeated %}List[{% endif %}{{ field.type }}{% if field.repeated %}]{% endif %}{% if not field.required %}]{% endif %} = Field({{ field.attributes}})
     {%- endfor %}
