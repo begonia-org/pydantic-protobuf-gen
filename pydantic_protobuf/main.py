@@ -255,9 +255,10 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             for value in enum.value:
                 fields.append(EnumField(value.name, value.number))
             enums.append(Message(enum.name, fields, "enum"))
-        has_pydantic = False
         for message in proto_file.message_type:
             fields = []
+            has_pydantic = False
+
             message_types[message.name] = filename
             for field in message.field:
                 # logging.info(f"Field: {field.options.Extensions}")
