@@ -286,7 +286,10 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     ext.pop("field_type")
                     ext["sa_type"] = field_type_str
                     sqlmodel_imports.add(field_type_str)
-
+                if ext and ext.get("sa_column_type"):
+                    sqlmodel_imports.add("Column")
+                    sqlmodel_imports.add(ext["sa_column_type"])
+                    ext["sa_column"] = f"Column({ext['sa_column_type']})"
                 # logging.info(f"type str:{type_str}")
                 if is_JSON_field(type_str) and ext:
                     # imports.add("from sqlmodel import JSON, Column")

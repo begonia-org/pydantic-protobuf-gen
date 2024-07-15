@@ -11,11 +11,15 @@
 
 from sqlmodel import SQLModel, Field
 
-from sqlmodel import Column, JSON, Integer, UniqueConstraint, PrimaryKeyConstraint
 
-from typing import Any, Optional, List, Dict
+
+from sqlmodel import UniqueConstraint, Integer, Column, JSON, PrimaryKeyConstraint
+
+from typing import Optional
 
 from enum import Enum
+
+from typing import List, Dict, Optional, Any
 
 import datetime
 
@@ -30,6 +34,11 @@ class ExampleType(Enum):
 
 
 
+class Nested(SQLModel,table=True):
+    __tablename__="nested"
+    
+    name: Optional[str] = Field(description="Name of the example",example="'ohn Doe",default="John Doe",alias="full_name",primary_key=True,max_length=128)
+
 class Example(SQLModel,table=True):
     __tablename__="users"
     __table_args__=(UniqueConstraint("name","age",name='uni_name_age'),PrimaryKeyConstraint("name",name='index_name'),)
@@ -37,6 +46,7 @@ class Example(SQLModel,table=True):
     age: Optional[int] = Field(description="Age of the example",example=30,default=30,alias="years")
     emails: Optional[List[str]] = Field(description="Emails of the example")
     entry: Optional[Dict[str,Any]] = Field(description="Properties of the example",sa_column=Column(JSON))
+    nested: Optional[Nested] = Field(description="Nested message",sa_column_type=JSON,sa_column=Column(JSON))
     created_at: datetime.datetime = Field(description="Creation date of the example",default=datetime.datetime.now(),schema_extra={'required': True})
     type: Optional[ExampleType] = Field(description="Type of the example",default=ExampleType.TYPE1)
     score: Optional[float] = Field(description="Score of the example",default=0.0,le=100.0,sa_type=Integer)

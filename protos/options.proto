@@ -18,6 +18,7 @@ message Annotation {
    bool index = 10;
    bool const=18;
    string field_type=11[json_name="field_type"];
+   string sa_column_type=20[json_name="sa_column_type"];
    int32 min_length=12[json_name="min_length"];
    int32 max_length=13[json_name="max_length"];
    double gt=14;
