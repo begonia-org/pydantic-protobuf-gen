@@ -290,7 +290,11 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     sqlmodel_imports.add(field_type_str)
                 if ext and ext.get("sa_column_type"):
                     sqlmodel_imports.add("Column")
-                    sqlmodel_imports.add(ext["sa_column_type"])
+                    if "Enum" in ext["sa_column_type"]:
+                        sqlmodel_imports.add("Enum")
+                    else:
+                        sqlmodel_imports.add(ext["sa_column_type"])
+                    
                     ext["sa_column"] = f"Column({ext['sa_column_type']})"
                     ext.pop("sa_column_type")
 

@@ -13,30 +13,27 @@ from sqlmodel import SQLModel, Field
 
 
 
-from enum import Enum
+from typing import List, Optional, Dict, Any
 
-from typing import Any, Optional, Dict, List
+from .constant_model import ExampleType
 
-from typing import Optional
-
-from sqlmodel import PrimaryKeyConstraint, JSON, UniqueConstraint, Integer, Column
-
-from pydantic import BaseModel
+from sqlmodel import JSON, Integer, PrimaryKeyConstraint, Enum, Column, UniqueConstraint
 
 import datetime
 
+from enum import Enum
 
+from pydantic import BaseModel
 
-class ExampleType(Enum):
-    UNKNOWN = 0
-    TYPE1 = 1
-    TYPE2 = 2
-    TYPE3 = 3
+from typing import Optional
+
 
 
 
 
 class Nested(BaseModel):
+    
+    
     name: Optional[str] = Field(description="Name of the example",example="'ohn Doe",default="John Doe",alias="full_name",primary_key=True,max_length=128)
 
 class Example(SQLModel ,table=True):
@@ -48,6 +45,6 @@ class Example(SQLModel ,table=True):
     entry: Optional[Dict[str,Any]] = Field(description="Properties of the example",sa_column=Column(JSON))
     nested: Optional[Nested] = Field(description="Nested message",sa_column=Column(JSON))
     created_at: datetime.datetime = Field(description="Creation date of the example",default=datetime.datetime.now(),schema_extra={'required': True})
-    type: Optional[ExampleType] = Field(description="Type of the example",default=ExampleType.TYPE1)
+    type: Optional[ExampleType] = Field(description="Type of the example",default=ExampleType.TYPE1,sa_column=Column(Enum[ExampleType]))
     score: Optional[float] = Field(description="Score of the example",default=0.0,le=100.0,sa_type=Integer)
 
