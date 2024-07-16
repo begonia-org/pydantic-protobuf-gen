@@ -11,11 +11,11 @@
 
 from sqlmodel import SQLModel, Field
 
-from enum import Enum
+from enum import Enum as _Enum
 
 
 
-class ExampleType(Enum):
+class ExampleType(_Enum):
     UNKNOWN = 0
     TYPE1 = 1
     TYPE2 = 2

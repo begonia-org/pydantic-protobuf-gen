@@ -13,19 +13,17 @@ from sqlmodel import SQLModel, Field
 
 
 
-from typing import List, Optional, Dict, Any
+from sqlmodel import JSON, Column, PrimaryKeyConstraint, UniqueConstraint, Enum, Integer
 
-from .constant_model import ExampleType
+from typing import Optional
 
-from sqlmodel import JSON, Integer, PrimaryKeyConstraint, Enum, Column, UniqueConstraint
-
-import datetime
-
-from enum import Enum
+from typing import List, Dict, Any, Optional
 
 from pydantic import BaseModel
 
-from typing import Optional
+from .constant_model import ExampleType
+
+import datetime
 
 
 

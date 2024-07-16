@@ -252,7 +252,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
         for enum in proto_file.enum_type:
             message_types[enum.name] = filename
             fields = []
-            imports.add("from enum import Enum")
+            imports.add("from enum import Enum as _Enum")
 
             for value in enum.value:
                 fields.append(EnumField(value.name, value.number))
@@ -312,8 +312,8 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     type_imports.add("List")
                 if field.label == descriptor_pb2.FieldDescriptorProto.LABEL_OPTIONAL:
                     type_imports.add("Optional")
-                if field.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
-                    imports.add("from enum import Enum")
+                # if field.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
+                #     imports.add("from enum import Enum as _Enum")
                 if type_str == "datetime.datetime":
                     imports.add("import datetime")
 

@@ -15,7 +15,7 @@ from sqlmodel import SQLModel, Field
 {% endfor %}
 
 {% for enum in enums %}
-class {{ enum.message_name }}(Enum):
+class {{ enum.message_name }}(_Enum):
     {%- for value in enum.fields %}
     {{ value.name }} = {{ value.value }}
     {%- endfor %}
