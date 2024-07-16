@@ -9,21 +9,23 @@
 
 
 from sqlmodel import SQLModel, Field
-from pydantic_protobuf.ext import ProtobufMessage, model2protobuf, pool
+from pydantic_protobuf.ext import model2protobuf, pool
 from google.protobuf import message_factory
+from typing import Type
+from google.protobuf import message as _message
 
-
-from .constant_model import ExampleType
-
-from typing import Dict, Any, List, Optional
 
 from pydantic import BaseModel
 
-from typing import Optional
+from .constant_model import ExampleType
 
-from sqlmodel import JSON, Column, Enum, PrimaryKeyConstraint, Integer, UniqueConstraint
+from sqlmodel import Enum, Integer, PrimaryKeyConstraint, UniqueConstraint, JSON, Column
 
 import datetime
+
+from typing import Optional
+
+from typing import Dict, List, Any, Optional
 
 
 class Nested(BaseModel):
@@ -36,9 +38,9 @@ class Nested(BaseModel):
         primary_key=True,
         max_length=128)
 
-    def to_protobuf(self) -> ProtobufMessage:
+    def to_protobuf(self) -> _message.Message:
         _proto = pool.FindMessageTypeByName("example.Nested")
-        _cls = message_factory.GetMessageClass(_proto)
+        _cls: Type[_message.Message] = message_factory.GetMessageClass(_proto)
         return model2protobuf(self, _cls())
 
 
@@ -71,7 +73,7 @@ class Example(SQLModel, table=True):
             Enum[ExampleType]))
     score: Optional[float] = Field(description="Score of the example", default=0.0, le=100.0, sa_type=Integer)
 
-    def to_protobuf(self) -> ProtobufMessage:
+    def to_protobuf(self) -> _message.Message:
         _proto = pool.FindMessageTypeByName("example.Example")
-        _cls = message_factory.GetMessageClass(_proto)
+        _cls: Type[_message.Message] = message_factory.GetMessageClass(_proto)
         return model2protobuf(self, _cls())

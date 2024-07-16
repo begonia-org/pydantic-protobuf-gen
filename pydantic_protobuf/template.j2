@@ -10,9 +10,10 @@
 
 {# Jinja2 template for generating Pydantic models from protobuf messages #}
 from sqlmodel import SQLModel, Field
-from pydantic_protobuf.ext import ProtobufMessage,model2protobuf,pool
+from pydantic_protobuf.ext import model2protobuf,pool
 from google.protobuf import message_factory
-
+from typing import Type
+from google.protobuf import message as _message
 {% for import in imports %}
 {{ import }}
 {% endfor %}
@@ -33,9 +34,9 @@ class {{ message.message_name }}({% if message.as_table %}SQLModel ,table={{mess
     {{ field.name }}: {% if not field.required %}Optional[{% endif %}{% if field.repeated %}List[{% endif %}{{ field.type }}{% if field.repeated %}]{% endif %}{% if not field.required %}]{% endif %} = Field({{ field.attributes}})
     {%- endfor %}
 
-    def to_protobuf(self)->ProtobufMessage:
+    def to_protobuf(self)->_message.Message:
         _proto = pool.FindMessageTypeByName("{{message.proto_full_name}}")
-        _cls = message_factory.GetMessageClass(_proto)
+        _cls:Type[_message.Message] = message_factory.GetMessageClass(_proto)
         return model2protobuf(self,_cls())
 {% endfor %}
 

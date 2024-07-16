@@ -9,12 +9,11 @@
 
 from typing import TypeVar
 
-from google.protobuf import message as _message
 from datetime import datetime
 from enum import Enum
 from sqlmodel import SQLModel
 from google.protobuf.json_format import ParseDict
-from google.protobuf import message
+from google.protobuf import message as _message
 from google.protobuf.json_format import MessageToDict
 from google.protobuf import descriptor_pool, message_factory
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -22,7 +21,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 pool = descriptor_pool.Default()
 
-ProtobufMessage = TypeVar("ProtobufMessage", bound="_message")
+ProtobufMessage = TypeVar("ProtobufMessage", bound="message.Message")
 
 def scalar_map_to_dict(scalar_map):
     # Check if scalar_map is an instance of Struct
@@ -33,7 +32,7 @@ def is_map(fd):
     return fd.type == fd.TYPE_MESSAGE and fd.message_type.has_options and fd.message_type.GetOptions().map_entry
 
 
-def model2protobuf(model: SQLModel, proto: message.Message) -> message.Message:
+def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message:
     def _convert_value(fd, value):
         if fd.type == fd.TYPE_ENUM:
             if isinstance(value, str):
