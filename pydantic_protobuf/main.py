@@ -59,7 +59,7 @@ class EnumField:
 
 
 class Message:
-    def __init__(self, name: str, fields: list, message_type="class", table_name=None, table_args=None,as_table=True):
+    def __init__(self, name: str, fields: list, message_type="class", table_name=None, table_args=None,as_table=True,full_name:str=""):
         self.message_name = name
         self.fields = fields
         # self.imports = imports
@@ -68,7 +68,8 @@ class Message:
         self.table_name = table_name or name
         self.table_name = inflection.underscore(self.table_name)
         self.table_args: Tuple[str] = table_args
-        
+        self.proto_full_name = full_name
+
         self.as_table = as_table
 
         def __str__(self):
@@ -345,7 +346,10 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     fields,
                     table_name=ext.get("table_name"),
                     as_table= not ext.get("not_table", False),
-                    table_args=",".join(table_args)))
+                    table_args=",".join(table_args),
+                    full_name=f"{proto_file.package}.{message.name}"
+                    )
+                )
 
         for msg_type in ext_message.keys():
             import_from = message_types.get(msg_type)

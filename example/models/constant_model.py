@@ -10,6 +10,9 @@
 
 
 from sqlmodel import SQLModel, Field
+from pydantic_protobuf.ext import ProtobufMessage,model2protobuf,pool
+from google.protobuf import message_factory
+
 
 from enum import Enum as _Enum
 
