@@ -59,7 +59,7 @@ class EnumField:
 
 
 class Message:
-    def __init__(self, name: str, fields: list, message_type="class", table_name=None, table_args=None):
+    def __init__(self, name: str, fields: list, message_type="class", table_name=None, table_args=None,as_table=True):
         self.message_name = name
         self.fields = fields
         # self.imports = imports
@@ -68,6 +68,8 @@ class Message:
         self.table_name = table_name or name
         self.table_name = inflection.underscore(self.table_name)
         self.table_args: Tuple[str] = table_args
+        
+        self.as_table = as_table
 
         def __str__(self):
             return f"Message({self.messages}, {self.fields})"
@@ -331,11 +333,14 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             imports.add(sqlmodel_imports_str)
             if not has_pydantic:
                 continue
+            if ext.get("not_table", False):
+                imports.add("from pydantic import BaseModel")
             messages.append(
                 Message(
                     message.name,
                     fields,
                     table_name=ext.get("table_name"),
+                    as_table= not ext.get("not_table", False),
                     table_args=",".join(table_args)))
 
         for msg_type in ext_message.keys():

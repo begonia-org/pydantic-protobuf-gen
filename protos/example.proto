@@ -8,6 +8,9 @@ import "google/protobuf/any.proto";
 
 package example;
 message Nested {
+option (pydantic.database) = { 
+        not_table:true
+    };
   string name = 1[(pydantic.field) = {description: "Name of the example",example: "'ohn Doe",alias: "full_name",default: "John Doe",max_length:128,primary_key:true}];
 }
 message Example {
