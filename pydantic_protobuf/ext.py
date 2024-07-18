@@ -3,12 +3,12 @@
 '''
 @File    :   orm.py
 @Time    :   2024/06/30 13:51:33
-@Desc    :   
+@Desc    :
 '''
 
 
-from typing import TypeVar
-
+from typing import Type, TypeVar
+from pydantic import BaseModel
 from datetime import datetime
 from enum import Enum
 from sqlmodel import SQLModel
@@ -21,7 +21,9 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 pool = descriptor_pool.Default()
 
-ProtobufMessage = TypeVar("ProtobufMessage", bound="message.Message")
+ProtobufMessage = TypeVar("ProtobufMessage", bound="_message.Message")
+PydanticModel = TypeVar("PydanticModel", bound="BaseModel")
+PySQLModel = TypeVar("PySQLModel", bound="SQLModel")
 
 def scalar_map_to_dict(scalar_map):
     # Check if scalar_map is an instance of Struct
@@ -87,3 +89,45 @@ def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message
     proto = ParseDict(d, proto)
     return proto
 
+
+def protobuf2model(proto: _message.Message, model_cls: Type[SQLModel]) -> SQLModel:
+    def _convert_value(fd, value):
+        if fd.type == fd.TYPE_ENUM:
+            return value
+
+        elif fd.type == fd.TYPE_MESSAGE:
+            if fd.message_type.full_name == Timestamp.DESCRIPTOR.full_name:
+                if value:
+                    ts = Timestamp()
+                    ts.FromJsonString(value)
+                    return ts.ToDatetime()
+            elif fd.message_type.has_options and fd.message_type.GetOptions().map_entry:
+                return {k: _convert_value(fd.message_type.fields_by_name['value'], v) for k, v in value.items()}
+            else:
+                nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
+                nested_cls = message_factory.GetMessageClass(nested_proto)
+                nested_instance = nested_cls()
+                ParseDict(value, nested_instance)
+                return protobuf2model(nested_instance, model_cls)
+
+        return value
+
+    # Convert protobuf message to dictionary
+    proto_dict = MessageToDict(proto, preserving_proto_field_name=True,use_integers_for_enums=True)
+
+    # Get SQLModel fields
+    model_fields = model_cls.__annotations__
+
+    # Prepare dictionary to create SQLModel instance
+    model_data = {}
+    for fd in proto.DESCRIPTOR.fields:
+        field_name = fd.name
+        if field_name in proto_dict and field_name in model_fields:
+            value = proto_dict[field_name]
+            if fd.label == fd.LABEL_REPEATED and not is_map(fd):
+                model_data[field_name] = [_convert_value(fd, item) for item in value]
+            else:
+                model_data[field_name] = _convert_value(fd, value)
+
+    # Create and return SQLModel instance
+    return model_cls(**model_data)

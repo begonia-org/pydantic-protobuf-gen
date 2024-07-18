@@ -19,6 +19,7 @@ sqlmodel = "^0.0.19"
 inflection = "^0.5.1"
 pydantic-core = "^2.20.0"
 annotated-types = "^0.7.0"
+autopep8 = "^2.3.1"
 
 
 [[tool.poetry.source]]

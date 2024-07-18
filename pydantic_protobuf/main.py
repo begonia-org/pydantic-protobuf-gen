@@ -14,6 +14,7 @@ import sys
 import logging
 import os
 import time
+import autopep8
 import inflection
 
 from typing import Iterator, Set, Tuple, List
@@ -59,7 +60,15 @@ class EnumField:
 
 
 class Message:
-    def __init__(self, name: str, fields: list, message_type="class", table_name=None, table_args=None,as_table=False,full_name:str=""):
+    def __init__(
+            self,
+            name: str,
+            fields: list,
+            message_type="class",
+            table_name=None,
+            table_args=None,
+            as_table=False,
+            full_name: str = ""):
         self.message_name = name
         self.fields = fields
         # self.imports = imports
@@ -295,7 +304,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                         sqlmodel_imports.add("Enum")
                     else:
                         sqlmodel_imports.add(ext["sa_column_type"])
-                    
+
                     ext["sa_column"] = f"Column({ext['sa_column_type']})"
                     ext.pop("sa_column_type")
 
@@ -337,17 +346,17 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
             imports.add(sqlmodel_imports_str)
             if ext.get("as_table", False):
-                imports.add("from sqlmodel import SQLModel, Field")
+                imports.add("from sqlmodel import SQLModel, Field   ")
             messages.append(
                 Message(
                     message.name,
                     fields,
                     table_name=ext.get("table_name"),
-                    as_table= ext.get("as_table", False),
+                    as_table=ext.get("as_table", False),
                     table_args=",".join(table_args),
                     full_name=f"{proto_file.package}.{message.name}"
-                    )
                 )
+            )
 
         for msg_type in ext_message.keys():
             import_from = message_types.get(msg_type)
@@ -359,7 +368,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
         # if len(messages) == 0:
         #     continue
         code = applyTemplate(filename, messages, enums, imports)
-        response.file.add(name=filename.lower() + '_model.py', content=code)
+        response.file.add(name=filename.lower() + '_model.py', content=autopep8.fix_code(code))
 
 
 def main():
