@@ -336,8 +336,6 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             sqlmodel_imports_str = ", ".join(set(sqlmodel_imports))
             sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
             imports.add(sqlmodel_imports_str)
-            if not has_pydantic:
-                continue
             if ext.get("not_table", False):
                 imports.add("from pydantic import BaseModel")
             messages.append(
