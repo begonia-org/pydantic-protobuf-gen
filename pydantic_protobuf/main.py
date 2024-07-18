@@ -59,7 +59,7 @@ class EnumField:
 
 
 class Message:
-    def __init__(self, name: str, fields: list, message_type="class", table_name=None, table_args=None,as_table=True,full_name:str=""):
+    def __init__(self, name: str, fields: list, message_type="class", table_name=None, table_args=None,as_table=False,full_name:str=""):
         self.message_name = name
         self.fields = fields
         # self.imports = imports
@@ -336,14 +336,14 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             sqlmodel_imports_str = ", ".join(set(sqlmodel_imports))
             sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
             imports.add(sqlmodel_imports_str)
-            if ext.get("not_table", False):
-                imports.add("from pydantic import BaseModel")
+            if ext.get("as_table", False):
+                imports.add("from sqlmodel import SQLModel, Field")
             messages.append(
                 Message(
                     message.name,
                     fields,
                     table_name=ext.get("table_name"),
-                    as_table= not ext.get("not_table", False),
+                    as_table= ext.get("as_table", False),
                     table_args=",".join(table_args),
                     full_name=f"{proto_file.package}.{message.name}"
                     )

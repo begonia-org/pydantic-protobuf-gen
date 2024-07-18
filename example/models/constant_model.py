@@ -9,7 +9,7 @@
 
 
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field
 from pydantic_protobuf.ext import model2protobuf,pool
 from google.protobuf import message_factory
 from typing import Type
