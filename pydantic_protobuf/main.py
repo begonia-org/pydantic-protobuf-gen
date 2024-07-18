@@ -13,6 +13,7 @@ import re
 import sys
 import logging
 import os
+import tempfile
 import time
 import autopep8
 import inflection
@@ -259,6 +260,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
         type_imports = set()
         sqlmodel_imports = set()
         ext_message = {}
+        ext_imports = set()
         for enum in proto_file.enum_type:
             message_types[enum.name] = filename
             fields = []
@@ -332,6 +334,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 # logging.info(f"Field: {attr}")
 
                 fields.append(f)
+            type_imports.add("Type")
             type_imports_str = ", ".join(type_imports)
 
             type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
@@ -346,7 +349,16 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
             imports.add(sqlmodel_imports_str)
             if ext.get("as_table", False):
-                imports.add("from sqlmodel import SQLModel, Field   ")
+                imports.add("from sqlmodel import SQLModel, Field ")
+                ext_imports.add("PySQLModel")
+            else:
+                imports.add("from pydantic import BaseModel")
+                ext_imports.add("PydanticModel")
+            ext_imports.add("model2protobuf")
+            ext_imports.add("protobuf2model")
+            ext_imports.add("pool")
+            imports.add("from google.protobuf import message as _message")
+            imports.add("from google.protobuf import message_factory")
             messages.append(
                 Message(
                     message.name,
@@ -365,10 +377,22 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             if message_types.get(msg_type) != filename:
                 imports.add(
                     f"from .{message_types.get(msg_type)}_model import {msg_type}")
-        # if len(messages) == 0:
-        #     continue
+        imports.add(f"from pydantic_protobuf.ext import {', '.join(ext_imports)}")
+
         code = applyTemplate(filename, messages, enums, imports)
-        response.file.add(name=filename.lower() + '_model.py', content=autopep8.fix_code(code))
+
+        code = autopep8.fix_code(
+            code,
+            options={
+                "max_line_length": 120,
+                "in_place": True,
+                "aggressive": 5,
+            }
+        )
+        response.file.add(
+            name=filename.lower() +
+            '_model.py',
+            content=code)
 
 
 def main():
