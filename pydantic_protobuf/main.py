@@ -377,7 +377,8 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             if message_types.get(msg_type) != filename:
                 imports.add(
                     f"from .{message_types.get(msg_type)}_model import {msg_type}")
-        imports.add(f"from pydantic_protobuf.ext import {', '.join(ext_imports)}")
+        if len(ext_imports):
+            imports.add(f"from pydantic_protobuf.ext import {', '.join(ext_imports)}")
 
         code = applyTemplate(filename, messages, enums, imports)
 
