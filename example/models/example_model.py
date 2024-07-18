@@ -8,30 +8,32 @@
 '''
 
 
-from google.protobuf import message_factory
-
-from pydantic_protobuf.ext import PySQLModel, model2protobuf, protobuf2model, pool, PydanticModel
-
-from sqlmodel import Enum, Integer, Column, UniqueConstraint, PrimaryKeyConstraint, JSON
-
 from pydantic import BaseModel
 
-import datetime
-
-from typing import Type, Any, List, Dict, Optional
-
-from .constant_model import ExampleType
+from google.protobuf import message_factory
 
 from sqlmodel import SQLModel, Field
 
+from pydantic_protobuf.ext import pool, model2protobuf, PydanticModel, protobuf2model, PySQLModel
+
 from google.protobuf import message as _message
 
-from typing import Type, Optional
+from pydantic import Field as _Field
+
+import datetime
+
+from typing import Optional, Type
+
+from typing import List, Type, Dict, Any, Optional
+
+from sqlmodel import Enum, PrimaryKeyConstraint, Column, Integer, JSON, UniqueConstraint
+
+from .constant_model import ExampleType
 
 
 class Nested(BaseModel):
 
-    name: Optional[str] = Field(
+    name: Optional[str] = _Field(
         description="Name of the example",
         example="'ohn Doe",
         default="John Doe",

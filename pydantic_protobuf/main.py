@@ -349,10 +349,12 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
             imports.add(sqlmodel_imports_str)
             if ext.get("as_table", False):
-                imports.add("from sqlmodel import SQLModel, Field ")
+                imports.add("from sqlmodel import SQLModel, Field")
                 ext_imports.add("PySQLModel")
             else:
                 imports.add("from pydantic import BaseModel")
+                imports.add("from pydantic import Field as _Field")
+
                 ext_imports.add("PydanticModel")
             ext_imports.add("model2protobuf")
             ext_imports.add("protobuf2model")

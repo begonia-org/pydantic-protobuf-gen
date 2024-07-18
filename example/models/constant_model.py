@@ -8,8 +8,6 @@
 '''
 
 
-from pydantic_protobuf.ext import
-
 from enum import Enum as _Enum
 
 

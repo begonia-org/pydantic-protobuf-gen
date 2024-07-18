@@ -24,7 +24,7 @@ class {{ message.message_name }}({% if message.as_table %}SQLModel ,table={{mess
     {% if message.table_name and message.as_table%}__tablename__="{{message.table_name}}"{%endif%}
     {% if message.table_args and message.as_table%}__table_args__=({{message.table_args}},){%endif%}
     {%- for field in message.fields %}
-    {{ field.name }}: {% if not field.required %}Optional[{% endif %}{% if field.repeated %}List[{% endif %}{{ field.type }}{% if field.repeated %}]{% endif %}{% if not field.required %}]{% endif %} = Field({{ field.attributes}})
+    {{ field.name }}: {% if not field.required %}Optional[{% endif %}{% if field.repeated %}List[{% endif %}{{ field.type }}{% if field.repeated %}]{% endif %}{% if not field.required %}]{% endif %} = {%if message.as_table%}Field{%else%}_Field{%endif%}({{ field.attributes}})
     {%- endfor %}
 
     def to_protobuf(self)->_message.Message:
