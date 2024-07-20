@@ -204,7 +204,7 @@ def set_python_type_value(type_str: str, ext: dict):
             ext["default"] = ext["default"]
     else:
         if type_str == "str":
-            ext["default"] = ""
+            ext["default"] = '""'
         elif type_str == "int":
             ext["default"] = 0
         elif type_str == "float":
