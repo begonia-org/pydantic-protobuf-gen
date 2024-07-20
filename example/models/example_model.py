@@ -8,27 +8,27 @@
 '''
 
 
-from pydantic import BaseModel
-
-from google.protobuf import message_factory
-
-from sqlmodel import SQLModel, Field
-
-from pydantic_protobuf.ext import pool, model2protobuf, PydanticModel, protobuf2model, PySQLModel
+from typing import Type, Optional
 
 from google.protobuf import message as _message
+
+from sqlmodel import Column, JSON, UniqueConstraint, Enum, PrimaryKeyConstraint, Integer
+
+from typing import Optional, List, Type, Dict, Any
+
+from pydantic import BaseModel
 
 from pydantic import Field as _Field
 
 import datetime
 
-from typing import Optional, Type
-
-from typing import List, Type, Dict, Any, Optional
-
-from sqlmodel import Enum, PrimaryKeyConstraint, Column, Integer, JSON, UniqueConstraint
+from pydantic_protobuf.ext import PydanticModel, model2protobuf, protobuf2model, pool, PySQLModel
 
 from .constant_model import ExampleType
+
+from google.protobuf import message_factory
+
+from sqlmodel import SQLModel, Field
 
 
 class Nested(BaseModel):
@@ -65,8 +65,8 @@ class Example(SQLModel, table=True):
         primary_key=True,
         max_length=128)
     age: Optional[int] = Field(description="Age of the example", example=30, default=30, alias="years")
-    emails: Optional[List[str]] = Field(description="Emails of the example")
-    entry: Optional[Dict[str, Any]] = Field(description="Properties of the example", sa_column=Column(JSON))
+    emails: Optional[List[str]] = Field(description="Emails of the example", default=[])
+    entry: Optional[Dict[str, Any]] = Field(description="Properties of the example", default={}, sa_column=Column(JSON))
     nested: Optional[Nested] = Field(description="Nested message", sa_column=Column(JSON))
     created_at: datetime.datetime = Field(
         description="Creation date of the example",

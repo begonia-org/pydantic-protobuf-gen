@@ -22,7 +22,7 @@ from typing import Iterator, Set, Tuple, List
 from google.protobuf.compiler import plugin_pb2
 from google.protobuf import timestamp_pb2
 from google.protobuf import descriptor_pb2, descriptor_pool
-from google.protobuf.json_format import MessageToJson
+from google.protobuf.json_format import MessageToDict
 
 from jinja2 import Template
 from pydantic_protobuf import options_pb2
@@ -183,7 +183,7 @@ def is_valid_expression(s):
         ast.literal_eval(s)
         return s
     except Exception as err:
-        logging.info(f"Error: {err} in {s}")
+        # logging.info(f"Error: {err} in {s}")
         return f'"{s}"'
 
 
@@ -191,8 +191,17 @@ def set_python_type_value(type_str: str, ext: dict):
     if type_str == "str":
         if "example" in ext:
             ext["example"] = f'"{ext["example"]}"'
-        if "default" in ext:
+    if "default" in ext:
+        # logging.info(f"type str is {type_str}")
+        if type_str in ["str"]:
             ext["default"] = f'"{ext["default"]}"'
+        elif type_str.find("Dict") != -1 or type_str.startswith("List"):
+            # logging.info(f"set Dict {ext['default']}")
+            ext["default"] = json.loads(ext["default"])
+
+        else:
+            # logging.info(f"set python type:{ext['default']}")
+            ext["default"] = ext["default"]
     if "description" in ext:
         ext["description"] = f'"{ext["description"]}"'
     if "alias" in ext:
@@ -220,7 +229,7 @@ def is_JSON_field(type_str):
 
 
 def get_table_args(ext: dict, pydantic_imports: Set[str]) -> List[str]:
-    # logging.info(f"message ext: {ext}")
+    # # logging.info(f"message ext: {ext}")
     compound_indexs = ext.get("compound_index")
     args = []
     if compound_indexs:
@@ -275,26 +284,32 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
 
             message_types[message.name] = filename
             for field in message.field:
-                # logging.info(f"Field: {field.options.Extensions}")
+                # # logging.info(f"Field: {field.options.Extensions}")
                 field_extension = field.options.Extensions[options_pb2.field]
-
-                ext = MessageToJson(field_extension)
+                ext = MessageToDict(field_extension)
                 required = False
                 type_str = get_field_type(
                     field, type_imports, ext_message, filename)
+                # logging.info(f"field type is {type_str}")
                 if type_str in ["Any", "message"]:
                     type_imports.add("Any")
+                is_repeated = field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED and not check_if_map_field(
+                    field)
                 if ext:
-                    # logging.info(f"message: {message.name} field: {field.name} ext: {ext}")
-                    ext = json.loads(ext)
-                    if ext:
-                        has_pydantic = True
+                    # # logging.info(f"message: {message.name} field: {field.name} ext: {ext}")
+                    # ext = json.loads(ext)
+                    # if ext:
+                    #     has_pydantic = True
 
-                    # logging.info(f"Field: {ext}")
+                    # # logging.info(f"Field: {ext}")
                     if "required" in ext:
                         ext["schema_extra"] = f"{{'required': {ext['required']}}}"
                         required = ext.pop("required")
-                    set_python_type_value(type_str, ext)
+                    # logging.info(f"set python type value:{type_str}")
+                    _type_str = type_str
+                    if is_repeated:
+                        _type_str = "List"
+                    ext = set_python_type_value(_type_str, ext)
                 if ext.get("field_type"):
                     field_type_str = ext["field_type"]
                     ext.pop("field_type")
@@ -310,16 +325,15 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     ext["sa_column"] = f"Column({ext['sa_column_type']})"
                     ext.pop("sa_column_type")
 
-                # logging.info(f"type str:{type_str}")
+                # # logging.info(f"type str:{type_str}")
                 if is_JSON_field(type_str) and ext:
                     # imports.add("from sqlmodel import JSON, Column")
                     sqlmodel_imports.add("JSON")
                     sqlmodel_imports.add("Column")
                     ext["sa_column"] = "Column(JSON)"
+
                 attr = ",".join(f"{key}={value}" for key,
                                 value in ext.items())
-                is_repeated = field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED and not check_if_map_field(
-                    field)
                 if is_repeated:
                     type_imports.add("List")
                 if field.label == descriptor_pb2.FieldDescriptorProto.LABEL_OPTIONAL:
@@ -331,7 +345,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
 
                 f = Field(field.name, type_str, is_repeated,
                           required, attr)
-                # logging.info(f"Field: {attr}")
+                # # logging.info(f"Field: {attr}")
 
                 fields.append(f)
             type_imports.add("Type")
@@ -341,9 +355,9 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             imports.add(type_imports_str)
 
             message_ext = message.options.Extensions[options_pb2.database]
-            ext = MessageToJson(message_ext)
-            if ext:
-                ext = json.loads(ext)
+            ext = MessageToDict(message_ext)
+            # if ext:
+            #     ext = json.loads(ext)
             table_args = get_table_args(ext, sqlmodel_imports)
             sqlmodel_imports_str = ", ".join(set(sqlmodel_imports))
             sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
