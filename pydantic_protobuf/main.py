@@ -202,6 +202,13 @@ def set_python_type_value(type_str: str, ext: dict):
         else:
             # logging.info(f"set python type:{ext['default']}")
             ext["default"] = ext["default"]
+    else:
+        if type_str == "str":
+            ext["default"] = ""
+        elif type_str == "int":
+            ext["default"] = 0
+        elif type_str == "float":
+            ext["default"] = 0.0
     if "description" in ext:
         ext["description"] = f'"{ext["description"]}"'
     if "alias" in ext:
