@@ -7,7 +7,7 @@
 '''
 
 
-from typing import Type, TypeVar
+from typing import Any, Dict, Type, TypeVar
 from pydantic import BaseModel
 from datetime import datetime
 from enum import Enum
@@ -92,7 +92,7 @@ def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message
     return proto
 
 
-def protobuf2model(proto: _message.Message, model_cls: Type[SQLModel]) -> SQLModel:
+def protobuf_dump(proto: _message.Message) -> Dict[str,Any]:
     def _convert_value(fd, value):
         if value is None:
             field_extension = fd.GetOptions().Extensions[pydantic_pb2.field]
@@ -129,10 +129,10 @@ def protobuf2model(proto: _message.Message, model_cls: Type[SQLModel]) -> SQLMod
                 nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
                 nested_cls = message_factory.GetMessageClass(nested_proto)
                 nested_instance = nested_cls()
-                model = globals().get(nested_instance.DESCRIPTOR.name, None)
-                print(f"nested_instance:{nested_instance.DESCRIPTOR.name},value:{value},model:{model}")
+                # model = globals().get(nested_instance.DESCRIPTOR.name, None)
+                # print(f"nested_instance:{nested_instance.DESCRIPTOR.name},value:{value},model:{model}")
                 nested_instance = ParseDict(value, nested_instance)
-                return protobuf2model(nested_instance, model_cls)
+                return protobuf_dump(nested_instance)
 
         return value
 
@@ -154,10 +154,10 @@ def protobuf2model(proto: _message.Message, model_cls: Type[SQLModel]) -> SQLMod
 
         if fd.label == fd.LABEL_REPEATED and not is_map(fd):
             model_data[field_name] = [_convert_value(fd, item) for item in value]
-            print(f"{field_name} model data:{model_data[field_name]}")
+            # print(f"{field_name} model data:{model_data[field_name]}")
         else:
             model_data[field_name] = _convert_value(fd, value)
-            print(f"{field_name} model data:{model_data[field_name]}")
+            # print(f"{field_name} model data:{model_data[field_name]}")
 
     # Create and return SQLModel instance
     # print(f"cls model data:{model_data}")

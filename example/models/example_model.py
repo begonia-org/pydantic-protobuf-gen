@@ -8,27 +8,28 @@
 '''
 
 
-from typing import Optional, Any, Dict, List, Type
-
-from google.protobuf import message_factory
-
 from typing import Optional, Type
+
 
 import datetime
 
-from .constant_model import ExampleType
+from typing import Dict, Optional, Type, Any, List
 
-from pydantic_protobuf.ext import protobuf2model, pool, PydanticModel, PySQLModel, model2protobuf
+from google.protobuf import message as _message
+
+from google.protobuf import message_factory
 
 from sqlmodel import SQLModel, Field
 
-from sqlmodel import JSON, Integer, Column, PrimaryKeyConstraint, UniqueConstraint, Enum
-
 from pydantic import BaseModel
 
-from pydantic import Field as _Field
+from pydantic_protobuf.ext import PySQLModel, pool, model2protobuf, PydanticModel, protobuf_dump
 
-from google.protobuf import message as _message
+from .constant_model import ExampleType
+
+from sqlmodel import UniqueConstraint, PrimaryKeyConstraint, JSON, Column, Enum, Integer
+
+from pydantic import Field as _Field
 
 
 class Nested(BaseModel):
@@ -48,7 +49,7 @@ class Nested(BaseModel):
 
     @classmethod
     def from_protobuf(cls: Type[PydanticModel], src: _message.Message) -> PydanticModel:
-        return protobuf2model(src, cls)
+        return cls(**protobuf_dump(src))
 
 
 class Example(SQLModel, table=True):
@@ -87,4 +88,4 @@ class Example(SQLModel, table=True):
 
     @classmethod
     def from_protobuf(cls: Type[PySQLModel], src: _message.Message) -> PySQLModel:
-        return protobuf2model(src, cls)
+        return cls(**protobuf_dump(src))

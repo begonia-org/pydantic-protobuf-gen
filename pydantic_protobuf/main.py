@@ -378,7 +378,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
 
                 ext_imports.add("PydanticModel")
             ext_imports.add("model2protobuf")
-            ext_imports.add("protobuf2model")
+            ext_imports.add("protobuf_dump")
             ext_imports.add("pool")
             imports.add("from google.protobuf import message as _message")
             imports.add("from google.protobuf import message_factory")
