@@ -114,7 +114,7 @@ def get_field_type(field, imports: List[str], out: dict, file_name: str):
             return "datetime.datetime"
         key_type, value_type = get_map_field_types(
             field, imports, out, file_name)
-        if key_type and value_type:
+        if key_type and value_type and check_if_map_field(field):
             imports.add("Dict")
             return f"Dict[{key_type},{value_type}]"
         out[field.type_name.split(".")[-1]] = file_name
@@ -302,12 +302,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 is_repeated = field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED and not check_if_map_field(
                     field)
                 if ext:
-                    # # logging.info(f"message: {message.name} field: {field.name} ext: {ext}")
-                    # ext = json.loads(ext)
-                    # if ext:
-                    #     has_pydantic = True
-
-                    # # logging.info(f"Field: {ext}")
+      
                     if "required" in ext:
                         ext["schema_extra"] = f"{{'required': {ext['required']}}}"
                         required = ext.pop("required")

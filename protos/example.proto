@@ -5,7 +5,7 @@ import "pydantic.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
 import "constant.proto";
-
+import "example2.proto";
 package pydantic_example;
 message Nested {
 
@@ -30,6 +30,7 @@ message Example {
   string name = 1[(pydantic.field) = {description: "Name of the example",alias: "full_name",default: "John Doe",max_length:128,primary_key:true}];
   optional int32 age = 2 [(pydantic.field) = {description: "Age of the example",alias: "years",default: "30"}];
   repeated string emails = 3 [(pydantic.field) = {description: "Emails of the example",default:"[]"}];
+  repeated Example2 examples = 9 [(pydantic.field) = {description: "Nested message",sa_column_type:"JSON"}];
   map<string, google.protobuf.Any> entry = 4 [(pydantic.field) = {description: "Properties of the example",default:"{}"}];
 Nested nested=8[(pydantic.field) = {description: "Nested message",sa_column_type:"JSON"}];
   google.protobuf.Timestamp created_at = 5 [(pydantic.field) = {description: "Creation date of the example",default: "datetime.datetime.now()",required: true}];

@@ -99,7 +99,7 @@ def _get_class_from_path(module_path, class_name):
     return cls
 
 def _get_model_cls_by_field(model_cls: Type[SQLModel], field_name: str) -> Type[SQLModel]:
-    fields = model_cls.model_fields()
+    fields = model_cls.model_fields
     # if get_args(typ.annotation):
             # print(name,get_args(typ.annotation)[0].__module__)
     annot = fields.get(field_name)
@@ -109,10 +109,9 @@ def _get_model_cls_by_field(model_cls: Type[SQLModel], field_name: str) -> Type[
 
 
 def protobuf2model(model_cls: Type[SQLModel],proto: _message.Message) -> SQLModel:
-    def _convert_value(fd, value):
+    def _convert_value(fd, value,model_cls):
         if fd.type == fd.TYPE_ENUM:
             return value
-
         elif fd.type == fd.TYPE_MESSAGE:
             
             if fd.message_type.full_name == Timestamp.DESCRIPTOR.full_name:
@@ -121,14 +120,16 @@ def protobuf2model(model_cls: Type[SQLModel],proto: _message.Message) -> SQLMode
                     ts.FromJsonString(value)
                     return ts.ToDatetime()
             elif fd.message_type.has_options and fd.message_type.GetOptions().map_entry:
-                return {k: _convert_value(fd.message_type.fields_by_name['value'], v) for k, v in value.items()}
+                return {k: _convert_value(fd.message_type.fields_by_name['value'], v,model_cls) for k, v in value.items()}
             else:
                 nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
                 nested_cls = message_factory.GetMessageClass(nested_proto)
                 nested_instance = nested_cls()
                 ParseDict(value, nested_instance)
                 model_cls=_get_model_cls_by_field(model_cls, fd.name)
-                return protobuf2model(nested_instance, model_cls)
+                if fd.label == fd.LABEL_REPEATED:
+                    return [ protobuf2model(model_cls,item) for item in value]
+                return protobuf2model(model_cls,value)
 
         return value
 
@@ -136,18 +137,18 @@ def protobuf2model(model_cls: Type[SQLModel],proto: _message.Message) -> SQLMode
     proto_dict = MessageToDict(proto, preserving_proto_field_name=True, use_integers_for_enums=True)
 
     # Get SQLModel fields
-    model_fields = model_cls.__annotations__
+    # model_fields = model_cls.model_fields
 
     # Prepare dictionary to create SQLModel instance
     model_data = {}
     for fd in proto.DESCRIPTOR.fields:
         field_name = fd.name
-        if field_name in proto_dict and field_name in model_fields:
+        if field_name in proto_dict:
             value = proto_dict[field_name]
             if fd.label == fd.LABEL_REPEATED and not is_map(fd):
-                model_data[field_name] = [_convert_value(fd, item) for item in value]
+                model_data[field_name] = [_convert_value(fd, item,model_cls) for item in value]
             else:
-                model_data[field_name] = _convert_value(fd, value)
+                model_data[field_name] = _convert_value(fd, value,model_cls)
 
     # Create and return SQLModel instance
     return model_cls(**model_data)
