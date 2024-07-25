@@ -25,7 +25,7 @@ from google.protobuf import descriptor_pb2, descriptor_pool
 from google.protobuf.json_format import MessageToDict
 
 from jinja2 import Template
-from pydantic_protobuf import options_pb2
+from pydantic_protobuf import pydantic_pb2
 from pydantic_protobuf.utils import get_class_import_path
 from sqlmodel import UniqueConstraint, PrimaryKeyConstraint
 
@@ -292,7 +292,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             message_types[message.name] = filename
             for field in message.field:
                 # # logging.info(f"Field: {field.options.Extensions}")
-                field_extension = field.options.Extensions[options_pb2.field]
+                field_extension = field.options.Extensions[pydantic_pb2.field]
                 ext = MessageToDict(field_extension)
                 required = False
                 type_str = get_field_type(
@@ -361,7 +361,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
             imports.add(type_imports_str)
 
-            message_ext = message.options.Extensions[options_pb2.database]
+            message_ext = message.options.Extensions[pydantic_pb2.database]
             ext = MessageToDict(message_ext)
             # if ext:
             #     ext = json.loads(ext)

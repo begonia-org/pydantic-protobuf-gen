@@ -17,6 +17,7 @@ from google.protobuf import message as _message
 from google.protobuf.json_format import MessageToDict
 from google.protobuf import descriptor_pool, message_factory
 from google.protobuf.timestamp_pb2 import Timestamp
+from . import pydantic_pb2
 
 
 pool = descriptor_pool.Default()
@@ -24,6 +25,7 @@ pool = descriptor_pool.Default()
 ProtobufMessage = TypeVar("ProtobufMessage", bound="_message.Message")
 PydanticModel = TypeVar("PydanticModel", bound="BaseModel")
 PySQLModel = TypeVar("PySQLModel", bound="SQLModel")
+
 
 def scalar_map_to_dict(scalar_map):
     # Check if scalar_map is an instance of Struct
@@ -92,7 +94,25 @@ def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message
 
 def protobuf2model(proto: _message.Message, model_cls: Type[SQLModel]) -> SQLModel:
     def _convert_value(fd, value):
+        if value is None:
+            field_extension = fd.GetOptions().Extensions[pydantic_pb2.field]
+            ext = MessageToDict(field_extension)
+            default = None
+            if fd.type == fd.TYPE_ENUM:
+                default = 0
+            elif fd.type == fd.TYPE_STRING:
+                default = ""
+            elif fd.type == fd.TYPE_BOOL:
+                default = False
+            elif fd.type == fd.TYPE_MESSAGE:
+                default = None
+            else:
+                default = 0
+
+            value = ext.get('default', default)
         if fd.type == fd.TYPE_ENUM:
+            if value is None:
+                return 0
             return value
 
         elif fd.type == fd.TYPE_MESSAGE:
@@ -101,33 +121,45 @@ def protobuf2model(proto: _message.Message, model_cls: Type[SQLModel]) -> SQLMod
                     ts = Timestamp()
                     ts.FromJsonString(value)
                     return ts.ToDatetime()
+                if value is None:
+                    return None
             elif fd.message_type.has_options and fd.message_type.GetOptions().map_entry:
                 return {k: _convert_value(fd.message_type.fields_by_name['value'], v) for k, v in value.items()}
             else:
                 nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
                 nested_cls = message_factory.GetMessageClass(nested_proto)
                 nested_instance = nested_cls()
-                ParseDict(value, nested_instance)
+                model = globals().get(nested_instance.DESCRIPTOR.name, None)
+                print(f"nested_instance:{nested_instance.DESCRIPTOR.name},value:{value},model:{model}")
+                nested_instance = ParseDict(value, nested_instance)
                 return protobuf2model(nested_instance, model_cls)
 
         return value
 
     # Convert protobuf message to dictionary
-    proto_dict = MessageToDict(proto, preserving_proto_field_name=True,use_integers_for_enums=True)
+    proto_dict = MessageToDict(proto, preserving_proto_field_name=True, use_integers_for_enums=True)
 
     # Get SQLModel fields
-    model_fields = model_cls.__annotations__
+    # model_fields = model_cls.__annotations__
+
+    # print(model_fields)
+    # import typing
 
     # Prepare dictionary to create SQLModel instance
     model_data = {}
     for fd in proto.DESCRIPTOR.fields:
         field_name = fd.name
-        if field_name in proto_dict and field_name in model_fields:
-            value = proto_dict[field_name]
-            if fd.label == fd.LABEL_REPEATED and not is_map(fd):
-                model_data[field_name] = [_convert_value(fd, item) for item in value]
-            else:
-                model_data[field_name] = _convert_value(fd, value)
+        # if field_name in proto_dict:
+        value = proto_dict.get(field_name, None)
+
+        if fd.label == fd.LABEL_REPEATED and not is_map(fd):
+            model_data[field_name] = [_convert_value(fd, item) for item in value]
+            print(f"{field_name} model data:{model_data[field_name]}")
+        else:
+            model_data[field_name] = _convert_value(fd, value)
+            print(f"{field_name} model data:{model_data[field_name]}")
 
     # Create and return SQLModel instance
-    return model_cls(**model_data)
+    # print(f"cls model data:{model_data}")
+    # return model_cls(**model_data)
+    return model_data

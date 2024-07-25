@@ -1,11 +1,8 @@
 
 syntax = "proto3";
 
-import "google/protobuf/descriptor.proto";
-import "options.proto";
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/any.proto";
 
+package pydantic_example;
 enum ExampleType {
     UNKNOWN = 0;
     TYPE1 = 1;
