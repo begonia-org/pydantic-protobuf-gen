@@ -198,7 +198,6 @@ def set_python_type_value(type_str: str, ext: dict):
         elif type_str.find("Dict") != -1 or type_str.startswith("List"):
             # logging.info(f"set Dict {ext['default']}")
             ext["default"] = json.loads(ext["default"])
-
         else:
             # logging.info(f"set python type:{ext['default']}")
             ext["default"] = ext["default"]
@@ -378,7 +377,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
 
                 ext_imports.add("PydanticModel")
             ext_imports.add("model2protobuf")
-            ext_imports.add("protobuf_dump")
+            ext_imports.add("protobuf2model")
             ext_imports.add("pool")
             imports.add("from google.protobuf import message as _message")
             imports.add("from google.protobuf import message_factory")

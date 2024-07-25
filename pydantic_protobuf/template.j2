@@ -34,6 +34,6 @@ class {{ message.message_name }}({% if message.as_table %}SQLModel ,table={{mess
 
     @classmethod
     def from_protobuf(cls:Type[{% if message.as_table %}PySQLModel{%else%}PydanticModel{%endif%}],src:_message.Message)->{% if message.as_table %}PySQLModel{%else%}PydanticModel{%endif%}:
-        return cls(**protobuf_dump(src))
+        return cls(**protobuf2model(cls,src))
 {% endfor %}
 

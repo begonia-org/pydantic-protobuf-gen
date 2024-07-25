@@ -8,28 +8,27 @@
 '''
 
 
-from typing import Optional, Type
-
-
 import datetime
-
-from typing import Dict, Optional, Type, Any, List
-
-from google.protobuf import message as _message
-
-from google.protobuf import message_factory
-
-from sqlmodel import SQLModel, Field
-
-from pydantic import BaseModel
-
-from pydantic_protobuf.ext import PySQLModel, pool, model2protobuf, PydanticModel, protobuf_dump
 
 from .constant_model import ExampleType
 
-from sqlmodel import UniqueConstraint, PrimaryKeyConstraint, JSON, Column, Enum, Integer
+from pydantic_protobuf.ext import protobuf2model, PydanticModel, model2protobuf, pool, PySQLModel
+
+from pydantic import BaseModel
 
 from pydantic import Field as _Field
+
+from google.protobuf import message_factory
+
+from typing import Dict, Optional, List, Type, Any
+
+from typing import Type, Optional
+
+from google.protobuf import message as _message
+
+from sqlmodel import Integer, PrimaryKeyConstraint, Column, UniqueConstraint, Enum, JSON
+
+from sqlmodel import SQLModel, Field
 
 
 class Nested(BaseModel):
@@ -49,7 +48,7 @@ class Nested(BaseModel):
 
     @classmethod
     def from_protobuf(cls: Type[PydanticModel], src: _message.Message) -> PydanticModel:
-        return cls(**protobuf_dump(src))
+        return cls(**protobuf2model(cls, src))
 
 
 class Example(SQLModel, table=True):
@@ -60,12 +59,11 @@ class Example(SQLModel, table=True):
             "name", name='index_name'),)
     name: Optional[str] = Field(
         description="Name of the example",
-        example="'ohn Doe",
         default="John Doe",
         alias="full_name",
         primary_key=True,
         max_length=128)
-    age: Optional[int] = Field(description="Age of the example", example=30, default=30, alias="years")
+    age: Optional[int] = Field(description="Age of the example", default=30, alias="years")
     emails: Optional[List[str]] = Field(description="Emails of the example", default=[])
     entry: Optional[Dict[str, Any]] = Field(description="Properties of the example", default={}, sa_column=Column(JSON))
     nested: Optional[Nested] = Field(description="Nested message", sa_column=Column(JSON))
@@ -88,4 +86,4 @@ class Example(SQLModel, table=True):
 
     @classmethod
     def from_protobuf(cls: Type[PySQLModel], src: _message.Message) -> PySQLModel:
-        return cls(**protobuf_dump(src))
+        return cls(**protobuf2model(cls, src))
