@@ -6,9 +6,11 @@
 @Desc    :
 '''
 
+from ast import mod
+import inspect
 
 import importlib
-from typing import Type, TypeVar, get_args
+from typing import Type, TypeVar, get_args,List,Dict,Any,Set, get_type_hints,Optional,get_origin,Union
 from pydantic import BaseModel
 from datetime import datetime
 from enum import Enum
@@ -91,6 +93,7 @@ def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message
     proto = ParseDict(d, proto)
     return proto
 
+
 def _get_class_from_path(module_path, class_name):
     # 动态导入模块
     module = importlib.import_module(module_path)
@@ -98,57 +101,93 @@ def _get_class_from_path(module_path, class_name):
     cls = getattr(module, class_name)
     return cls
 
+def _get_detailed_type(attr_type: Type) -> Type:
+    """获取内嵌字段的实际类型或者元素类型
+
+    Args:
+        attr_type (Type): _description_
+
+    Returns:
+        Type: _description_
+    """
+    if get_origin(attr_type) is Union:
+        # 提取 Optional 中的实际类型（去掉 None 类型）
+        types = [arg for arg in get_args(attr_type) if arg is not type(None)]
+        if len(types) == 1:
+            return _get_detailed_type(types[0])
+        else:
+            return types
+    elif get_origin(attr_type) in [list, List]:
+        element_type = _get_detailed_type(get_args(attr_type)[0])
+        return element_type
+    elif get_origin(attr_type) in [dict, Dict]:
+        # key_type = _(get_args(attr_type)[0])
+        value_type = _get_detailed_type(get_args(attr_type)[1])
+        return value_type
+    else:
+        return attr_type
+# def _get_default_value(fd) -> Any:
+    
 def _get_model_cls_by_field(model_cls: Type[SQLModel], field_name: str) -> Type[SQLModel]:
-    fields = model_cls.model_fields
-    # if get_args(typ.annotation):
-            # print(name,get_args(typ.annotation)[0].__module__)
-    annot = fields.get(field_name)
-    module = get_args(annot.annotation)[0].__module__
-    cls = get_args(annot.annotation)[0].__name__
+    # 获取类属性的类型注释
+    annotations = model_cls.__annotations__
+    attr_type = annotations.get(field_name)
+    typ = _get_detailed_type(attr_type)
+    module = typ.__module__
+    cls = typ.__name__
     return _get_class_from_path(module, cls)
 
 
-def protobuf2model(model_cls: Type[SQLModel],proto: _message.Message) -> SQLModel:
-    def _convert_value(fd, value,model_cls):
+def protobuf2model(model_cls: Type[SQLModel], proto: _message.Message) -> SQLModel:
+    def _convert_value(fd, value, model_cls):
         if fd.type == fd.TYPE_ENUM:
             return value
         elif fd.type == fd.TYPE_MESSAGE:
-            
+
             if fd.message_type.full_name == Timestamp.DESCRIPTOR.full_name:
                 if value:
                     ts = Timestamp()
                     ts.FromJsonString(value)
                     return ts.ToDatetime()
             elif fd.message_type.has_options and fd.message_type.GetOptions().map_entry:
-                return {k: _convert_value(fd.message_type.fields_by_name['value'], v,model_cls) for k, v in value.items()}
+                return {
+                    k: _convert_value(
+                        fd.message_type.fields_by_name['value'],
+                        v,
+                        model_cls) for k,
+                    v in value.items()}
             else:
                 nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
                 nested_cls = message_factory.GetMessageClass(nested_proto)
                 nested_instance = nested_cls()
-                ParseDict(value, nested_instance)
-                model_cls=_get_model_cls_by_field(model_cls, fd.name)
+                model_cls = _get_model_cls_by_field(model_cls, fd.name)
                 if fd.label == fd.LABEL_REPEATED:
-                    return [ protobuf2model(model_cls,item) for item in value]
-                return protobuf2model(model_cls,value)
+                    values = []
+                    for item in value:
+                        nested_instance = nested_cls()
+                        ParseDict(item, nested_instance)
+                        values.append(protobuf2model(model_cls, nested_instance))
+                    return values
+                ParseDict(value, nested_instance)
+                return protobuf2model(model_cls, nested_instance)
 
         return value
 
     # Convert protobuf message to dictionary
-    proto_dict = MessageToDict(proto, preserving_proto_field_name=True, use_integers_for_enums=True)
+    proto_dict = MessageToDict(
+        proto,
+        preserving_proto_field_name=True,
+        use_integers_for_enums=True) if isinstance(
+        proto,
+        _message.Message)else proto
 
-    # Get SQLModel fields
-    # model_fields = model_cls.model_fields
-
-    # Prepare dictionary to create SQLModel instance
     model_data = {}
     for fd in proto.DESCRIPTOR.fields:
         field_name = fd.name
         if field_name in proto_dict:
             value = proto_dict[field_name]
-            if fd.label == fd.LABEL_REPEATED and not is_map(fd):
-                model_data[field_name] = [_convert_value(fd, item,model_cls) for item in value]
-            else:
-                model_data[field_name] = _convert_value(fd, value,model_cls)
+            model_data[field_name] = _convert_value(fd, value, model_cls)
+
 
     # Create and return SQLModel instance
     return model_cls(**model_data)

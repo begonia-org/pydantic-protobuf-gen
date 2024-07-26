@@ -187,10 +187,17 @@ def is_valid_expression(s):
         return f'"{s}"'
 
 
-def set_python_type_value(type_str: str, ext: dict):
-    if type_str == "str":
-        if "example" in ext:
-            ext["example"] = f'"{ext["example"]}"'
+def set_default(type_str: str, ext: dict, fd: descriptor_pb2.FieldDescriptorProto):
+    """根据类型设置默认值
+
+    Args:
+        type_str (str): _description_
+        ext (dict): _description_
+        fd (descriptor_pb2.FieldDescriptorProto): _description_
+
+    Returns:
+        _type_: _description_
+    """
     if "default" in ext:
         # logging.info(f"type str is {type_str}")
         if type_str in ["str"]:
@@ -208,6 +215,28 @@ def set_python_type_value(type_str: str, ext: dict):
             ext["default"] = 0
         elif type_str == "float":
             ext["default"] = 0.0
+        elif type_str == "bool":
+            ext["default"] = False
+        elif type_str == "bytes":
+            ext["default"] = b""
+        elif type_str == "datetime.datetime":
+            ext["default"] = None
+        elif fd.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
+            # logging.debug(f"fd.type_name:{fd.DESCRIPTOR.enum_types_by_name}")
+            ext["default"] = f"{fd.type_name.split('.')[-1]}(0)"
+        elif type_str == "Any":
+            ext["default"] = None
+        elif type_str == "List":
+            ext["default"] = []
+        elif type_str == "Dict":
+            ext["default"] = {}
+    return ext
+
+
+def set_python_type_value(type_str: str, ext: dict):
+    if type_str == "str":
+        if "example" in ext:
+            ext["example"] = f'"{ext["example"]}"'
     if "description" in ext:
         ext["description"] = f'"{ext["description"]}"'
     if "alias" in ext:
@@ -302,7 +331,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 is_repeated = field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED and not check_if_map_field(
                     field)
                 if ext:
-      
+
                     if "required" in ext:
                         ext["schema_extra"] = f"{{'required': {ext['required']}}}"
                         required = ext.pop("required")
@@ -310,6 +339,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     _type_str = type_str
                     if is_repeated:
                         _type_str = "List"
+                    ext = set_default(_type_str, ext, field)
                     ext = set_python_type_value(_type_str, ext)
                 if ext.get("field_type"):
                     field_type_str = ext["field_type"]
@@ -339,14 +369,12 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     type_imports.add("List")
                 if field.label == descriptor_pb2.FieldDescriptorProto.LABEL_OPTIONAL:
                     type_imports.add("Optional")
-                # if field.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
-                #     imports.add("from enum import Enum as _Enum")
+
                 if type_str == "datetime.datetime":
                     imports.add("import datetime")
 
                 f = Field(field.name, type_str, is_repeated,
                           required, attr)
-                # # logging.info(f"Field: {attr}")
 
                 fields.append(f)
             type_imports.add("Type")
@@ -357,8 +385,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
 
             message_ext = message.options.Extensions[pydantic_pb2.database]
             ext = MessageToDict(message_ext)
-            # if ext:
-            #     ext = json.loads(ext)
+
             table_args = get_table_args(ext, sqlmodel_imports)
             sqlmodel_imports_str = ", ".join(set(sqlmodel_imports))
             sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
