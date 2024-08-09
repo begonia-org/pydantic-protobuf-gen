@@ -10,7 +10,7 @@ from ast import mod
 import inspect
 
 import importlib
-from typing import Type, TypeVar, get_args,List,Dict,Any,Set, get_type_hints,Optional,get_origin,Union
+from typing import Type, TypeVar, get_args, List, Dict, Any, Set, get_type_hints, Optional, get_origin, Union
 from pydantic import BaseModel
 from datetime import datetime
 from enum import Enum
@@ -18,7 +18,7 @@ from sqlmodel import SQLModel
 from google.protobuf.json_format import ParseDict
 from google.protobuf import message as _message
 from google.protobuf.json_format import MessageToDict
-from google.protobuf import descriptor_pool, message_factory
+from google.protobuf import descriptor_pool, message_factory, descriptor_pb2
 from google.protobuf.timestamp_pb2 import Timestamp
 
 
@@ -101,6 +101,7 @@ def _get_class_from_path(module_path, class_name):
     cls = getattr(module, class_name)
     return cls
 
+
 def _get_detailed_type(attr_type: Type) -> Type:
     """获取内嵌字段的实际类型或者元素类型
 
@@ -126,8 +127,42 @@ def _get_detailed_type(attr_type: Type) -> Type:
         return value_type
     else:
         return attr_type
-# def _get_default_value(fd) -> Any:
-    
+
+
+def _get_default_value(fd: descriptor_pb2.FieldDescriptorProto) -> Any:
+    if fd.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
+        return 0
+    elif fd.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE:
+        return None
+    elif fd.type == descriptor_pb2.FieldDescriptorProto.TYPE_STRING:
+        return ""
+    elif fd.type == descriptor_pb2.FieldDescriptorProto.TYPE_BYTES:
+        return b""
+    elif fd.type == descriptor_pb2.FieldDescriptorProto.TYPE_BOOL:
+        return False
+    elif fd.type in [descriptor_pb2.FieldDescriptorProto.TYPE_DOUBLE,
+                     descriptor_pb2.FieldDescriptorProto.TYPE_FIXED32,
+                     descriptor_pb2.FieldDescriptorProto.TYPE_FIXED64,
+                     descriptor_pb2.FieldDescriptorProto.TYPE_FLOAT,
+
+                     ]:
+        return 0.00
+    elif fd.type in [descriptor_pb2.FieldDescriptorProto.TYPE_INT32,
+                     descriptor_pb2.FieldDescriptorProto.TYPE_INT64,
+                     descriptor_pb2.FieldDescriptorProto.TYPE_UINT32,
+                     descriptor_pb2.FieldDescriptorProto.TYPE_UINT64,
+                     descriptor_pb2.FieldDescriptorProto.TYPE_SINT32,
+                     descriptor_pb2.FieldDescriptorProto.TYPE_SINT64
+                     ]:
+        return 0
+    elif fd.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:
+        return []
+    elif fd.is_map():
+        return {}
+    else:
+        return None
+
+
 def _get_model_cls_by_field(model_cls: Type[SQLModel], field_name: str) -> Type[SQLModel]:
     # 获取类属性的类型注释
     annotations = model_cls.__annotations__
@@ -179,15 +214,14 @@ def protobuf2model(model_cls: Type[SQLModel], proto: _message.Message) -> SQLMod
         preserving_proto_field_name=True,
         use_integers_for_enums=True) if isinstance(
         proto,
-        _message.Message)else proto
+        _message.Message) else proto
 
     model_data = {}
     for fd in proto.DESCRIPTOR.fields:
         field_name = fd.name
-        if field_name in proto_dict:
-            value = proto_dict[field_name]
-            model_data[field_name] = _convert_value(fd, value, model_cls)
-
+        # if field_name in proto_dict:
+        value = proto_dict.get(field_name, _get_default_value(fd))
+        model_data[field_name] = _convert_value(fd, value, model_cls)
 
     # Create and return SQLModel instance
     return model_cls(**model_data)
