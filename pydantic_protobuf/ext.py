@@ -175,6 +175,8 @@ def _get_model_cls_by_field(model_cls: Type[SQLModel], field_name: str) -> Type[
 
 def protobuf2model(model_cls: Type[SQLModel], proto: _message.Message) -> SQLModel:
     def _convert_value(fd, value, model_cls):
+        if value is None:
+            return None
         if fd.type == fd.TYPE_ENUM:
             return value
         elif fd.type == fd.TYPE_MESSAGE:
