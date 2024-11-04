@@ -130,7 +130,11 @@ def _get_detailed_type(attr_type: Type) -> Type:
 
 
 def _get_default_value(fd: descriptor_pb2.FieldDescriptorProto) -> Any:
-    if fd.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
+    if fd.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:
+        return []
+    elif is_map(fd):
+        return {}
+    elif fd.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
         return 0
     elif fd.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE:
         return None
@@ -155,12 +159,10 @@ def _get_default_value(fd: descriptor_pb2.FieldDescriptorProto) -> Any:
                      descriptor_pb2.FieldDescriptorProto.TYPE_SINT64
                      ]:
         return 0
-    elif fd.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:
-        return []
-    elif fd.is_map():
-        return {}
     else:
         return None
+
+
 
 
 def _get_model_cls_by_field(model_cls: Type[SQLModel], field_name: str) -> Type[SQLModel]:
