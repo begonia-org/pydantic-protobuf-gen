@@ -40,6 +40,8 @@ def is_map(fd):
 
 def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message:
     def _convert_value(fd, value):
+        if value is None:
+            return _get_default_value(fd)
         if fd.type == fd.TYPE_ENUM:
             if isinstance(value, str):
                 return value
