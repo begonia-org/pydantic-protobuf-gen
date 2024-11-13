@@ -8,19 +8,19 @@
 '''
 
 
-from pydantic_protobuf.ext import model2protobuf, PydanticModel, protobuf2model, pool
-
-from .constant_model import ExampleType
-
-from google.protobuf import message_factory
-
 from google.protobuf import message as _message
 
 from pydantic import Field as _Field
 
 from pydantic import BaseModel
 
+from google.protobuf import message_factory
+
+from .constant_model import ExampleType
+
 from typing import Optional, Type
+
+from pydantic_protobuf.ext import model2protobuf, PydanticModel, pool, protobuf2model
 
 
 class Example2(BaseModel):
@@ -34,4 +34,4 @@ class Example2(BaseModel):
 
     @classmethod
     def from_protobuf(cls: Type[PydanticModel], src: _message.Message) -> PydanticModel:
-        return cls(**protobuf2model(cls, src))
+        return protobuf2model(cls, src)

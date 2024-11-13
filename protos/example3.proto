@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 import "example.proto";
-import "options.proto";
 package pydantic_example;
 
 message Example3{

@@ -8,27 +8,27 @@
 '''
 
 
-from .example2_model import Example2
-
-from .constant_model import ExampleType
-
-from sqlmodel import SQLModel, Field
-
-from pydantic_protobuf.ext import pool, PySQLModel, model2protobuf, PydanticModel, protobuf2model
-
-from google.protobuf import message_factory
-
-from sqlmodel import PrimaryKeyConstraint, Enum, Integer, UniqueConstraint, JSON, Column
-
 from google.protobuf import message as _message
 
 from pydantic import Field as _Field
 
+from .example2_model import Example2
+
 from pydantic import BaseModel
 
-from typing import Type, Optional, Any, List, Dict
+from google.protobuf import message_factory
+
+from typing import List, Dict, Any, Type, Optional
+
+from sqlmodel import Column, Integer, Enum, PrimaryKeyConstraint, UniqueConstraint, JSON
+
+from .constant_model import ExampleType
 
 from typing import Optional, Type
+
+from sqlmodel import SQLModel, Field
+
+from pydantic_protobuf.ext import pool, protobuf2model, PydanticModel, PySQLModel, model2protobuf
 
 import datetime
 
@@ -50,7 +50,7 @@ class Nested(BaseModel):
 
     @classmethod
     def from_protobuf(cls: Type[PydanticModel], src: _message.Message) -> PydanticModel:
-        return cls(**protobuf2model(cls, src))
+        return protobuf2model(cls, src)
 
 
 class Example(SQLModel, table=True):
@@ -67,7 +67,7 @@ class Example(SQLModel, table=True):
         max_length=128)
     age: Optional[int] = Field(description="Age of the example", default=30, alias="years")
     emails: Optional[List[str]] = Field(description="Emails of the example", default=[])
-    examples: Optional[List[Example2]] = Field(description="Nested message", sa_column=Column(JSON))
+    examples: Optional[List[Example2]] = Field(description="Nested message", default=[], sa_column=Column(JSON))
     entry: Optional[Dict[str, Any]] = Field(description="Properties of the example", default={}, sa_column=Column(JSON))
     nested: Optional[Nested] = Field(description="Nested message", sa_column=Column(JSON))
     created_at: datetime.datetime = Field(
@@ -89,4 +89,4 @@ class Example(SQLModel, table=True):
 
     @classmethod
     def from_protobuf(cls: Type[PySQLModel], src: _message.Message) -> PySQLModel:
-        return cls(**protobuf2model(cls, src))
+        return protobuf2model(cls, src)
