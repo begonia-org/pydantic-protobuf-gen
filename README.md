@@ -23,7 +23,7 @@ pip install protobuf-pydantic-gen
 ## 使用
     
 ```shell
-python3 -m grpc_tools.protoc --proto_path=./protos -I=./protos -I=./ --python_out=./pb --pyi_out=./pb --grpc_python_out=./pb --protobuf_pydantic_out=./models "./protos/example.proto"
+python3 -m grpc_tools.protoc --proto_path=./protos -I=./protos -I=./ --python_out=./pb --pyi_out=./pb --grpc_python_out=./pb --pydantic_out=./models "./protos/example.proto"
 ```
 
 

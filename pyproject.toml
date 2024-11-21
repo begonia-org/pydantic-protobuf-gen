@@ -34,4 +34,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-protoc-gen-pydantic = 'pydantic_protobuf.main:main'
+protoc-gen-pydantic = 'protobuf_pydantic_gen.main:main'
