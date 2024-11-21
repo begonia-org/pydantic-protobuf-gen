@@ -8,22 +8,23 @@
 '''
 
 
-from google.protobuf import message as _message
-
-from pydantic import Field as _Field
-
-from pydantic import BaseModel
-
-from google.protobuf import message_factory
-
 from .constant_model import ExampleType
-
-from typing import Optional, Type
 
 from protobuf_pydantic_gen.ext import model2protobuf, PydanticModel, pool, protobuf2model
 
+from pydantic import BaseModel, ConfigDict
+
+from google.protobuf import message as _message
+
+from typing import Type, Optional
+
+from google.protobuf import message_factory
+
+from pydantic import Field as _Field
+
 
 class Example2(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
 
     type: Optional[ExampleType] = _Field(description="Type of the example", default=ExampleType.TYPE1)
 

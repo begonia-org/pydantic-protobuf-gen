@@ -21,7 +21,7 @@ from google.protobuf import descriptor_pb2, descriptor_pool
 from google.protobuf.json_format import MessageToDict
 
 from jinja2 import Template
-from pydantic_protobuf_gen import pydantic_pb2
+from protobuf_pydantic_gen import pydantic_pb2
 
 
 # from .template import tpl_str
@@ -415,7 +415,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     f"from .{message_types.get(msg_type)}_model import {msg_type}")
         if len(ext_imports):
             imports.add(
-                f"from pydantic_protobuf_gen.ext import {', '.join(ext_imports)}")
+                f"from protobuf_pydantic_gen.ext import {', '.join(ext_imports)}")
 
         code = applyTemplate(filename, messages, enums, imports)
 

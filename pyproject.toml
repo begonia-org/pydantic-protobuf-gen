@@ -5,6 +5,8 @@ description = ""
 authors = ["vforfreedom96 <vforfreedom96@gmail.com>"]
 readme = "README.md"
 include = ["pydantic_protobuf_gen/*.j2"]
+packages = [{include = "protobuf_pydantic_gen"}]
+
 
 
 [tool.poetry.dependencies]
