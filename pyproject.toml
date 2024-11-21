@@ -1,13 +1,15 @@
 [tool.poetry]
 name = "protobuf-pydantic-gen"
-version = "0.1.1"
+version = "0.1.2"
 description = "A tool for converting between Pydantic models and Protobuf messages, specifically enabling the generation of Pydantic BaseModel classes from .proto files."
 authors = ["vforfreedom96 <vforfreedom96@gmail.com>"]
 readme = "README.md"
 include = ["pydantic_protobuf_gen/*.j2"]
 packages = [{include = "protobuf_pydantic_gen"}]
 
-
+[project.urls]
+Homepage = "https://github.com/begonia-org/pydantic-protobuf"
+Issues = "https://github.com/begonia-org/pydantic-protobuf/issues"
 
 [tool.poetry.dependencies]
 python = "^3.8"
