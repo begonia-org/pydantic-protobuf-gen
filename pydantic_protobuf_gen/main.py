@@ -9,25 +9,19 @@
 from contextlib import contextmanager
 import json
 import ast
-import re
 import sys
 import logging
 import os
-import tempfile
-import time
 import autopep8
 import inflection
 
 from typing import Iterator, Set, Tuple, List
 from google.protobuf.compiler import plugin_pb2
-from google.protobuf import timestamp_pb2
 from google.protobuf import descriptor_pb2, descriptor_pool
 from google.protobuf.json_format import MessageToDict
 
 from jinja2 import Template
 from pydantic_protobuf_gen import pydantic_pb2
-from pydantic_protobuf_gen.utils import get_class_import_path
-from sqlmodel import UniqueConstraint, PrimaryKeyConstraint
 
 
 # from .template import tpl_str
@@ -328,8 +322,9 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 # logging.info(f"field type is {type_str}")
                 if type_str in ["Any", "message"]:
                     type_imports.add("Any")
-                is_repeated = field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED and not check_if_map_field(
-                    field)
+                is_repeated = field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED and \
+                    not check_if_map_field(
+                        field)
                 if ext:
 
                     if "required" in ext:
