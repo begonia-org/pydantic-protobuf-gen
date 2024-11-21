@@ -28,7 +28,7 @@ from typing import Optional, Type
 
 from sqlmodel import SQLModel, Field
 
-from pydantic_protobuf.ext import pool, protobuf2model, PydanticModel, PySQLModel, model2protobuf
+from pydantic_protobuf_gen.ext import pool, protobuf2model, PydanticModel, PySQLModel, model2protobuf
 
 import datetime
 

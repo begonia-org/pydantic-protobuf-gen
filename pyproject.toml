@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "pydantic-protobuf"
+name = "protobuf-pydantic-gen"
 version = "0.1.0"
 description = ""
-authors = ["qinzhonghe <vforfreedom96@gmail.com>"]
+authors = ["vforfreedom96 <vforfreedom96@gmail.com>"]
 readme = "README.md"
-include = ["pydantic_protobuf/*.j2"]
+include = ["pydantic_protobuf_gen/*.j2"]
 
 
 [tool.poetry.dependencies]

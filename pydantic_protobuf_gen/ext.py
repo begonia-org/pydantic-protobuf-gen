@@ -72,11 +72,13 @@ def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message
                 if value_type == value_field.TYPE_STRING:
                     return scalar_map_to_dict(value)
                 else:
-                    nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
+                    nested_proto = pool.FindMessageTypeByName(
+                        fd.message_type.full_name)
                     nested_cls = message_factory.GetMessageClass(nested_proto)
                     return {k: MessageToDict(model2protobuf(v, nested_cls())) for k, v in value.items()}
             else:
-                nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
+                nested_proto = pool.FindMessageTypeByName(
+                    fd.message_type.full_name)
                 nested_cls = message_factory.GetMessageClass(nested_proto)
                 return MessageToDict(model2protobuf(value, nested_cls()))
         else:
@@ -89,7 +91,8 @@ def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message
             if fd.name in d:
                 field_value = getattr(model, fd.name)
                 if fd.label == fd.LABEL_REPEATED and not is_map(fd):
-                    d[fd.name] = [_convert_value(fd, item) for item in field_value]
+                    d[fd.name] = [_convert_value(fd, item)
+                                  for item in field_value]
                 else:
                     d[fd.name] = _convert_value(fd, field_value)
     proto = ParseDict(d, proto)
@@ -165,8 +168,6 @@ def _get_default_value(fd: descriptor_pb2.FieldDescriptorProto) -> Any:
         return None
 
 
-
-
 def _get_model_cls_by_field(model_cls: Type[SQLModel], field_name: str) -> Type[SQLModel]:
     # 获取类属性的类型注释
     annotations = model_cls.__annotations__
@@ -191,6 +192,8 @@ def protobuf2model(model_cls: Type[SQLModel], proto: _message.Message) -> SQLMod
                     ts.FromJsonString(value)
                     return ts.ToDatetime()
             elif fd.message_type.has_options and fd.message_type.GetOptions().map_entry:
+                if not value:
+                    return {}
                 return {
                     k: _convert_value(
                         fd.message_type.fields_by_name['value'],
@@ -198,7 +201,8 @@ def protobuf2model(model_cls: Type[SQLModel], proto: _message.Message) -> SQLMod
                         model_cls) for k,
                     v in value.items()}
             else:
-                nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
+                nested_proto = pool.FindMessageTypeByName(
+                    fd.message_type.full_name)
                 nested_cls = message_factory.GetMessageClass(nested_proto)
                 nested_instance = nested_cls()
                 model_cls = _get_model_cls_by_field(model_cls, fd.name)
@@ -207,7 +211,8 @@ def protobuf2model(model_cls: Type[SQLModel], proto: _message.Message) -> SQLMod
                     for item in value:
                         nested_instance = nested_cls()
                         ParseDict(item, nested_instance)
-                        values.append(protobuf2model(model_cls, nested_instance))
+                        values.append(protobuf2model(
+                            model_cls, nested_instance))
                     return values
                 ParseDict(value, nested_instance)
                 return protobuf2model(model_cls, nested_instance)

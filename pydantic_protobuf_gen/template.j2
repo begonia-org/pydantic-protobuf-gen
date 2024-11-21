@@ -21,6 +21,7 @@ class {{ enum.message_name }}(_Enum):
 
 {% for message in messages %}
 class {{ message.message_name }}({% if message.as_table %}SQLModel ,table={{message.as_table}}{% else %}BaseModel{%endif%}):
+    model_config = ConfigDict(protected_namespaces=())
     {% if message.table_name and message.as_table%}__tablename__="{{message.table_name}}"{%endif%}
     {% if message.table_args and message.as_table%}__table_args__=({{message.table_args}},){%endif%}
     {%- for field in message.fields %}

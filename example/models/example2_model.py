@@ -20,7 +20,7 @@ from .constant_model import ExampleType
 
 from typing import Optional, Type
 
-from pydantic_protobuf.ext import model2protobuf, PydanticModel, pool, protobuf2model
+from pydantic_protobuf_gen.ext import model2protobuf, PydanticModel, pool, protobuf2model
 
 
 class Example2(BaseModel):

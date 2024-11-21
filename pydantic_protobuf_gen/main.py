@@ -25,8 +25,8 @@ from google.protobuf import descriptor_pb2, descriptor_pool
 from google.protobuf.json_format import MessageToDict
 
 from jinja2 import Template
-from pydantic_protobuf import pydantic_pb2
-from pydantic_protobuf.utils import get_class_import_path
+from pydantic_protobuf_gen import pydantic_pb2
+from pydantic_protobuf_gen.utils import get_class_import_path
 from sqlmodel import UniqueConstraint, PrimaryKeyConstraint
 
 
@@ -276,7 +276,8 @@ def get_table_args(ext: dict, pydantic_imports: Set[str]) -> List[str]:
                 args.append(f"UniqueConstraint({','.join(arg)},name='{name}')")
                 pydantic_imports.add("UniqueConstraint")
             if index.get("index_type", "").lower() == "PRIMARY".lower():
-                args.append(f"PrimaryKeyConstraint({','.join(arg)},name='{name}')")
+                args.append(
+                    f"PrimaryKeyConstraint({','.join(arg)},name='{name}')")
                 pydantic_imports.add("PrimaryKeyConstraint")
     return args
 
@@ -315,7 +316,6 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             enums.append(Message(enum.name, fields, "enum"))
         for message in proto_file.message_type:
             fields = []
-            has_pydantic = False
 
             message_types[message.name] = filename
             for field in message.field:
@@ -356,9 +356,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     ext["sa_column"] = f"Column({ext['sa_column_type']})"
                     ext.pop("sa_column_type")
 
-                # # logging.info(f"type str:{type_str}")
                 if is_JSON_field(type_str) and ext:
-                    # imports.add("from sqlmodel import JSON, Column")
                     sqlmodel_imports.add("JSON")
                     sqlmodel_imports.add("Column")
                     ext["sa_column"] = "Column(JSON)"
@@ -378,10 +376,6 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
 
                 fields.append(f)
             type_imports.add("Type")
-            type_imports_str = ", ".join(type_imports)
-
-            type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
-            imports.add(type_imports_str)
 
             message_ext = message.options.Extensions[pydantic_pb2.database]
             ext = MessageToDict(message_ext)
@@ -394,7 +388,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 imports.add("from sqlmodel import SQLModel, Field")
                 ext_imports.add("PySQLModel")
             else:
-                imports.add("from pydantic import BaseModel")
+                imports.add("from pydantic import BaseModel, ConfigDict")
                 imports.add("from pydantic import Field as _Field")
 
                 ext_imports.add("PydanticModel")
@@ -413,7 +407,10 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     full_name=f"{proto_file.package}.{message.name}"
                 )
             )
+        type_imports_str = ", ".join(type_imports)
 
+        type_imports_str = f"from typing import {type_imports_str}" if type_imports_str else ""
+        imports.add(type_imports_str)
         for msg_type in ext_message.keys():
             import_from = message_types.get(msg_type)
             if import_from is None:
@@ -422,7 +419,8 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 imports.add(
                     f"from .{message_types.get(msg_type)}_model import {msg_type}")
         if len(ext_imports):
-            imports.add(f"from pydantic_protobuf.ext import {', '.join(ext_imports)}")
+            imports.add(
+                f"from pydantic_protobuf_gen.ext import {', '.join(ext_imports)}")
 
         code = applyTemplate(filename, messages, enums, imports)
 
