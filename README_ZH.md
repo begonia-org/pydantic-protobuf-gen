@@ -1,23 +1,25 @@
-[English](README.md)|[简体中文](README_ZH.md)  
-
 # protobuf-pydantic-gen
 
-A tool for converting between Pydantic models and Protobuf messages, enabling the generation of Pydantic `BaseModel` classes from `.proto` files.
+pydantic model 和 protobuf message 互相转换工具，实现`.proto`文件生成pydantic `BaseModel`类。
 
-## Features
+## 特性
 
-- Supports conversion of Protobuf basic types to Python basic types.
-- Converts Protobuf definition language to Pydantic `BaseModel` classes.
-- Converts Protobuf definition language to `sqlmodel` ORM models.
-- Implements `to_protobuf` and `from_protobuf` methods for `BaseModel` classes, facilitating bidirectional conversion between Pydantic models and Protobuf messages.
-- Allows specifying `Pydantic BaseModel Field` parameters in Protobuf descriptor files.
+- 支持protobuf基本类型转换为python基本类型
 
-## Installation
+- 支持protobuf描述语言转换为pydantic `BaseModel`类
+
+- 支持protobuf描述语言转换为`sqlmodel` ORM模型
+
+- 为`BaseModel`类实现`to_protobuf` 和 `from_protobuf`方法，实现pydantic model 和 protobuf message 互相转换
+
+- 为protobuf 描述文件提供`pydantic BaseModel Field` 字段的参数选项
+
+## 安装
 
 ```shell
 pip install protobuf-pydantic-gen
 ```
-## Example
+## 示例
 ```protobuf
 syntax = "proto3";
 
@@ -59,12 +61,12 @@ Nested nested=8[(pydantic.field) = {description: "Nested message",sa_column_type
   float score = 7 [(pydantic.field) = {description: "Score of the example",default: "0.0",gt: 0.0,le: 100.0,field_type: "Integer"}];
 }
 
-```
-## Usage
 
+```
+## 使用
+    
 ```shell
-python3 -m grpc_tools.protoc --proto_path=./protos -I=./protos -I=./ \
---python_out=./pb --pyi_out=./pb --grpc_python_out=./pb --pydantic_out=./models \
-"./protos/example.proto"
-
+python3 -m grpc_tools.protoc --proto_path=./protos -I=./protos -I=./ --python_out=./pb --pyi_out=./pb --grpc_python_out=./pb --pydantic_out=./models "./protos/example.proto"
 ```
+
+
