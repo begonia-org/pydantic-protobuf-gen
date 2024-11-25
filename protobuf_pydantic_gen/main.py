@@ -336,12 +336,12 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                         _type_str = "List"
                     ext = set_default(_type_str, ext, field)
                     ext = set_python_type_value(_type_str, ext)
-                if ext.get("field_type"):
+                if ext.get("field_type") and ext.get("as_table", False):
                     field_type_str = ext["field_type"]
                     ext.pop("field_type")
                     ext["sa_type"] = field_type_str
                     sqlmodel_imports.add(field_type_str)
-                if ext and ext.get("sa_column_type"):
+                if ext and ext.get("sa_column_type") and ext.get("as_table", False):
                     sqlmodel_imports.add("Column")
                     if "Enum" in ext["sa_column_type"]:
                         sqlmodel_imports.add("Enum")
@@ -351,7 +351,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     ext["sa_column"] = f"Column({ext['sa_column_type']})"
                     ext.pop("sa_column_type")
 
-                if is_JSON_field(type_str) and ext:
+                if is_JSON_field(type_str) and ext and ext.get("as_table", False):
                     sqlmodel_imports.add("JSON")
                     sqlmodel_imports.add("Column")
                     ext["sa_column"] = "Column(JSON)"
