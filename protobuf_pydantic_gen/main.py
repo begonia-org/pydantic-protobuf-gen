@@ -312,6 +312,9 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             fields = []
 
             message_types[message.name] = filename
+            message_ext = message.options.Extensions[pydantic_pb2.database]
+            msg_ext = MessageToDict(message_ext)
+
             for field in message.field:
                 # # logging.info(f"Field: {field.options.Extensions}")
                 field_extension = field.options.Extensions[pydantic_pb2.field]
@@ -336,12 +339,14 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                         _type_str = "List"
                     ext = set_default(_type_str, ext, field)
                     ext = set_python_type_value(_type_str, ext)
-                if ext.get("field_type") and ext.get("as_table", False):
+                # logging.info(f"field name is {field.name}, type is {type_str}, ext is {ext}")
+
+                if ext.get("field_type") and msg_ext.get("as_table", False):
                     field_type_str = ext["field_type"]
                     ext.pop("field_type")
                     ext["sa_type"] = field_type_str
                     sqlmodel_imports.add(field_type_str)
-                if ext and ext.get("sa_column_type") and ext.get("as_table", False):
+                if ext and ext.get("sa_column_type") and msg_ext.get("as_table", False):
                     sqlmodel_imports.add("Column")
                     if "Enum" in ext["sa_column_type"]:
                         sqlmodel_imports.add("Enum")
@@ -351,7 +356,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     ext["sa_column"] = f"Column({ext['sa_column_type']})"
                     ext.pop("sa_column_type")
 
-                if is_JSON_field(type_str) and ext and ext.get("as_table", False):
+                if is_JSON_field(type_str) and ext and msg_ext.get("as_table", False):
                     sqlmodel_imports.add("JSON")
                     sqlmodel_imports.add("Column")
                     ext["sa_column"] = "Column(JSON)"
@@ -373,13 +378,13 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             type_imports.add("Type")
 
             message_ext = message.options.Extensions[pydantic_pb2.database]
-            ext = MessageToDict(message_ext)
+            # ext = MessageToDict(message_ext)
 
             table_args = get_table_args(ext, sqlmodel_imports)
             sqlmodel_imports_str = ", ".join(set(sqlmodel_imports))
             sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
             imports.add(sqlmodel_imports_str)
-            if ext.get("as_table", False):
+            if msg_ext.get("as_table", False):
                 imports.add("from sqlmodel import SQLModel, Field")
                 ext_imports.add("PySQLModel")
             else:
@@ -396,8 +401,8 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 Message(
                     message.name,
                     fields,
-                    table_name=ext.get("table_name"),
-                    as_table=ext.get("as_table", False),
+                    table_name=msg_ext.get("table_name"),
+                    as_table=msg_ext.get("as_table", False),
                     table_args=",".join(table_args),
                     full_name=f"{proto_file.package}.{message.name}"
                 )
