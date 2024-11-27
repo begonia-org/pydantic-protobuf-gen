@@ -426,7 +426,8 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             message_ext = message.options.Extensions[pydantic_pb2.database]
             # ext = MessageToDict(message_ext)
 
-            table_args = get_table_args(ext, sqlmodel_imports)
+            table_args = get_table_args(msg_ext, sqlmodel_imports)
+            # logging.info(f"table args is {table_args}")
             sqlmodel_imports_str = ", ".join(set(sqlmodel_imports))
             sqlmodel_imports_str = f"from sqlmodel import {sqlmodel_imports_str}" if sqlmodel_imports_str else ""
             imports.add(sqlmodel_imports_str)

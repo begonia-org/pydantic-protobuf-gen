@@ -20,7 +20,7 @@ from protobuf_pydantic_gen.ext import PySQLModel, PydanticModel, model2protobuf,
 
 from pydantic import BaseModel, ConfigDict, Field as _Field
 
-from sqlmodel import Column, Enum, Field, Integer, JSON, SQLModel
+from sqlmodel import Column, Enum, Field, Integer, JSON, PrimaryKeyConstraint, SQLModel, UniqueConstraint
 
 from typing import Any, Dict, List, Optional, Type
 
@@ -49,7 +49,10 @@ class Nested(BaseModel):
 class Example(SQLModel, table=True):
     model_config = ConfigDict(protected_namespaces=())
     __tablename__ = "users"
-
+    __table_args__ = (
+        UniqueConstraint(
+            "name", "age", name='uni_name_age'), PrimaryKeyConstraint(
+            "name", name='index_name'),)
     name: Optional[str] = Field(
         description="Name of the example",
         default="John Doe",
