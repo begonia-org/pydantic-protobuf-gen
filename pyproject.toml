@@ -1,15 +1,18 @@
 [tool.poetry]
 name = "protobuf-pydantic-gen"
-version = "0.1.3"
+version = "0.1.4"
 description = "A tool for converting between Pydantic models and Protobuf messages, specifically enabling the generation of Pydantic BaseModel classes from .proto files."
 authors = ["vforfreedom96 <vforfreedom96@gmail.com>"]
 readme = "README.md"
 include = ["pydantic_protobuf_gen/*.j2"]
 packages = [{include = "protobuf_pydantic_gen"}]
-
-[project.urls]
-Homepage = "https://github.com/begonia-org/pydantic-protobuf"
-Issues = "https://github.com/begonia-org/pydantic-protobuf/issues"
+homepage = "https://github.com/begonia-org/pydantic-protobuf-gen"
+repository = "https://github.com/begonia-org/pydantic-protobuf-gen.git"
+documentation = "https://github.com/begonia-org/pydantic-protobuf-gen"
+keywords = ["pydantic", "sqlmodel", "protobuf", "gRPC", "ORM"]
+license = "Apache-2.0"
+[tool.poetry.group.dev.dependencies]
+twine = "^5.1.1"
 
 [tool.poetry.dependencies]
 python = "^3.8"

@@ -6,6 +6,7 @@
 @Desc    :   Code generation for pydantic models from protobuf definitions
 '''
 
+from collections import defaultdict
 from contextlib import contextmanager
 import json
 import ast
@@ -176,7 +177,7 @@ def is_valid_expression(s):
     try:
         ast.literal_eval(s)
         return s
-    except Exception as err:
+    except Exception:
         # logging.info(f"Error: {err} in {s}")
         return f'"{s}"'
 
@@ -274,6 +275,50 @@ def get_table_args(ext: dict, pydantic_imports: Set[str]) -> List[str]:
                     f"PrimaryKeyConstraint({','.join(arg)},name='{name}')")
                 pydantic_imports.add("PrimaryKeyConstraint")
     return args
+
+
+def merge_imports(import_lines):
+    """
+    合并 Python import 语句，包括 `from ... import ...` 和 `import ...` 的情况，避免重复，
+    并确保每个独立的 `import` 占一行。
+
+    Args:
+        import_lines (List[str]): 原始的 `from ... import ...` 或 `import ...` 语句列表。
+
+    Returns:
+        List[str]: 合并后的 import 语句。
+    """
+    # 存储 `from` 和对应的 `import` 条目
+    from_imports = defaultdict(set)
+    direct_imports = set()
+
+    # 解析每一行
+    for line in import_lines:
+        line = line.strip()
+        if line.startswith("from ") and " import " in line:
+            # 处理 `from ... import ...`
+            parts = line.split(" import ")
+            from_part = parts[0][5:].strip()  # 去掉 `from ` 前缀
+            imports_list = [item.strip() for item in parts[1].split(",")]
+            from_imports[from_part].update(imports_list)
+        elif line.startswith("import "):
+            # 处理 `import ...`
+            imports_list = [item.strip() for item in line[7:].split(",")]
+            direct_imports.update(imports_list)
+
+    # 合并结果并排序
+    merged_imports = []
+
+    # 处理 `import ...`，每个独立占一行
+    for module in sorted(direct_imports):
+        merged_imports.append(f"import {module}")
+
+    # 处理 `from ... import ...`
+    for from_part, import_set in sorted(from_imports.items()):
+        import_items = ", ".join(sorted(import_set))
+        merged_imports.append(f"from {from_part} import {import_items}")
+
+    return merged_imports
 
 
 def generate_code(request: plugin_pb2.CodeGeneratorRequest,
@@ -421,7 +466,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
         if len(ext_imports):
             imports.add(
                 f"from protobuf_pydantic_gen.ext import {', '.join(ext_imports)}")
-
+        imports = merge_imports(imports)
         code = applyTemplate(filename, messages, enums, imports)
 
         code = autopep8.fix_code(

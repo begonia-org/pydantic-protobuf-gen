@@ -1,5 +1,5 @@
 
-#!/usr/bin/env python
+# !/usr/bin/env python
 # -*- encoding: utf-8 -*-
 '''
 @File    :   example.py
@@ -8,27 +8,21 @@
 '''
 
 
-from typing import Optional, List, Any, Type, Dict
-
-from protobuf_pydantic_gen.ext import model2protobuf, PydanticModel, pool, protobuf2model, PySQLModel
-
-from sqlmodel import Enum, Integer, UniqueConstraint, JSON, Column, PrimaryKeyConstraint
+import datetime
 
 from .constant_model import ExampleType
 
-from pydantic import BaseModel, ConfigDict
-
-from google.protobuf import message as _message
-
-from sqlmodel import SQLModel, Field
-
 from .example2_model import Example2
 
-import datetime
+from google.protobuf import message as _message, message_factory
 
-from google.protobuf import message_factory
+from protobuf_pydantic_gen.ext import PySQLModel, PydanticModel, model2protobuf, pool, protobuf2model
 
-from pydantic import Field as _Field
+from pydantic import BaseModel, ConfigDict, Field as _Field
+
+from sqlmodel import Column, Enum, Field, Integer, JSON, SQLModel
+
+from typing import Any, Dict, List, Optional, Type
 
 
 class Nested(BaseModel):
@@ -55,10 +49,7 @@ class Nested(BaseModel):
 class Example(SQLModel, table=True):
     model_config = ConfigDict(protected_namespaces=())
     __tablename__ = "users"
-    __table_args__ = (
-        UniqueConstraint(
-            "name", "age", name='uni_name_age'), PrimaryKeyConstraint(
-            "name", name='index_name'),)
+
     name: Optional[str] = Field(
         description="Name of the example",
         default="John Doe",

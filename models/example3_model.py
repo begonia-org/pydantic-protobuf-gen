@@ -2,13 +2,11 @@
 # !/usr/bin/env python
 # -*- encoding: utf-8 -*-
 '''
-@File    :   example2.py
+@File    :   example3.py
 @Time    :
 @Desc    :
 '''
 
-
-from .constant_model import ExampleType
 
 from google.protobuf import message as _message, message_factory
 
@@ -19,13 +17,13 @@ from pydantic import BaseModel, ConfigDict, Field as _Field
 from typing import Optional, Type
 
 
-class Example2(BaseModel):
+class Example3(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
-    type: Optional[ExampleType] = _Field(description="Type of the example", default=ExampleType.TYPE1)
+    name: Optional[str] = _Field()
 
     def to_protobuf(self) -> _message.Message:
-        _proto = pool.FindMessageTypeByName("pydantic_example.Example2")
+        _proto = pool.FindMessageTypeByName("pydantic_example.Example3")
         _cls: Type[_message.Message] = message_factory.GetMessageClass(_proto)
         return model2protobuf(self, _cls())
 
