@@ -382,7 +382,8 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     _type_str = type_str
                     if is_repeated:
                         _type_str = "List"
-                    ext = set_default(_type_str, ext, field)
+                    if not required:
+                        ext = set_default(_type_str, ext, field)
                     ext = set_python_type_value(_type_str, ext)
                 # logging.info(f"field name is {field.name}, type is {type_str}, ext is {ext}")
 
