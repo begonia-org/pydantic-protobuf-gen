@@ -399,14 +399,14 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     else:
                         sqlmodel_imports.add(ext["sa_column_type"])
 
-                    ext["sa_column"] = f"Column({ext['sa_column_type']})"
+                    ext["sa_column"] = f"Column({ext['sa_column_type']}, doc={ext.get('description', '')})"
                     ext.pop("sa_column_type")
 
                 if is_JSON_field(type_str) and ext and msg_ext.get("as_table", False):
                     sqlmodel_imports.add("JSON")
                     sqlmodel_imports.add("Column")
-                    ext["sa_column"] = "Column(JSON)"
-                if ext and ext.get("description") and msg_ext.get("as_table", False):
+                    ext["sa_column"] = f"Column(JSON, doc={ext.get('description', '')})"
+                if ext and ext.get("description") and not ext.get("sa_column") and msg_ext.get("as_table", False):
                     ext["sa_column_kwargs"] = {"comment": ext["description"].replace('"', "")}
                     # logging.info(f"sa_column_kwargs is {ext['sa_column_kwargs']}")
 

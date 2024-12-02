@@ -69,15 +69,11 @@ class Example(SQLModel, table=True):
             'comment': 'Age of the example'})
     emails: Optional[List[str]] = Field(description="Emails of the example", default=[],
                                         sa_column_kwargs={'comment': 'Emails of the example'})
-    examples: Optional[List[Example2]] = Field(description="Nested message", default=[], sa_column=Column(
-        JSON), sa_column_kwargs={'comment': 'Nested message'})
-    entry: Optional[Dict[str, Any]] = Field(description="Properties of the example", default={}, sa_column=Column(
-        JSON), sa_column_kwargs={'comment': 'Properties of the example'})
-    nested: Optional[Nested] = Field(
-        description="Nested message",
-        sa_column=Column(JSON),
-        sa_column_kwargs={
-            'comment': 'Nested message'})
+    examples: Optional[List[Example2]] = Field(
+        description="Nested message", default=[], sa_column=Column(JSON, doc="Nested message"))
+    entry: Optional[Dict[str, Any]] = Field(description="Properties of the example", default={
+    }, sa_column=Column(JSON, doc="Properties of the example"))
+    nested: Optional[Nested] = Field(description="Nested message", sa_column=Column(JSON, doc="Nested message"))
     created_at: datetime.datetime = Field(
         description="Creation date of the example", default=datetime.datetime.now(), schema_extra={
             'required': True}, sa_column_kwargs={
@@ -86,9 +82,8 @@ class Example(SQLModel, table=True):
         description="Type of the example",
         default=ExampleType.TYPE1,
         sa_column=Column(
-            Enum[ExampleType]),
-        sa_column_kwargs={
-            'comment': 'Type of the example'})
+            Enum[ExampleType],
+            doc="Type of the example"))
     score: Optional[float] = Field(
         description="Score of the example",
         default=0.0,
