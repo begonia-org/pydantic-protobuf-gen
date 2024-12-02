@@ -407,9 +407,10 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     sqlmodel_imports.add("Column")
                     ext["sa_column"] = "Column(JSON)"
                 if ext and ext.get("description") and msg_ext.get("as_table", False):
-                    ext["sa_column_kwargs"] = {"comment": ext["description"]}
+                    ext["sa_column_kwargs"] = {"comment": ext["description"].replace('"', "")}
+                    # logging.info(f"sa_column_kwargs is {ext['sa_column_kwargs']}")
 
-                attr = ",".join(f"{key}={value}" for key,
+                attr = ",".join(f'{key}={value}' for key,
                                 value in ext.items())
                 if is_repeated:
                     type_imports.add("List")
