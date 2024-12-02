@@ -58,23 +58,44 @@ class Example(SQLModel, table=True):
         default="John Doe",
         alias="full_name",
         primary_key=True,
-        max_length=128)
-    age: Optional[int] = Field(description="Age of the example", default=30, alias="years")
-    emails: Optional[List[str]] = Field(description="Emails of the example", default=[])
-    examples: Optional[List[Example2]] = Field(description="Nested message", default=[], sa_column=Column(JSON))
-    entry: Optional[Dict[str, Any]] = Field(description="Properties of the example", default={}, sa_column=Column(JSON))
-    nested: Optional[Nested] = Field(description="Nested message", sa_column=Column(JSON))
+        max_length=128,
+        sa_column_kwargs={
+            'comment': '"Name of the example"'})
+    age: Optional[int] = Field(
+        description="Age of the example",
+        default=30,
+        alias="years",
+        sa_column_kwargs={
+            'comment': '"Age of the example"'})
+    emails: Optional[List[str]] = Field(description="Emails of the example", default=[],
+                                        sa_column_kwargs={'comment': '"Emails of the example"'})
+    examples: Optional[List[Example2]] = Field(description="Nested message", default=[], sa_column=Column(
+        JSON), sa_column_kwargs={'comment': '"Nested message"'})
+    entry: Optional[Dict[str, Any]] = Field(description="Properties of the example", default={}, sa_column=Column(
+        JSON), sa_column_kwargs={'comment': '"Properties of the example"'})
+    nested: Optional[Nested] = Field(
+        description="Nested message",
+        sa_column=Column(JSON),
+        sa_column_kwargs={
+            'comment': '"Nested message"'})
     created_at: datetime.datetime = Field(
-        description="Creation date of the example",
-        default=datetime.datetime.now(),
-        schema_extra={
-            'required': True})
+        description="Creation date of the example", default=datetime.datetime.now(), schema_extra={
+            'required': True}, sa_column_kwargs={
+            'comment': '"Creation date of the example"'})
     type: Optional[ExampleType] = Field(
         description="Type of the example",
         default=ExampleType.TYPE1,
         sa_column=Column(
-            Enum[ExampleType]))
-    score: Optional[float] = Field(description="Score of the example", default=0.0, le=100.0, sa_type=Integer)
+            Enum[ExampleType]),
+        sa_column_kwargs={
+            'comment': '"Type of the example"'})
+    score: Optional[float] = Field(
+        description="Score of the example",
+        default=0.0,
+        le=100.0,
+        sa_type=Integer,
+        sa_column_kwargs={
+            'comment': '"Score of the example"'})
 
     def to_protobuf(self) -> _message.Message:
         _proto = pool.FindMessageTypeByName("pydantic_example.Example")
