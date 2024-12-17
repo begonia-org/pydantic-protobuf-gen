@@ -207,11 +207,11 @@ def set_default(type_str: str, ext: dict, fd: descriptor_pb2.FieldDescriptorProt
         if type_str == "str":
             ext["default"] = '""'
         elif type_str == "int":
-            ext["default"] = 0
+            ext["default"] = "0"
         elif type_str == "float":
-            ext["default"] = 0.0
+            ext["default"] = "0.0"
         elif type_str == "bool":
-            ext["default"] = False
+            ext["default"] = "False"
         elif type_str == "bytes":
             ext["default"] = b""
         elif type_str == "datetime.datetime":
@@ -222,9 +222,9 @@ def set_default(type_str: str, ext: dict, fd: descriptor_pb2.FieldDescriptorProt
         elif type_str == "Any":
             ext["default"] = None
         elif type_str == "List":
-            ext["default"] = []
+            ext["default"] = None
         elif type_str == "Dict":
-            ext["default"] = {}
+            ext["default"] = None
     return ext
 
 
