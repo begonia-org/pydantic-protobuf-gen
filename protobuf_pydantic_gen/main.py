@@ -376,7 +376,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                 if ext:
 
                     if "required" in ext:
-                        ext["schema_extra"] = f"{{'required': {ext['required']}}}"
+                        # ext["schema_extra"] = f"{{'required': {ext['required']}}}"
                         required = ext.pop("required")
                     # logging.info(f"set python type value:{type_str}")
                     _type_str = type_str
