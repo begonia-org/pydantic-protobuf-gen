@@ -10,6 +10,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 import json
 import ast
+from math import log
 import sys
 import logging
 import os
@@ -35,12 +36,13 @@ pool = descriptor_pool.DescriptorPool()
 
 
 class Field:
-    def __init__(self, name: str, type: str, repeated: bool, required: bool, attributes: dict):
+    def __init__(self, name: str, type: str, repeated: bool, required: bool, attributes: dict,ext:dict):
         self.name = name
         self.type = type
         self.repeated = repeated
         self.required = required
         self.attributes = attributes
+        self.ext = ext
 
         def __str__(self):
             return f"FieldItem({self.name}, {self.type}, {self.repeated}, {self.optional})"
@@ -319,12 +321,45 @@ def merge_imports(import_lines):
         merged_imports.append(f"from {from_part} import {import_items}")
 
     return merged_imports
-
+def remove_escape_chars(obj):
+    """递归移除字典中字段值的多余转义字符"""
+    if isinstance(obj, dict):
+        return {key: remove_escape_chars(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [remove_escape_chars(item) for item in obj]
+    elif isinstance(obj, str):
+        # 移除多余的转义字符
+        return obj.replace('\"', '').replace("\'", "")
+    else:
+        return obj
+def dump_messages(messages:List[Message])->str:
+    messages_metadata={}
+    all_fields_description={}
+    for message in messages:
+        fields = {}
+        fields_desc ={}
+        for field in message.fields:
+            # attributes is description="Type of the example",default=ExampleType.TYPE1
+            ext = remove_escape_chars(field.ext)
+            fields_desc[field.name] = ext.get("description", "")
+            fields[field.name] = {
+                "type": field.type,
+                "repeated": field.repeated,
+                "required": field.required,
+                "ext": ext,
+                "description": ext.get("description", ""),
+            }
+        all_fields_description[message.message_name] = fields_desc
+        messages_metadata[message.message_name] =  fields
+    return json.dumps(messages_metadata, indent=4, ensure_ascii=False),json.dumps(all_fields_description, indent=4, ensure_ascii=False)
+    # with open("messages.json", "w") as f:
+    #     f.write(json.dumps(messages_metadata, indent=4, ensure_ascii=False))
 
 def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                   response: plugin_pb2.CodeGeneratorResponse):
 
     message_types = {}
+    all_messages=[]
     for proto_file in request.proto_file:
         filename = os.path.basename(proto_file.name).split('.')[0]
 
@@ -421,7 +456,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     imports.add("import datetime")
 
                 f = Field(field.name, type_str, is_repeated,
-                          required, attr)
+                          required, attr,ext)
 
                 fields.append(f)
             type_imports.add("Type")
@@ -472,6 +507,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             imports.add(
                 f"from protobuf_pydantic_gen.ext import {', '.join(ext_imports)}")
         imports = merge_imports(imports)
+        all_messages.extend(messages)
         code = applyTemplate(filename, messages, enums, imports)
 
         code = autopep8.fix_code(
@@ -486,6 +522,15 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             name=filename.lower() +
             '_model.py',
             content=code)
+    all_meesages_str,all_fields_str = dump_messages(all_messages)
+    response.file.add(
+        name="messages.json",
+        content=all_meesages_str
+    )
+    response.file.add(
+        name="fields.json",
+        content=all_fields_str
+    )
 
 
 def main():

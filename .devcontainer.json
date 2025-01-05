@@ -1,0 +1,43 @@
+{
+    "build": {
+        "dockerfile": "Dockerfile",
+        "options": [
+            "--network=host"
+        ]
+    },
+    "name": "srm-agent",
+    "workspaceFolder": "/app",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
+    "runArgs": [
+        "--network",
+        "host", // 使用主机的网络堆栈
+        "--runtime=nvidia",
+        "--gpus",
+        "all"
+    ],
+    "mounts": [
+    ],
+    "postCreateCommand": "pip3 install autopep8 flake8 isort -i https://mirrors.aliyun.com/pypi/simple && git config --global credential.helper store && git config --global --add safe.directory /app && git config --global user.name 'qinzhonghe' && git config --global user.email 'qinzhonghe@51qqt.com'",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "http.proxy": "http://127.0.0.1:20172", // 设置代理地址
+                "https.proxy": "http://127.0.0.1:20172", // 设置 HTTPS 代理地址
+                "http.proxyStrictSSL": false, // 禁用代理的 SSL 校验（如果需要）
+                "python.formatting.autopep8Path": "/usr/local/bin/autopep8",
+                "python.linting.flake8Enabled": true,
+                "python.linting.flake8Path": "/usr/local/bin/flake8",
+                "python.sorting.isortPath": "/usr/local/bin/isort"
+            },
+            "extensions": [
+                "ms-python.python", // 安装 Python 扩展
+                "ms-python.isort",
+                "ms-python.vscode-pylance",
+                "ms-python.autopep8",
+                "Plex.vscode-protolint",
+                "zxh404.vscode-proto3",
+                "GitHub.codespaces"
+            ]
+        }
+    }
+}
