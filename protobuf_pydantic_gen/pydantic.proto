@@ -1,6 +1,8 @@
 syntax = "proto3";
 
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/descriptor.proto";
+
 package pydantic;
 // Annotation is used to add metadata to the generated code.
 // The metadata is used to generate the pydantic model.
@@ -26,6 +28,7 @@ message Annotation {
     double lt=16;
     double le=17;
     string foreign_key=19;
+    string label=21;
 
 }
 
@@ -45,4 +48,13 @@ extend google.protobuf.MessageOptions {
 }
 extend google.protobuf.FieldOptions {
 	Annotation field = 50101;
+}
+
+message EnumValueOptions {
+  string description = 1;
+  string label = 2;
+}
+// 定义一个自定义的 option
+extend google.protobuf.EnumValueOptions {
+    EnumValueOptions options  = 50102;
 }

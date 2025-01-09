@@ -5,7 +5,7 @@
             "--network=host"
         ]
     },
-    "name": "srm-agent",
+    "name": "protobuf-pydantic",
     "workspaceFolder": "/app",
     "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
     "runArgs": [

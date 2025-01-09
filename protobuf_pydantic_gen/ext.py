@@ -90,6 +90,9 @@ def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message
         for fd in proto.DESCRIPTOR.fields:
             if fd.name in d:
                 field_value = getattr(model, fd.name)
+                if field_value is None:
+                    d[fd.name] = _get_default_value(fd)
+                    continue
                 if fd.label == fd.LABEL_REPEATED and not is_map(fd):
                     d[fd.name] = [_convert_value(fd, item)
                                   for item in field_value]
@@ -172,6 +175,8 @@ def _get_model_cls_by_field(model_cls: Type[SQLModel], field_name: str) -> Type[
     # 获取类属性的类型注释
     annotations = model_cls.__annotations__
     attr_type = annotations.get(field_name)
+    if attr_type is None:
+        raise ValueError(f"Field {field_name} not found in {model_cls}")
     typ = _get_detailed_type(attr_type)
     module = typ.__module__
     cls = typ.__name__
