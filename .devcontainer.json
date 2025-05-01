@@ -1,42 +1,60 @@
 {
+    // Set container runtime user
     "build": {
-        "dockerfile": "Dockerfile",
+        "dockerfile": ".devcontainer/Dockerfile.dev",
+        "context": "./",
+        "args": {
+            "USERNAME": "${localEnv:USER}"
+        },
         "options": [
+            "--no-cache",
             "--network=host"
         ]
     },
-    "name": "protobuf-pydantic",
+    "updateRemoteUserUID": false,
+    "remoteUser": "${localEnv:USER}",
+    "initializeCommand": ".devcontainer/init_env.sh",
+    "name": "protobuf-pydantic-gen",
     "workspaceFolder": "/app",
     "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
     "runArgs": [
         "--network",
-        "host", // 使用主机的网络堆栈
+        "host",
         "--runtime=nvidia",
         "--gpus",
         "all"
     ],
     "mounts": [
+        // sharing-git-credentials see https://code.visualstudio.com/remote/advancedcontainers/sharing-git-credentials
+        // This will enable you to work with the repository code using Git inside the Dev container.
+        "source=${localEnv:SSH_AUTH_SOCK},target=/run/host-services/ssh-auth.sock,type=bind"
+        // mount to local models
+        // Persist the model to avoid redundant downloads.
+        // "source=${localWorkspaceFolder}/models,target=/app/models,type=bind"
     ],
-    "postCreateCommand": "pip3 install autopep8 flake8 isort -i https://mirrors.aliyun.com/pypi/simple && git config --global credential.helper store && git config --global --add safe.directory /app && git config --global user.name 'qinzhonghe' && git config --global user.email 'qinzhonghe@51qqt.com'",
+    "containerEnv": {
+        "SSH_AUTH_SOCK": "/run/host-services/ssh-auth.sock"
+    },
+    "postCreateCommand": "chmod +x /app/.devcontainer/post-create.sh && /app/.devcontainer/post-create.sh",
     "customizations": {
         "vscode": {
             "settings": {
-                "http.proxy": "http://127.0.0.1:20172", // 设置代理地址
-                "https.proxy": "http://127.0.0.1:20172", // 设置 HTTPS 代理地址
-                "http.proxyStrictSSL": false, // 禁用代理的 SSL 校验（如果需要）
-                "python.formatting.autopep8Path": "/usr/local/bin/autopep8",
-                "python.linting.flake8Enabled": true,
-                "python.linting.flake8Path": "/usr/local/bin/flake8",
-                "python.sorting.isortPath": "/usr/local/bin/isort"
+                "flake8.enabled": true,
+                "python.languageServer": "Pylance",
+                "terminal.integrated.defaultProfile.linux": "zsh",
+                "editor.defaultFormatter": "charliermarsh.ruff"
             },
+
             "extensions": [
-                "ms-python.python", // 安装 Python 扩展
+                "ms-python.python",
                 "ms-python.isort",
                 "ms-python.vscode-pylance",
                 "ms-python.autopep8",
-                "Plex.vscode-protolint",
-                "zxh404.vscode-proto3",
-                "GitHub.codespaces"
+                "ms-vscode.makefile-tools",
+                "ms-python.flake8",
+                "ms-azuretools.vscode-docker",
+                "ms-python.mypy-type-checker",
+                "charliermarsh.ruff"
             ]
         }
     }

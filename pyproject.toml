@@ -1,42 +1,46 @@
-[tool.poetry]
+[project]
 name = "protobuf-pydantic-gen"
-version = "0.1.5"
+version = "0.1.6rc0"
 description = "A tool for converting between Pydantic models and Protobuf messages, specifically enabling the generation of Pydantic BaseModel classes from .proto files."
-authors = ["vforfreedom96 <vforfreedom96@gmail.com>"]
+requires-python = ">=3.9"
+authors = [
+    { name = "geebytes", email = "vforfreedom96@gmail.com" }
+]
 readme = "README.md"
-include = ["pydantic_protobuf_gen/*.j2"]
-packages = [{include = "protobuf_pydantic_gen"}]
-homepage = "https://github.com/begonia-org/pydantic-protobuf-gen"
-repository = "https://github.com/begonia-org/pydantic-protobuf-gen.git"
-documentation = "https://github.com/begonia-org/pydantic-protobuf-gen"
-keywords = ["pydantic", "sqlmodel", "protobuf", "gRPC", "ORM"]
-license = "Apache-2.0"
-[tool.poetry.group.dev.dependencies]
-twine = "^5.1.1"
-
-[tool.poetry.dependencies]
-python = "^3.8"
-protobuf = "^4.21.12"
-grpcio-tools = "^1.50.0"
-grpcio = "^1.62.2"
-pydantic = "^2.4.1"
-jinja2 = "^3.1.3"
-peewee = "^3.17.5"
-sqlmodel = "^0.0.19"
-inflection = "^0.5.1"
-pydantic-core = "^2.20.0"
-annotated-types = "^0.7.0"
-autopep8 = "^2.3.1"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "grpcio>=1.50.0",
+    "grpcio-tools>=1.50.0",
+    "protobuf>=4.21.12,<7.0.0",
+    "pydantic>=2.4.1",
+    "jinja2>=3.0.0",
+    "peewee>=3.17.5",
+    "sqlmodel>=0.0.19",
+    "inflection>=0.5.1",
+    "pydantic-core>=2.20.0",
+    "annotated-types>=0.7.0",
+    "autopep8>=2.3.1"
+]
 
 
-[[tool.poetry.source]]
-name = "mirrors"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
-priority = "primary"
+[project.scripts]
+protoc-gen-pydantic = 'protobuf_pydantic_gen.main:main'
+[tool.setuptools]
+package-dir = {"protobuf_pydantic_gen" = "protobuf_pydantic_gen"}
+
+[tool.setuptools.package-data]
+"protobuf_pydantic_gen" = ["protobuf_pydantic_gen/*.j2"]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-protoc-gen-pydantic = 'protobuf_pydantic_gen.main:main'
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+[tool.uv]
+package = true
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple/"
+default = true
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true

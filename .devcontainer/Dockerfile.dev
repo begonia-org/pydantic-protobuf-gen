@@ -1,0 +1,38 @@
+FROM protobuf-pydantic-gen:latest
+ARG PYTHON_VERSION=3.11
+ARG PIP_INDEX_URL="https://mirrors.aliyun.com/pypi/simple/"
+ARG USERNAME
+# Add parameter to control whether to use Tsinghua Ubuntu mirror
+ARG USE_MIRROR_UBUNTU="true"
+ARG EXTRAS=""
+WORKDIR /app
+COPY . .
+USER root
+# Set the GID and UID of the container and 
+# add a user to prevent permission mismatches
+# between the container user (root) and the host user,
+# and to resolve the issue of the host user lacking write permissions.
+RUN . .devcontainer/.env && \
+    groupadd -g $USER_GID $GROUPNAME && \
+    useradd -u $USER_UID -g $USER_GID -m $USERNAME && \
+    chown -R $USER_UID:$USER_GID /app
+RUN if [ "$USE_MIRROR_UBUNTU" = "true" ]; then \
+    sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources; \
+    fi && \
+    apt-get update && apt-get install -y --no-install-recommends gnupg ca-certificates apt-transport-https \
+    git \
+    curl \
+    wget \
+    ssh zsh autojump curl git-flow vim sudo \
+    && chown -R $USERNAME:$GROUPNAME $VIRTUAL_ENV \
+    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+USER $USERNAME
+
+RUN pip config set global.index-url $PIP_INDEX_URL && \
+    pip config set global.trusted-host $(echo "$PIP_INDEX_URL" | sed -E 's|^https?://([^/]+).*|\1|') && \
+    . $VIRTUAL_ENV/bin/activate  && \
+    uv sync -v --active --all-packages --default-index $PIP_INDEX_URL --index-strategy unsafe-best-match --prerelease=allow --no-build-isolation && \
+    cp .devcontainer/protobuf_pydantic_gen.pth  /opt/.uv.venv/lib/python${PYTHON_VERSION}/site-packages/protobuf_pydantic_gen.pth

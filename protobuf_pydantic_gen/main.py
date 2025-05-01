@@ -36,7 +36,7 @@ pool = descriptor_pool.DescriptorPool()
 
 
 class Field:
-    def __init__(self, name: str, type: str, repeated: bool, required: bool, attributes: dict,ext:dict):
+    def __init__(self, name: str, type: str, repeated: bool, required: bool, attributes: dict, ext: dict):
         self.name = name
         self.type = type
         self.repeated = repeated
@@ -321,6 +321,8 @@ def merge_imports(import_lines):
         merged_imports.append(f"from {from_part} import {import_items}")
 
     return merged_imports
+
+
 def remove_escape_chars(obj):
     """递归移除字典中字段值的多余转义字符"""
     if isinstance(obj, dict):
@@ -332,12 +334,14 @@ def remove_escape_chars(obj):
         return obj.replace('\"', '').replace("\'", "")
     else:
         return obj
-def dump_messages(messages:List[Message])->str:
-    messages_metadata={}
-    all_fields_description={}
+
+
+def dump_messages(messages: List[Message]) -> str:
+    messages_metadata = {}
+    all_fields_description = {}
     for message in messages:
         fields = {}
-        fields_desc ={}
+        fields_desc = {}
         for field in message.fields:
             # attributes is description="Type of the example",default=ExampleType.TYPE1
             ext = remove_escape_chars(field.ext)
@@ -350,16 +354,17 @@ def dump_messages(messages:List[Message])->str:
                 "description": ext.get("description", ""),
             }
         all_fields_description[message.message_name] = fields_desc
-        messages_metadata[message.message_name] =  fields
-    return json.dumps(messages_metadata, indent=4, ensure_ascii=False),json.dumps(all_fields_description, indent=4, ensure_ascii=False)
+        messages_metadata[message.message_name] = fields
+    return json.dumps(messages_metadata, indent=4, ensure_ascii=False), json.dumps(all_fields_description, indent=4, ensure_ascii=False)
     # with open("messages.json", "w") as f:
     #     f.write(json.dumps(messages_metadata, indent=4, ensure_ascii=False))
+
 
 def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                   response: plugin_pb2.CodeGeneratorResponse):
 
     message_types = {}
-    all_messages=[]
+    all_messages = []
     for proto_file in request.proto_file:
         filename = os.path.basename(proto_file.name).split('.')[0]
 
@@ -442,7 +447,8 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     sqlmodel_imports.add("Column")
                     ext["sa_column"] = f"Column(JSON, doc={ext.get('description', '')})"
                 if ext and ext.get("description") and not ext.get("sa_column") and msg_ext.get("as_table", False):
-                    ext["sa_column_kwargs"] = {"comment": ext["description"].replace('"', "")}
+                    ext["sa_column_kwargs"] = {
+                        "comment": ext["description"].replace('"', "")}
                     # logging.info(f"sa_column_kwargs is {ext['sa_column_kwargs']}")
 
                 attr = ",".join(f'{key}={value}' for key,
@@ -456,7 +462,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
                     imports.add("import datetime")
 
                 f = Field(field.name, type_str, is_repeated,
-                          required, attr,ext)
+                          required, attr, ext)
 
                 fields.append(f)
             type_imports.add("Type")
@@ -522,7 +528,7 @@ def generate_code(request: plugin_pb2.CodeGeneratorRequest,
             name=filename.lower() +
             '_model.py',
             content=code)
-    all_meesages_str,all_fields_str = dump_messages(all_messages)
+    all_meesages_str, all_fields_str = dump_messages(all_messages)
     response.file.add(
         name="messages.json",
         content=all_meesages_str

@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 import "google/protobuf/descriptor.proto";
-import "google/protobuf/descriptor.proto";
 
 package pydantic;
 // Annotation is used to add metadata to the generated code.
