@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+package pydantic;
+// Annotation is used to add metadata to the generated code.
+// The metadata is used to generate the pydantic model.
+// See https://pydantic-docs.helpmanual.io/usage/model_config/
+message Annotation {
+	string description = 1;
+	string example = 2;
+	string default = 3;
+	string alias = 4;
+	string title = 5;
+	bool required = 6;
+    bool nullable = 7;
+    bool primary_key = 8[json_name="primary_key"];
+   bool  unique = 9;
+   bool index = 10;
+   bool const=18;
+   string field_type=11[json_name="field_type"];
+   string sa_column_type=20[json_name="sa_column_type"];
+   int32 min_length=12[json_name="min_length"];
+   int32 max_length=13[json_name="max_length"];
+   double gt=14;
+    double ge=15;
+    double lt=16;
+    double le=17;
+    string foreign_key=19;
+    string label=21;
+
+}
+
+message CompoundIndex {
+    repeated string indexs=1[json_name="indexs"];
+    string index_type=2[json_name="index_type"];
+    string name=3[json_name="name"];
+}
+message DatabaseAnnotation {
+    string table_name=1[json_name="table_name"];
+    repeated CompoundIndex compound_index=2[json_name="compound_index"];
+    bool as_table=3[json_name="as_table"];
+}
+extend google.protobuf.MessageOptions {
+    DatabaseAnnotation database = 50201;
+
+}
+extend google.protobuf.FieldOptions {
+	Annotation field = 50101;
+}
+
+message EnumValueOptions {
+  string description = 1;
+  string label = 2;
+}
+// 定义一个自定义的 option
+extend google.protobuf.EnumValueOptions {
+    EnumValueOptions options  = 50102;
+}

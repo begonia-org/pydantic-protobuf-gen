@@ -1,0 +1,3 @@
+# MANIFEST.in
+include *.j2
+recursive-include protobuf_pydantic_gen/ **/*.j2

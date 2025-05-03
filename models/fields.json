@@ -1,0 +1,19 @@
+{
+    "Example2": {
+        "type": "Type of the example"
+    },
+    "Nested": {
+        "name": "Name of the example"
+    },
+    "Example": {
+        "name": "Name of the example",
+        "age": "Age of the example",
+        "emails": "Emails of the example",
+        "examples": "Nested message",
+        "entry": "Properties of the example",
+        "nested": "Nested message",
+        "created_at": "Creation date of the example",
+        "type": "Type of the example",
+        "score": "Score of the example"
+    }
+}

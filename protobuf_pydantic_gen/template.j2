@@ -1,0 +1,40 @@
+
+# !/usr/bin/env python
+# -*- encoding: utf-8 -*-
+'''
+@File    :   {{name}}.py
+@Time    :   {{datetime}}
+@Desc    :   
+'''
+{# Jinja2 template for generating Pydantic models from protobuf messages #}
+{% for import in imports %}
+{{ import }}
+{% endfor %}
+
+{% for enum in enums %}
+class {{ enum.message_name }}(_Enum):
+    {%- for value in enum.fields %}
+    {{ value.name }} = {{ value.value }}
+    {%- endfor %}
+
+{% endfor %}
+
+{% for message in messages %}
+class {{ message.message_name }}({% if message.as_table %}SQLModel ,table={{message.as_table}}{% else %}BaseModel{%endif%}):
+    model_config = ConfigDict(protected_namespaces=())
+    {% if message.table_name and message.as_table%}__tablename__="{{message.table_name}}"{%endif%}
+    {% if message.table_args and message.as_table%}__table_args__=({{message.table_args}},){%endif%}
+    {%- for field in message.fields %}
+    {{ field.name }}: {% if not field.required %}Optional[{% endif %}{% if field.repeated %}List[{% endif %}{{ field.type }}{% if field.repeated %}]{% endif %}{% if not field.required %}]{% endif %} = {%if message.as_table%}Field{%else%}_Field{%endif%}({{ field.attributes}})
+    {%- endfor %}
+
+    def to_protobuf(self)->_message.Message:
+        _proto = pool.FindMessageTypeByName("{{message.proto_full_name}}")
+        _cls:Type[_message.Message] = message_factory.GetMessageClass(_proto)
+        return model2protobuf(self,_cls())
+
+    @classmethod
+    def from_protobuf(cls:Type[{% if message.as_table %}PySQLModel{%else%}PydanticModel{%endif%}],src:_message.Message)->{% if message.as_table %}PySQLModel{%else%}PydanticModel{%endif%}:
+        return protobuf2model(cls,src)
+{% endfor %}
+

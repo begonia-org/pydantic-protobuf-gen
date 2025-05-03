@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+import "example.proto";
+package pydantic_example;
+
+message Example3{
+    string name=1;
+}
