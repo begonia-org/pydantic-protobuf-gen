@@ -1,6 +1,6 @@
 [project]
 name = "protobuf-pydantic-gen"
-version = "0.1.6rc0"
+version = "0.1.6"
 description = "A tool for converting between Pydantic models and Protobuf messages, specifically enabling the generation of Pydantic BaseModel classes from .proto files."
 requires-python = ">=3.9"
 authors = [
@@ -19,7 +19,7 @@ dependencies = [
     "inflection>=0.5.1",
     "pydantic-core>=2.20.0",
     "annotated-types>=0.7.0",
-    "autopep8>=2.3.1"
+    "autopep8>=2.3.1",
 ]
 
 

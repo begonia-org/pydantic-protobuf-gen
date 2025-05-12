@@ -29,7 +29,7 @@ message Example {
 
   string name = 1[(pydantic.field) = {description: "Name of the example",alias: "full_name",default: "John Doe",label:"字段名称",max_length:128,primary_key:true}];
   optional int32 age = 2 [(pydantic.field) = {description: "Age of the example",alias: "years",default: "30",label:"年龄"}];
-  repeated string emails = 3 [(pydantic.field) = {description: "Emails of the example",default:"[]"}];
+  repeated string emails = 3 [(pydantic.field) = {description: "Emails of the example",default:'["example@example.com","example2@example.com"]'}];
   repeated Example2 examples = 9 [(pydantic.field) = {description: "Nested message",sa_column_type:"JSON"}];
   map<string, google.protobuf.Any> entry = 4 [(pydantic.field) = {description: "Properties of the example",default:"{}"}];
 Nested nested=8[(pydantic.field) = {description: "Nested message",sa_column_type:"JSON"}];

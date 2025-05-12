@@ -67,8 +67,8 @@ class Example(SQLModel, table=True):
         alias="years",
         sa_column_kwargs={
             'comment': 'Age of the example'})
-    emails: Optional[List[str]] = Field(description="Emails of the example", default=[],
-                                        sa_column_kwargs={'comment': 'Emails of the example'})
+    emails: Optional[List[str]] = Field(description="Emails of the example", default=[
+                                        'example@example.com', 'example2@example.com'], sa_column_kwargs={'comment': 'Emails of the example'})
     examples: Optional[List[Example2]] = Field(
         description="Nested message", default=None, sa_column=Column(JSON, doc="Nested message"))
     entry: Optional[Dict[str, Any]] = Field(description="Properties of the example", default={

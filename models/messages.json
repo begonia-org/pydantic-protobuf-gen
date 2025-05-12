@@ -64,7 +64,10 @@
             "required": false,
             "ext": {
                 "description": "Emails of the example",
-                "default": [],
+                "default": [
+                    "example@example.com",
+                    "example2@example.com"
+                ],
                 "sa_column_kwargs": {
                     "comment": "Emails of the example"
                 }
