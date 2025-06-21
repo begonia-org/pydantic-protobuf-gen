@@ -1,6 +1,10 @@
 # protobuf-pydantic-gen
 
-pydantic model 和 protobuf message 互相转换工具，实现`.proto`文件生成pydantic `BaseModel`类。
+该工具可以将protobuf描述语言转换为pydantic `BaseModel`类，并且支持将pydantic model转换为protobuf message。它还支持将protobuf描述语言转换为`sqlmodel` ORM模型。
+
+# grpc_fastapi_gateway
+
+该工具可以将protobuf描述语言转换为grpc服务，并且支持将grpc服务转换为FastAPI路由。支持基于`gRPC service`的`FastAPI`路由生成，无需编写额外的代码。
 
 ## 特性
 
@@ -14,12 +18,16 @@ pydantic model 和 protobuf message 互相转换工具，实现`.proto`文件生
 
 - 为protobuf 描述文件提供`pydantic BaseModel Field` 字段的参数选项
 
+- 支持将protobuf描述语言转换为grpc服务，并且支持将grpc服务转换为FastAPI路由
+- 支持基于`gRPC service`的`FastAPI`路由生成，无需编写额外的代码
+
 ## 安装
 
 ```shell
 pip install protobuf-pydantic-gen
 ```
 ## 示例
+### protobuf-pydantic-gen 使用示例
 ```protobuf
 syntax = "proto3";
 
@@ -63,6 +71,12 @@ Nested nested=8[(pydantic.field) = {description: "Nested message",sa_column_type
 }
 
 
+```
+
+**编译protobuf文件为pydantic model和sqlmodel ORM模型**
+    
+```shell
+python3 -m grpc_tools.protoc --proto_path=./protos -I=./protos -I=./ --python_out=./pb --pyi_out=./pb --grpc_python_out=./pb --pydantic_out=./models "./protos/example.proto"
 ```
 
 ```python
@@ -171,10 +185,21 @@ class Example(SQLModel, table=True):
         return protobuf2model(cls, src)
 
 ```
-## 使用
-    
+
+### grpc_fastapi_gateway 使用示例
+
+ - 参考 [example](./example) 目录下的代码。
+
+ - 编译protobuf文件为文件为pydantic model并输出`services.json`
+
 ```shell
-python3 -m grpc_tools.protoc --proto_path=./protos -I=./protos -I=./ --python_out=./pb --pyi_out=./pb --grpc_python_out=./pb --pydantic_out=./models "./protos/example.proto"
+cd example && make py
 ```
+
+OR
+```shell
+python3 -m grpc_tools.protoc  --plugin=protoc-gen-custom=protobuf_pydantic_gen/main.py --custom_out=./example/models --python_out=./example/pb --grpc_python_out=./example/pb  -I ./example  -I ./example/protos helloworld.proto
+```
+
 
 

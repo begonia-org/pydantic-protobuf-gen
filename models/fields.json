@@ -15,5 +15,31 @@
         "created_at": "Creation date of the example",
         "type": "Type of the example",
         "score": "Score of the example"
+    },
+    "Http": {
+        "rules": "",
+        "fully_decode_reserved_expansion": ""
+    },
+    "HttpRule": {
+        "selector": "",
+        "get": "",
+        "put": "",
+        "post": "",
+        "delete": "",
+        "patch": "",
+        "custom": "",
+        "body": "",
+        "response_body": "",
+        "additional_bindings": ""
+    },
+    "CustomHttpPattern": {
+        "kind": "",
+        "path": ""
+    },
+    "HelloWorldRequest": {
+        "example": "Example message"
+    },
+    "HelloWorldResponse": {
+        "message": "Response message"
     }
 }

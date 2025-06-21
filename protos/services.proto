@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+import "protobuf_pydantic_gen/pydantic.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+import "google/api/annotations.proto";
+import "example.proto";
+package pydantic_example;
+
+message HelloWorldRequest {
+  Example example = 1 [(pydantic.field) = {
+    description: "Example message",
+    default: "{}"
+  }];
+}
+message HelloWorldResponse {
+  Example message = 1 [(pydantic.field) = {
+    description: "Response message",
+    default: "{}"
+  }];
+}
+
+service HelloWorldService {
+  rpc SayHello(HelloWorldRequest) returns (HelloWorldResponse) {
+    option (google.api.http) = {
+      post: "/v1/helloworld"
+      body: "*"
+    };
+  }
+  rpc StreamHello(HelloWorldRequest) returns (stream HelloWorldResponse) {
+    option (google.api.http) = {
+      post: "/v1/helloworld/stream"
+      body: "*"
+    };
+  }
+}
