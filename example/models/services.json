@@ -1,0 +1,55 @@
+{
+    "Greeter": {
+        "SayHello": {
+            "input_type": ".helloworld.HelloRequest",
+            "output_type": ".helloworld.HelloReply",
+            "options": {
+                "[google.api.http]": {
+                    "post": "/v1/helloworld",
+                    "body": "*"
+                }
+            },
+            "streaming_type": "unary",
+            "method_full_name": "/helloworld.Greeter/SayHello",
+            "http": {
+                "method": "POST",
+                "path": "/v1/helloworld",
+                "body": "*"
+            }
+        },
+        "SayHelloStreamReply": {
+            "input_type": ".helloworld.HelloRequest",
+            "output_type": ".helloworld.HelloReply",
+            "options": {
+                "[google.api.http]": {
+                    "post": "/v1/helloworld/stream",
+                    "body": "*"
+                }
+            },
+            "streaming_type": "server_streaming",
+            "method_full_name": "/helloworld.Greeter/SayHelloStreamReply",
+            "http": {
+                "method": "POST",
+                "path": "/v1/helloworld/stream",
+                "body": "*"
+            }
+        },
+        "SayHelloBidiStream": {
+            "input_type": ".helloworld.HelloRequest",
+            "output_type": ".helloworld.HelloReply",
+            "options": {
+                "[google.api.http]": {
+                    "post": "/v1/helloworld/ws",
+                    "body": "*"
+                }
+            },
+            "streaming_type": "bidirectional_streaming",
+            "method_full_name": "/helloworld.Greeter/SayHelloBidiStream",
+            "http": {
+                "method": "POST",
+                "path": "/v1/helloworld/ws",
+                "body": "*"
+            }
+        }
+    }
+}
