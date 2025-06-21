@@ -173,7 +173,7 @@ class Example(SQLModel, table=True):
  - Compile the protobuf file into a pydantic model and output services.json
 
 ```shell
-cd example && make py
+cd example/protos && make py
 ```
 
 OR
