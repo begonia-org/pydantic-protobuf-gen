@@ -7,17 +7,19 @@
 """
 
 import importlib
-from typing import Type, TypeVar, get_args, List, Dict, Any, get_origin, Union
-from pydantic import BaseModel
 from datetime import datetime
 from enum import Enum
-from sqlmodel import SQLModel
-from google.protobuf.json_format import ParseDict
-from google.protobuf import message as _message
-from google.protobuf.json_format import MessageToDict
-from google.protobuf import descriptor_pool, message_factory, descriptor_pb2
-from google.protobuf.timestamp_pb2 import Timestamp
+from typing import Any, Dict, List, Type, TypeVar, Union, get_args, get_origin
 
+from google.protobuf import any_pb2, descriptor_pb2, descriptor_pool
+from google.protobuf import message as _message
+from google.protobuf import message_factory
+from google.protobuf.json_format import MessageToDict, ParseDict
+from google.protobuf.timestamp_pb2 import Timestamp
+from pydantic import BaseModel
+from sqlmodel import SQLModel
+
+from protobuf_pydantic_gen.any_type_transformer import AnyTransformer
 
 pool = descriptor_pool.Default()
 
@@ -74,6 +76,14 @@ def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message
                 else:
                     nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
                     nested_cls = message_factory.GetMessageClass(nested_proto)
+                    if (
+                        value_type == value_field.TYPE_MESSAGE
+                        and value_field.message_type == any_pb2.Any.DESCRIPTOR
+                    ):
+                        return {
+                            k: MessageToDict(AnyTransformer.any_type_to_protobuf(v))
+                            for k, v in value.items()
+                        }
                     return {
                         k: MessageToDict(model2protobuf(v, nested_cls()))
                         for k, v in value.items()
@@ -202,6 +212,18 @@ def protobuf2model(model_cls: Type[SQLModel], proto: _message.Message) -> SQLMod
             elif fd.message_type.has_options and fd.message_type.GetOptions().map_entry:
                 if not value:
                     return {}
+                value_field = fd.message_type.fields_by_name["value"]
+                value_type = fd.message_type.fields_by_name["value"].type
+                if (
+                    value_type == value_field.TYPE_MESSAGE
+                    and value_field.message_type == any_pb2.Any.DESCRIPTOR
+                ):
+                    items = {}
+                    for k, v in value.items():
+                        any_instance = any_pb2.Any()
+                        ParseDict(v, any_instance)
+                        items[k] = AnyTransformer.protobuf_any_to_python(any_instance)
+                    return items
                 return {
                     k: _convert_value(
                         fd.message_type.fields_by_name["value"], v, model_cls

@@ -54,7 +54,9 @@
                 "ms-python.flake8",
                 "ms-azuretools.vscode-docker",
                 "ms-python.mypy-type-checker",
-                "charliermarsh.ruff"
+                "charliermarsh.ruff",
+                "plex.vscode-protolint",
+                "zxh404.vscode-proto3"
             ]
         }
     }
