@@ -143,5 +143,133 @@
             },
             "description": "Score of the example"
         }
+    },
+    "Http": {
+        "rules": {
+            "type": "HttpRule",
+            "repeated": true,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "fully_decode_reserved_expansion": {
+            "type": "bool",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        }
+    },
+    "HttpRule": {
+        "selector": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "get": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "put": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "post": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "delete": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "patch": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "custom": {
+            "type": "CustomHttpPattern",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "body": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "response_body": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "additional_bindings": {
+            "type": "HttpRule",
+            "repeated": true,
+            "required": false,
+            "ext": {},
+            "description": ""
+        }
+    },
+    "CustomHttpPattern": {
+        "kind": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        },
+        "path": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {},
+            "description": ""
+        }
+    },
+    "HelloWorldRequest": {
+        "example": {
+            "type": "Example",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "Example message",
+                "default": "{}"
+            },
+            "description": "Example message"
+        }
+    },
+    "HelloWorldResponse": {
+        "message": {
+            "type": "Example",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "Response message",
+                "default": "{}"
+            },
+            "description": "Response message"
+        }
     }
 }
