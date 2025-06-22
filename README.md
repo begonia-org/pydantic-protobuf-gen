@@ -1,3 +1,5 @@
+[English](README.md) | [中文](README.zh.md)
+
 # protobuf-pydantic-gen
 
 This tool converts Protocol Buffer description language into pydantic `BaseModel` classes and supports converting pydantic models back to protobuf messages. It also enables the transformation of protobuf description language into `sqlmodel` ORM models.
