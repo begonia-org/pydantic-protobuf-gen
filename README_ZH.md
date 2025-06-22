@@ -193,7 +193,7 @@ class Example(SQLModel, table=True):
  - 编译protobuf文件为文件为pydantic model并输出`services.json`
 
 ```shell
-cd example && make py
+cd example/protos && make py
 ```
 
 OR

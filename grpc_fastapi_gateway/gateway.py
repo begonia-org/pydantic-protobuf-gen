@@ -497,7 +497,7 @@ class Gateway:
                             "ctx": Request,
                             "response": Response,
                             "request": input_annotations,
-                            "return": BaseHttpResponse[OutputT],
+                            "return": BaseHttpResponse[output_cls],
                         }
                         summary = service_method.__doc__
                         if not summary:
@@ -508,7 +508,7 @@ class Gateway:
                             path=http_info.get("path", ""),
                             endpoint=endpoint,
                             methods=[http_info.get("method", "POST").upper()],
-                            response_model=output_cls,
+                            response_model=BaseHttpResponse[output_cls],
                             description=service_method.__doc__,
                             tags=[group],
                             summary=summary,

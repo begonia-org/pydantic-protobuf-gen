@@ -145,7 +145,8 @@ class GRPCServicerContextAdapter(grpc.ServicerContext):
         Returns:
             The invocation metadata as a dictionary.
         """
-        return self._context.model_dump()
+        headers = self._request.headers
+        return [(k, v) for k, v in headers.items()]
 
     def add_callback(self, callback):
         pass
@@ -155,6 +156,10 @@ class GRPCServicerContextAdapter(grpc.ServicerContext):
         Cancel the RPC.
         This method is not implemented in this adapter, as it is not needed for the current use case.
         """
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="RPC cancelled",
+        )
 
     def is_active(self):
         """

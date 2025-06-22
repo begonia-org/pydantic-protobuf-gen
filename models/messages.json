@@ -68,9 +68,7 @@
                     "example@example.com",
                     "example2@example.com"
                 ],
-                "sa_column_kwargs": {
-                    "comment": "Emails of the example"
-                }
+                "sa_column": "Column(JSON, doc=Emails of the example)"
             },
             "description": "Emails of the example"
         },
