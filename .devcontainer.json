@@ -19,10 +19,7 @@
     "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
     "runArgs": [
         "--network",
-        "host",
-        "--runtime=nvidia",
-        "--gpus",
-        "all"
+        "host"
     ],
     "mounts": [
         // sharing-git-credentials see https://code.visualstudio.com/remote/advancedcontainers/sharing-git-credentials
