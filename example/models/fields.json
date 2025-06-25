@@ -1,0 +1,10 @@
+{
+    "HelloRequest": {
+        "name": "The name of the person to greet",
+        "language": "The language of the greeting"
+    },
+    "HelloReply": {
+        "message": "The greeting message",
+        "language": "The language of the greeting"
+    }
+}

@@ -1,6 +1,6 @@
 [project]
 name = "protobuf-pydantic-gen"
-version = "0.1.6"
+version = "0.1.7"
 description = "A tool for converting between Pydantic models and Protobuf messages, specifically enabling the generation of Pydantic BaseModel classes from .proto files."
 requires-python = ">=3.9"
 authors = [
@@ -20,20 +20,37 @@ dependencies = [
     "pydantic-core>=2.20.0",
     "annotated-types>=0.7.0",
     "autopep8>=2.3.1",
+    "fastapi>=0.115.12",
+    "starlette>=0.46.2",
+    "hypercorn==0.17.3",
+    "googleapis-common-protos>=1.70.0",
+    "sse-starlette>=2.3.6",
+    "brotli>=1.1.0",
+    "zstandard>=0.23.0",
+    "patchy>=2.9.0",
+    "granian>=2.3.4",
+    "patch-ng>=1.18.1",
 ]
 
 
 [project.scripts]
 protoc-gen-pydantic = 'protobuf_pydantic_gen.main:main'
 [tool.setuptools]
-package-dir = {"protobuf_pydantic_gen" = "protobuf_pydantic_gen"}
+package-dir = {"protobuf_pydantic_gen" = "protobuf_pydantic_gen","grpc_fastapi_gateway" = "grpc_fastapi_gateway"}
 
 [tool.setuptools.package-data]
 "protobuf_pydantic_gen" = ["protobuf_pydantic_gen/*.j2"]
+"grpc_fastapi_gateway" = ["grpc_fastapi_gateway/*.patch"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.16.0",
+    "ruff>=0.11.13",
+]
 [tool.uv]
 package = true
 [[tool.uv.index]]
@@ -44,3 +61,4 @@ name = "testpypi"
 url = "https://test.pypi.org/simple/"
 publish-url = "https://test.pypi.org/legacy/"
 explicit = true
+

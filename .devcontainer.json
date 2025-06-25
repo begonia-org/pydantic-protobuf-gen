@@ -19,10 +19,7 @@
     "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
     "runArgs": [
         "--network",
-        "host",
-        "--runtime=nvidia",
-        "--gpus",
-        "all"
+        "host"
     ],
     "mounts": [
         // sharing-git-credentials see https://code.visualstudio.com/remote/advancedcontainers/sharing-git-credentials
@@ -54,7 +51,9 @@
                 "ms-python.flake8",
                 "ms-azuretools.vscode-docker",
                 "ms-python.mypy-type-checker",
-                "charliermarsh.ruff"
+                "charliermarsh.ruff",
+                "plex.vscode-protolint",
+                "zxh404.vscode-proto3"
             ]
         }
     }

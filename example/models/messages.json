@@ -1,0 +1,50 @@
+{
+    "HelloRequest": {
+        "name": {
+            "type": "str",
+            "repeated": false,
+            "required": true,
+            "ext": {
+                "description": "The name of the person to greet",
+                "example": "John Doe",
+                "default": "John Doe"
+            },
+            "description": "The name of the person to greet"
+        },
+        "language": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "The language of the greeting",
+                "example": "en",
+                "default": "en"
+            },
+            "description": "The language of the greeting"
+        }
+    },
+    "HelloReply": {
+        "message": {
+            "type": "str",
+            "repeated": false,
+            "required": true,
+            "ext": {
+                "description": "The greeting message",
+                "example": "Hello, John Doe!",
+                "default": "Hello, John Doe!"
+            },
+            "description": "The greeting message"
+        },
+        "language": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "The language of the greeting",
+                "example": "en",
+                "default": "en"
+            },
+            "description": "The language of the greeting"
+        }
+    }
+}
