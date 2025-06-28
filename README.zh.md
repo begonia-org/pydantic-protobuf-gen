@@ -1,10 +1,21 @@
+[中文](README.zh.md) | [English](README.md)
+
 # protobuf-pydantic-gen
 
-该工具可以将protobuf描述语言转换为pydantic `BaseModel`类，并且支持将pydantic model转换为protobuf message。它还支持将protobuf描述语言转换为`sqlmodel` ORM模型。
+该工具可以将协议缓冲区(Protocol Buffer)描述语言转换为pydantic `BaseModel`类，并且支持将pydantic模型转换回protobuf消息。它还支持将protobuf描述语言转换为`sqlmodel` ORM模型。
 
 # grpc_fastapi_gateway
 
-该工具可以将protobuf描述语言转换为grpc服务，并且支持将grpc服务转换为FastAPI路由。支持基于`gRPC service`的`FastAPI`路由生成，无需编写额外的代码。
+该工具可以将协议缓冲区描述语言转换为gRPC服务，并将其转换为FastAPI路由。它基于`gRPC service`定义自动生成`FastAPI`路由，无需编写额外的代码。
+
+### 传输协议
+
+| gRPC类型 | 协议 | 描述 |
+|-----------|----------|-------------|
+| 一元调用 | HTTP/JSON | 标准REST API调用 |
+| 服务器流式 | 服务器发送事件(SSE) | 使用`text/event-stream`的HTTP流 |
+| 客户端流式 | WebSocket | 双向WebSocket连接 |
+| 双向流式 | WebSocket | 双向WebSocket连接 |
 
 # grpc_fastapi_client_gen
 
@@ -13,22 +24,20 @@
 ## 🚀 快速链接
 
 - **[快速开始指南](QUICKSTART.md)** - 5分钟快速上手
-- **[完整客户端使用指南](CLIENT_USAGE_GUIDE.md)** - 全面的示例和高级用法  
 - **[示例项目](./example/)** - 包含服务器和客户端的完整工作示例
-- **[API文档](#api文档)** - 详细的API参考
 
 ## 特性
 
-- **protobuf-pydantic-gen**:
-  - 支持protobuf基本类型转换为python基本类型
-  - 支持protobuf描述语言转换为pydantic `BaseModel`类
-  - 支持protobuf描述语言转换为`sqlmodel` ORM模型
-  - 为`BaseModel`类实现`to_protobuf` 和 `from_protobuf`方法，实现pydantic model 和 protobuf message 互相转换
-  - 为protobuf 描述文件提供`pydantic BaseModel Field` 字段的参数选项
+- **protobuf-pydantic-gen**: 
+  - 支持protobuf基本类型转换为Python基本类型  
+  - 支持protobuf描述语言转换为pydantic `BaseModel`类  
+  - 支持protobuf描述语言转换为`sqlmodel` ORM模型  
+  - 为`BaseModel`类实现`to_protobuf` 和 `from_protobuf`方法，实现pydantic模型和protobuf消息的双向转换  
+  - 为protobuf描述文件提供`pydantic BaseModel Field`字段的参数选项  
 
 - **grpc_fastapi_gateway**:
-  - 支持将protobuf描述语言转换为grpc服务，并且支持将grpc服务转换为FastAPI路由
-  - 支持基于`gRPC service`的`FastAPI`路由生成，无需编写额外的代码
+  - 支持将protobuf描述语言转换为gRPC服务，并将其转换为FastAPI路由  
+  - 基于`gRPC service`定义生成`FastAPI`路由，无需编写额外的代码  
 
 - **grpc_fastapi_client_gen**:
   - 从protobuf服务定义生成类型安全的异步HTTP客户端
@@ -42,8 +51,8 @@
 ```shell
 pip install protobuf-pydantic-gen
 ```
-## 示例
-### protobuf-pydantic-gen 使用示例
+
+# protobuf-pydantic-gen 使用示例
 ```protobuf
 syntax = "proto3";
 
@@ -253,7 +262,6 @@ cd example/protos && make py_cli
   - WebSocket用于双向流式传输
 - **内置身份验证** (API密钥/Bearer令牌支持)
 - **连接管理** 和错误处理
-- **全面的测试套件**
 
 ### 使用生成的客户端
 
@@ -330,6 +338,80 @@ python3 -m grpc_tools.protoc \
     --client_opt=services_json=./custom/services.json \
     ./protos/*.proto
 ```
+
+
+### 高级配置
+
+#### 自定义HTTP客户端设置
+
+```python
+import httpx
+
+# 创建自定义的httpx客户端配置
+custom_client = ExampleClient(
+    base_url="https://api.example.com",
+    api_key="your-api-key",
+    timeout=60.0
+)
+
+# 使用自定义头部
+headers = {
+    "User-Agent": "MyApp/1.0",
+    "X-Request-ID": "unique-request-id"
+}
+
+response = await custom_client.greeter_say_hello(
+    request, 
+    headers=headers
+)
+```
+
+#### WebSocket连接配置
+
+WebSocket连接会自动处理：
+- 连接重试
+- 错误恢复
+- 优雅关闭
+- 任务清理
+
+#### 身份验证
+
+```python
+# API密钥身份验证
+client = ExampleClient(
+    base_url="https://api.example.com",
+    api_key="sk-your-secret-key"
+)
+
+# 自定义身份验证头部
+custom_headers = {
+    "Authorization": "Custom your-custom-token",
+    "X-API-Version": "v1"
+}
+
+response = await client.greeter_say_hello(request, headers=custom_headers)
+```
+
+### 最佳实践
+
+1. **连接管理**: 客户端会自动管理HTTP连接池和WebSocket连接
+2. **错误处理**: 始终使用try-catch包装API调用
+3. **超时设置**: 根据网络条件调整超时值
+4. **日志记录**: 启用日志以便调试
+5. **资源清理**: 客户端会自动清理资源，无需手动管理
+
+## 贡献
+
+1. Fork 仓库
+2. 创建功能分支
+3. 进行更改
+4. 添加测试
+5. 运行测试套件
+6. 提交拉取请求
+
+## 许可证
+
+本项目采用Apache 2.0许可证 - 请参阅[LICENSE](LICENSE)文件了解详情。
 
 
 

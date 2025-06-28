@@ -5,74 +5,7 @@
 This tool converts Protocol Buffer description language into pydantic `BaseModel` classes and supports converting pydantic models back to protobuf messages. It also enables the transformation of protobuf description language into `sqlmodel` ORM models.
 
 # grpc_fastapi_gateway
-
-This tool converts Protocol Buffer description language into gRPC se        async for response in client.greeter_say_hello_bidi_stream(input_generator()):
-            print(f"Bidi response: {response.message}")
-    except Exception as e:
-        logger.error(f"Streaming error: {e}")
-        # Implement retry logic here
-```
-
-## API Documentation
-
-### Client Generator Plugin Parameters
-
-| Parameter | Type | Description | Default | Required |
-|-----------|------|-------------|---------|----------|
-| `package_name` | string | Python package name for model imports | - | ✅ |
-| `models_dir` | string | Directory containing Pydantic models | - | ✅ |
-| `class_name` | string | Generated client class name | `Client` | ❌ |
-| `services_json` | string | Path to services.json file | `{models_dir}/services.json` | ❌ |
-| `template_dir` | string | Custom Jinja2 template directory | Built-in | ❌ |
-| `template_name` | string | Jinja2 template filename | `client.j2` | ❌ |
-
-### Generated Client API
-
-#### Constructor
-```python
-def __init__(
-    self,
-    base_url: str,           # Server base URL
-    api_key: str = "",       # Optional API key for auth
-    timeout: float = 30.0    # Request timeout in seconds
-)
-```
-
-#### Helper Methods
-```python
-def _build_headers(self, extra_headers: Optional[Dict[str, Any]] = None) -> Dict[str, str]
-def _build_websocket_uri(self, path: str) -> str
-```
-
-#### Service Methods
-For each gRPC service method, the client generates an async method with this signature:
-
-**Unary Calls:**
-```python
-async def {service}_{method}(
-    self,
-    request: {InputType},
-    headers: Optional[Dict[str, Any]] = None
-) -> {OutputType}
-```
-
-**Server Streaming:**
-```python
-async def {service}_{method}(
-    self,
-    request: {InputType},
-    headers: Optional[Dict[str, Any]] = None
-) -> AsyncGenerator[{OutputType}, None]
-```
-
-**Bidirectional Streaming:**
-```python
-async def {service}_{method}(
-    self,
-    input_stream: AsyncGenerator[{InputType}, None],
-    headers: Optional[Dict[str, Any]] = None
-) -> AsyncGenerator[{OutputType}, None]
-```
+This tool converts Protocol Buffer description language into gRPC services and transforms them into FastAPI routes. It automates `FastAPI` route generation based on `gRPC service` definitions, eliminating the need for additional code.
 
 ### Transport Protocols
 
@@ -83,63 +16,6 @@ async def {service}_{method}(
 | Client Streaming | WebSocket | Bidirectional WebSocket connection |
 | Bidirectional Streaming | WebSocket | Bidirectional WebSocket connection |
 
-### Error Handling
-
-The client handles these error types:
-
-- `httpx.HTTPStatusError` - HTTP 4xx/5xx responses
-- `httpx.TimeoutException` - Request timeouts  
-- `websockets.exceptions.ConnectionClosed` - WebSocket disconnections
-- `json.JSONDecodeError` - Invalid JSON responses
-- `pydantic.ValidationError` - Model validation failures
-
-### Test Suite Structure
-
-Generated test files:
-
-```
-tests/
-├── __init__.py
-├── conftest.py              # pytest configuration
-├── test_client.py           # Main test suite
-├── test_performance.py      # Performance benchmarks
-└── run_tests.py            # Test runner script
-```
-
-### Environment Variables
-
-The client supports these environment variables:
-
-- `GRPC_FASTAPI_BASE_URL` - Default base URL
-- `GRPC_FASTAPI_API_KEY` - Default API key
-- `GRPC_FASTAPI_TIMEOUT` - Default timeout (seconds)
-- `GRPC_FASTAPI_LOG_LEVEL` - Logging level (DEBUG, INFO, WARNING, ERROR)
-
-Example usage:
-```python
-import os
-from example.client.example_client import ExampleClient
-
-client = ExampleClient(
-    base_url=os.getenv("GRPC_FASTAPI_BASE_URL", "http://localhost:8000"),
-    api_key=os.getenv("GRPC_FASTAPI_API_KEY", ""),
-    timeout=float(os.getenv("GRPC_FASTAPI_TIMEOUT", "30.0"))
-)
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Run the test suite
-6. Submit a pull request
-
-## License
-
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details. and supports transforming gRPC services into FastAPI routes. It automates `FastAPI` route generation based on `gRPC service` definitions, eliminating the need for additional code.
-
 # grpc_fastapi_client_gen
 
 This tool automatically generates type-safe gRPC FastAPI clients from protobuf service definitions. It creates async HTTP clients that support unary calls, server streaming, and bidirectional streaming through WebSockets.
@@ -147,9 +23,7 @@ This tool automatically generates type-safe gRPC FastAPI clients from protobuf s
 ## 🚀 Quick Links
 
 - **[Quick Start Guide](QUICKSTART.md)** - Get running in 5 minutes
-- **[Complete Client Usage Guide](CLIENT_USAGE_GUIDE.md)** - Comprehensive examples and advanced usage  
 - **[Example Project](./example/)** - Full working example with server and client
-- **[API Documentation](#api-documentation)** - Detailed API reference
 
 ## Features
 
@@ -449,3 +323,16 @@ python3 -m grpc_tools.protoc \
     --client_opt=services_json=./custom/services.json \
     ./protos/*.proto
 ```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Run the test suite
+6. Submit a pull request
+
+## License
+
+This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details. and supports transforming gRPC services into FastAPI routes. It automates `FastAPI` route generation based on `gRPC service` definitions, eliminating the need for additional code.
