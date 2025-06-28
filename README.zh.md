@@ -2,11 +2,11 @@
 
 # protobuf-pydantic-gen
 
-该工具可以将协议缓冲区(Protocol Buffer)描述语言转换为pydantic `BaseModel`类，并且支持将pydantic模型转换回protobuf消息。它还支持将protobuf描述语言转换为`sqlmodel` ORM模型。
+该工具可以将Protocol Buffer转换为pydantic `BaseModel`类，并且支持将pydantic模型转换回protobuf消息。它还支持将protobuf描述语言转换为`sqlmodel` ORM模型。
 
 # grpc_fastapi_gateway
 
-该工具可以将协议缓冲区描述语言转换为gRPC服务，并将其转换为FastAPI路由。它基于`gRPC service`定义自动生成`FastAPI`路由，无需编写额外的代码。
+该工具可以将Protocol Buffer转换为gRPC服务，并将其转换为FastAPI路由。它基于`gRPC service`定义自动生成`FastAPI`路由，无需编写额外的代码。
 
 ### 传输协议
 
