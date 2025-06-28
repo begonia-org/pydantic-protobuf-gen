@@ -30,16 +30,22 @@ dependencies = [
     "patchy>=2.9.0",
     "granian>=2.3.4",
     "patch-ng>=1.18.1",
+    "httpx>=0.28.1",
+    "websockets>=15.0.1",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.0.0",
 ]
 
 
 [project.scripts]
 protoc-gen-pydantic = 'protobuf_pydantic_gen.main:main'
+protoc-gen-client= 'grpc_fastapi_client_gen.main:main'
 [tool.setuptools]
-package-dir = {"protobuf_pydantic_gen" = "protobuf_pydantic_gen","grpc_fastapi_gateway" = "grpc_fastapi_gateway"}
+package-dir = {"protobuf_pydantic_gen" = "protobuf_pydantic_gen","grpc_fastapi_gateway" = "grpc_fastapi_gateway","grpc_fastapi_client_gen" = "grpc_fastapi_client_gen"}
 
 [tool.setuptools.package-data]
 "protobuf_pydantic_gen" = ["protobuf_pydantic_gen/*.j2"]
+"grpc_fastapi_client_gen" = ["grpc_fastapi_client_gen/*.j2"]
 "grpc_fastapi_gateway" = ["grpc_fastapi_gateway/*.patch"]
 
 [build-system]

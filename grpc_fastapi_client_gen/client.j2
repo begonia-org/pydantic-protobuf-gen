@@ -1,0 +1,200 @@
+"""
+Auto-generated gRPC FastAPI client
+Generated from services.json
+"""
+import asyncio
+import json
+import logging
+from typing import Any, Dict, Optional, AsyncGenerator
+from urllib.parse import urlparse, urlunparse
+
+import httpx
+import websockets
+from websockets.exceptions import ConnectionClosed
+from pydantic import ValidationError
+
+# Import all required models
+{% for import_statement in model_imports %}
+{{ import_statement }}
+{% endfor %}
+
+logger = logging.getLogger(__name__)
+
+
+class {{ class_name }}:
+    """Generated gRPC FastAPI client with type safety"""
+    
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str = "",
+        timeout: float = 30.0
+    ):
+        self.base_url = base_url.rstrip('/')
+        self.api_key = api_key
+        self.timeout = timeout
+    
+    def _build_headers(self, extra_headers: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+        """Build request headers with authentication"""
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        if extra_headers:
+            headers.update(extra_headers)
+        return headers
+    
+    def _build_websocket_uri(self, path: str) -> str:
+        """Build WebSocket URI from HTTP base URL"""
+        parsed = urlparse(self.base_url)
+        ws_scheme = "wss" if parsed.scheme == "https" else "ws"
+        return urlunparse((
+            ws_scheme,
+            parsed.netloc,
+            path.lstrip('/'),
+            parsed.params,
+            parsed.query,
+            parsed.fragment
+        ))
+
+{% for service_name, methods in services.items() %}
+    # {{ service_name }} methods
+{% for method_name, method_info in methods.items() %}
+{% set snake_name = method_info.snake_name %}
+{% set input_type = method_info.input_type %}
+{% set output_type = method_info.output_type %}
+{% set streaming_type = method_info.streaming_type %}
+{% set http_method = method_info.http.method %}
+{% set http_path = method_info.http.path %}
+{% set use_body = method_info.http.body %}
+
+{% if streaming_type == "unary" %}
+    async def {{ snake_name }}(
+        self,
+        request: {{ input_type }},
+        headers: Optional[Dict[str, Any]] = None
+    ) -> {{ output_type }}:
+        """{{ method_name }} - Unary RPC call"""
+        url = f"{self.base_url}{{ http_path }}"
+        request_headers = self._build_headers(headers)
+        
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            {% if use_body %}
+            response = await client.{{ http_method.lower() }}(
+                url,
+                json=request.model_dump(exclude_none=True),
+                headers=request_headers
+            )
+            {% else %}
+            response = await client.{{ http_method.lower() }}(
+                url,
+                params=request.model_dump(exclude_none=True),
+                headers=request_headers
+            )
+            {% endif %}
+            
+            if response.status_code >= 400:
+                raise httpx.HTTPStatusError(
+                    f"HTTP {response.status_code}",
+                    request=response.request,
+                    response=response
+                )
+            
+            data = response.json()
+            return {{ output_type }}(**data.get('data', data))
+
+{% elif streaming_type == "server_streaming" %}
+    async def {{ snake_name }}(
+        self,
+        request: {{ input_type }},
+        headers: Optional[Dict[str, Any]] = None
+    ) -> AsyncGenerator[{{ output_type }}, None]:
+        """{{ method_name }} - Server streaming RPC call"""
+        url = f"{self.base_url}{{ http_path }}"
+        request_headers = self._build_headers(headers)
+        request_headers["Accept"] = "text/event-stream"
+        
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            {% if use_body %}
+            async with client.stream(
+                "{{ http_method }}",
+                url,
+                json=request.model_dump(exclude_none=True),
+                headers=request_headers
+            ) as response:
+            {% else %}
+            async with client.stream(
+                "{{ http_method }}",
+                url,
+                params=request.model_dump(exclude_none=True),
+                headers=request_headers
+            ) as response:
+            {% endif %}
+                if response.status_code >= 400:
+                    raise httpx.HTTPStatusError(
+                        f"HTTP {response.status_code}",
+                        request=response.request,
+                        response=response
+                    )
+                
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:]  # Remove "data: " prefix
+                        if data_str.strip():
+                            try:
+                                data = json.loads(data_str)
+                                yield {{ output_type }}(**data)
+                            except (json.JSONDecodeError, ValidationError) as e:
+                                logger.error(f"Failed to parse SSE data: {e}")
+
+{% elif streaming_type == "bidirectional_streaming" %}
+    async def {{ snake_name }}(
+        self,
+        input_stream: AsyncGenerator[{{ input_type }}, None],
+        headers: Optional[Dict[str, Any]] = None
+    ) -> AsyncGenerator[{{ output_type }}, None]:
+        """{{ method_name }} - Bidirectional streaming RPC call"""
+        uri = self._build_websocket_uri("{{ http_path }}")
+        extra_headers = self._build_headers(headers)
+        
+        async with websockets.connect(uri, extra_headers=extra_headers) as websocket:
+            # Input sender task
+            async def send_inputs():
+                try:
+                    async for request in input_stream:
+                        message = request.model_dump_json(exclude_none=True)
+                        await websocket.send(message)
+                except Exception as e:
+                    logger.error(f"Error sending input: {e}")
+                    raise
+            
+            # Output receiver task
+            async def receive_outputs():
+                try:
+                    async for message in websocket:
+                        try:
+                            data = json.loads(message)
+                            yield {{ output_type }}(**data)
+                        except (json.JSONDecodeError, ValidationError) as e:
+                            logger.error(f"Failed to parse WebSocket message: {e}")
+                except ConnectionClosed:
+                    logger.info("WebSocket connection closed")
+                except Exception as e:
+                    logger.error(f"Error receiving output: {e}")
+                    raise
+            
+            # Start sender task
+            sender_task = asyncio.create_task(send_inputs())
+            
+            try:
+                async for output in receive_outputs():
+                    yield output
+            finally:
+                sender_task.cancel()
+                try:
+                    await sender_task
+                except asyncio.CancelledError:
+                    pass
+{% endif %}
+
+{% endfor %}
+{% endfor %}

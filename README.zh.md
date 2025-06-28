@@ -6,20 +6,36 @@
 
 该工具可以将protobuf描述语言转换为grpc服务，并且支持将grpc服务转换为FastAPI路由。支持基于`gRPC service`的`FastAPI`路由生成，无需编写额外的代码。
 
+# grpc_fastapi_client_gen
+
+该工具从protobuf服务定义自动生成类型安全的gRPC FastAPI客户端。它创建支持一元调用、服务器流式传输和通过WebSocket双向流式传输的异步HTTP客户端。
+
+## 🚀 快速链接
+
+- **[快速开始指南](QUICKSTART.md)** - 5分钟快速上手
+- **[完整客户端使用指南](CLIENT_USAGE_GUIDE.md)** - 全面的示例和高级用法  
+- **[示例项目](./example/)** - 包含服务器和客户端的完整工作示例
+- **[API文档](#api文档)** - 详细的API参考
+
 ## 特性
 
-- 支持protobuf基本类型转换为python基本类型
+- **protobuf-pydantic-gen**:
+  - 支持protobuf基本类型转换为python基本类型
+  - 支持protobuf描述语言转换为pydantic `BaseModel`类
+  - 支持protobuf描述语言转换为`sqlmodel` ORM模型
+  - 为`BaseModel`类实现`to_protobuf` 和 `from_protobuf`方法，实现pydantic model 和 protobuf message 互相转换
+  - 为protobuf 描述文件提供`pydantic BaseModel Field` 字段的参数选项
 
-- 支持protobuf描述语言转换为pydantic `BaseModel`类
+- **grpc_fastapi_gateway**:
+  - 支持将protobuf描述语言转换为grpc服务，并且支持将grpc服务转换为FastAPI路由
+  - 支持基于`gRPC service`的`FastAPI`路由生成，无需编写额外的代码
 
-- 支持protobuf描述语言转换为`sqlmodel` ORM模型
-
-- 为`BaseModel`类实现`to_protobuf` 和 `from_protobuf`方法，实现pydantic model 和 protobuf message 互相转换
-
-- 为protobuf 描述文件提供`pydantic BaseModel Field` 字段的参数选项
-
-- 支持将protobuf描述语言转换为grpc服务，并且支持将grpc服务转换为FastAPI路由
-- 支持基于`gRPC service`的`FastAPI`路由生成，无需编写额外的代码
+- **grpc_fastapi_client_gen**:
+  - 从protobuf服务定义生成类型安全的异步HTTP客户端
+  - 支持所有gRPC调用类型：一元、服务器流式、客户端流式和双向流式
+  - 对一元调用使用HTTP/REST，对服务器流式使用服务器发送事件(SSE)，对双向流式使用WebSocket
+  - 包含全面的错误处理和连接管理
+  - 提供内置身份验证支持(API密钥/Bearer令牌)
 
 ## 安装
 
@@ -199,6 +215,120 @@ cd example/protos && make py
 OR
 ```shell
 python3 -m grpc_tools.protoc  --plugin=protoc-gen-custom=protobuf_pydantic_gen/main.py --custom_out=./example/models --python_out=./example/pb --grpc_python_out=./example/pb  -I ./example  -I ./example/protos helloworld.proto
+```
+
+## grpc_fastapi_client_gen 用法
+
+### 快速开始
+
+1. **从Protobuf生成客户端代码**
+
+```shell
+# 使用客户端生成器插件
+python3 -m grpc_tools.protoc \
+    --proto_path=./protos \
+    --proto_path=./ \
+    --client_out=./client \
+    --client_opt=package_name=example \
+    --client_opt=models_dir=./models \
+    --client_opt=class_name=MyAPIClient \
+    ./protos/helloworld.proto
+```
+
+2. **或使用Makefile（推荐）**
+
+```shell
+cd example/protos && make py_cli
+```
+
+### 生成的客户端特性
+
+生成的客户端提供：
+
+- **类型安全的异步方法** 适用于所有gRPC服务方法
+- **自动序列化/反序列化** 使用Pydantic模型
+- **多种传输协议**：
+  - HTTP/JSON用于一元调用
+  - 服务器发送事件(SSE)用于服务器流式传输
+  - WebSocket用于双向流式传输
+- **内置身份验证** (API密钥/Bearer令牌支持)
+- **连接管理** 和错误处理
+- **全面的测试套件**
+
+### 使用生成的客户端
+
+```python
+import asyncio
+from example.client.example_client import ExampleClient
+from example.models.helloworld_model import HelloRequest, HelloReply
+
+async def main():
+    # 初始化客户端
+    client = ExampleClient(
+        base_url="http://localhost:8000",
+        api_key="your-api-key",  # 可选
+        timeout=30.0
+    )
+    
+    # 一元调用
+    request = HelloRequest(name="Alice", language="en")
+    response = await client.greeter_say_hello(request)
+    print(f"响应: {response.message}")
+    
+    # 服务器流式传输
+    async for response in client.greeter_say_hello_stream_reply(request):
+        print(f"流式响应: {response.message}")
+        if some_condition:  # 控制流的终止
+            break
+    
+    # 双向流式传输
+    async def input_generator():
+        for name in ["Bob", "Charlie", "David"]:
+            yield HelloRequest(name=name, language="en")
+            await asyncio.sleep(1)  # 模拟延迟
+    
+    async for response in client.greeter_say_hello_bidi_stream(input_generator()):
+        print(f"双向响应: {response.message}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### 客户端配置选项
+
+```python
+client = ExampleClient(
+    base_url="https://api.example.com",  # 服务器基础URL
+    api_key="sk-...",                    # 可选的API密钥用于身份验证
+    timeout=60.0                         # 请求超时时间（秒）
+)
+
+# 为单个请求自定义头部
+custom_headers = {"X-Custom-Header": "value"}
+response = await client.greeter_say_hello(request, headers=custom_headers)
+```
+
+### 插件参数
+
+使用`protoc-gen-client`时，可以使用这些参数自定义生成：
+
+| 参数 | 描述 | 默认值 |
+|------|------|---------|
+| `package_name` | 导入的Python包名 | 必需 |
+| `models_dir` | 包含Pydantic模型的目录 | 必需 |
+| `class_name` | 生成的客户端类名 | `Client` |
+| `services_json` | services.json文件路径 | `{models_dir}/services.json` |
+| `template_dir` | 自定义Jinja2模板目录 | 内置模板 |
+
+带自定义参数的示例：
+```shell
+python3 -m grpc_tools.protoc \
+    --client_out=./output \
+    --client_opt=package_name=myapp \
+    --client_opt=models_dir=./myapp/models \
+    --client_opt=class_name=MyCustomClient \
+    --client_opt=services_json=./custom/services.json \
+    ./protos/*.proto
 ```
 
 
