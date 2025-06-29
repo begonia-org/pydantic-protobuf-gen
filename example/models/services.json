@@ -3,14 +3,14 @@
         "SayHello": {
             "input_type": ".helloworld.HelloRequest",
             "output_type": ".helloworld.HelloReply",
+            "streaming_type": "unary",
+            "method_full_name": "/helloworld.Greeter/SayHello",
             "options": {
                 "[google.api.http]": {
                     "post": "/v1/helloworld",
                     "body": "*"
                 }
             },
-            "streaming_type": "unary",
-            "method_full_name": "/helloworld.Greeter/SayHello",
             "http": {
                 "method": "POST",
                 "path": "/v1/helloworld",
@@ -20,14 +20,14 @@
         "SayHelloStreamReply": {
             "input_type": ".helloworld.HelloRequest",
             "output_type": ".helloworld.HelloReply",
+            "streaming_type": "server_streaming",
+            "method_full_name": "/helloworld.Greeter/SayHelloStreamReply",
             "options": {
                 "[google.api.http]": {
                     "post": "/v1/helloworld/stream",
                     "body": "*"
                 }
             },
-            "streaming_type": "server_streaming",
-            "method_full_name": "/helloworld.Greeter/SayHelloStreamReply",
             "http": {
                 "method": "POST",
                 "path": "/v1/helloworld/stream",
@@ -37,14 +37,14 @@
         "SayHelloBidiStream": {
             "input_type": ".helloworld.HelloRequest",
             "output_type": ".helloworld.HelloReply",
+            "streaming_type": "bidirectional_streaming",
+            "method_full_name": "/helloworld.Greeter/SayHelloBidiStream",
             "options": {
                 "[google.api.http]": {
                     "post": "/v1/helloworld/ws",
                     "body": "*"
                 }
             },
-            "streaming_type": "bidirectional_streaming",
-            "method_full_name": "/helloworld.Greeter/SayHelloBidiStream",
             "http": {
                 "method": "POST",
                 "path": "/v1/helloworld/ws",
@@ -54,14 +54,14 @@
         "SayHelloStream": {
             "input_type": ".helloworld.HelloRequest",
             "output_type": ".helloworld.HelloReply",
+            "streaming_type": "client_streaming",
+            "method_full_name": "/helloworld.Greeter/SayHelloStream",
             "options": {
                 "[google.api.http]": {
                     "post": "/v1/helloworld/sse",
                     "body": "*"
                 }
             },
-            "streaming_type": "client_streaming",
-            "method_full_name": "/helloworld.Greeter/SayHelloStream",
             "http": {
                 "method": "POST",
                 "path": "/v1/helloworld/sse",

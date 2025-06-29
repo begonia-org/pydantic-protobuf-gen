@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+import "constant.proto";
+import "protobuf_pydantic_gen/pydantic.proto";
+package pydantic_example;
+message Example2 {
+    ExampleType type = 1[(pydantic.field) = {description: "Type of the example",default: "ExampleType.TYPE1"}];
+    
+}

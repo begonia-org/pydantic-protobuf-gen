@@ -14,8 +14,8 @@ from websockets.exceptions import ConnectionClosed
 from pydantic import ValidationError
 
 # Import all required models
-from example.models.helloworld_model import HelloReply
-from example.models.helloworld_model import HelloRequest
+# HelloReply = Any  # Model not found
+# HelloRequest = Any  # Model not found
 
 logger = logging.getLogger(__name__)
 

@@ -39,7 +39,7 @@ dependencies = [
 
 
 [project.scripts]
-protoc-gen-pydantic = 'protobuf_pydantic_gen.main:main'
+protoc-gen-pydantic = 'protobuf_pydantic_gen.generator:main'
 protoc-gen-client= 'grpc_fastapi_client_gen.main:main'
 [tool.setuptools]
 package-dir = {"protobuf_pydantic_gen" = "protobuf_pydantic_gen","grpc_fastapi_gateway" = "grpc_fastapi_gateway","grpc_fastapi_client_gen" = "grpc_fastapi_client_gen"}

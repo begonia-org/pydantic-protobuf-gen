@@ -1,26 +1,177 @@
 {
+    "Example2": {
+        "type": {
+            "type": "ExampleType",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Type of the example\"",
+                "default": "ExampleType.TYPE1"
+            },
+            "description": "\"Type of the example\""
+        }
+    },
+    "Nested": {
+        "name": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Name of the example\"",
+                "example": "\"'ohn Doe\"",
+                "default": "\"John Doe\"",
+                "alias": "\"full_name\"",
+                "primary_key": true,
+                "max_length": 128
+            },
+            "description": "\"Name of the example\""
+        }
+    },
+    "Example": {
+        "name": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Name of the example\"",
+                "default": "\"John Doe\"",
+                "alias": "\"full_name\"",
+                "primary_key": true,
+                "max_length": 128,
+                "sa_column_kwargs": {
+                    "comment": "Name of the example"
+                }
+            },
+            "description": "\"Name of the example\""
+        },
+        "age": {
+            "type": "int",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Age of the example\"",
+                "default": "30",
+                "alias": "\"years\"",
+                "sa_column_kwargs": {
+                    "comment": "Age of the example"
+                }
+            },
+            "description": "\"Age of the example\""
+        },
+        "emails": {
+            "type": "str",
+            "repeated": true,
+            "required": false,
+            "ext": {
+                "description": "\"Emails of the example\"",
+                "default": "\"[\"example@example.com\",\"example2@example.com\"]\"",
+                "sa_column": "Column(JSON, doc=\"Emails of the example\")"
+            },
+            "description": "\"Emails of the example\""
+        },
+        "examples": {
+            "type": "Example2",
+            "repeated": true,
+            "required": false,
+            "ext": {
+                "description": "\"Nested message\"",
+                "default": null,
+                "sa_column": "Column(JSON, doc=\"Nested message\")"
+            },
+            "description": "\"Nested message\""
+        },
+        "entry": {
+            "type": "Dict[str, Any]",
+            "repeated": true,
+            "required": false,
+            "ext": {
+                "description": "\"Properties of the example\"",
+                "default": {},
+                "sa_column": "Column(JSON, doc=\"Properties of the example\")"
+            },
+            "description": "\"Properties of the example\""
+        },
+        "nested": {
+            "type": "Nested",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Nested message\"",
+                "default": null,
+                "sa_column": "Column(JSON, doc=\"Nested message\")"
+            },
+            "description": "\"Nested message\""
+        },
+        "created_at": {
+            "type": "datetime.datetime",
+            "repeated": false,
+            "required": true,
+            "ext": {
+                "description": "\"Creation date of the example\"",
+                "default": "datetime.datetime.now()",
+                "sa_column_kwargs": {
+                    "comment": "Creation date of the example"
+                }
+            },
+            "description": "\"Creation date of the example\""
+        },
+        "type": {
+            "type": "ExampleType",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Type of the example\"",
+                "default": "ExampleType.TYPE1",
+                "sa_column": "Column(Enum[ExampleType], doc=\"Type of the example\")"
+            },
+            "description": "\"Type of the example\""
+        },
+        "score": {
+            "type": "float",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Score of the example\"",
+                "default": "0.0",
+                "le": 100.0,
+                "sa_column": "Column(Integer, doc=\"Score of the example\")"
+            },
+            "description": "\"Score of the example\""
+        }
+    },
+    "Example3": {
+        "name": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "default": "\"\""
+            },
+            "description": ""
+        }
+    },
     "HelloRequest": {
         "name": {
             "type": "str",
             "repeated": false,
             "required": true,
             "ext": {
-                "description": "The name of the person to greet",
-                "example": "John Doe",
-                "default": "John Doe"
+                "description": "\"The name of the person to greet\"",
+                "example": "\"'John Doe'\"",
+                "default": "\"John Doe\""
             },
-            "description": "The name of the person to greet"
+            "description": "\"The name of the person to greet\""
         },
         "language": {
             "type": "str",
             "repeated": false,
             "required": false,
             "ext": {
-                "description": "The language of the greeting",
-                "example": "en",
-                "default": "en"
+                "description": "\"The language of the greeting\"",
+                "example": "\"'en'\"",
+                "default": "\"en\""
             },
-            "description": "The language of the greeting"
+            "description": "\"The language of the greeting\""
         }
     },
     "HelloReply": {
@@ -29,22 +180,22 @@
             "repeated": false,
             "required": true,
             "ext": {
-                "description": "The greeting message",
-                "example": "Hello, John Doe!",
-                "default": "Hello, John Doe!"
+                "description": "\"The greeting message\"",
+                "example": "\"'Hello, John Doe!'\"",
+                "default": "\"Hello, John Doe!\""
             },
-            "description": "The greeting message"
+            "description": "\"The greeting message\""
         },
         "language": {
             "type": "str",
             "repeated": false,
             "required": false,
             "ext": {
-                "description": "The language of the greeting",
-                "example": "en",
-                "default": "en"
+                "description": "\"The language of the greeting\"",
+                "example": "\"'en'\"",
+                "default": "\"en\""
             },
-            "description": "The language of the greeting"
+            "description": "\"The language of the greeting\""
         }
     }
 }
