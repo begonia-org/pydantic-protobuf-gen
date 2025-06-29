@@ -1,4 +1,3 @@
-from typing import Annotated, AsyncGenerator, Awaitable, Callable, Tuple, TypeVar
 import inspect
 import json
 import os
@@ -6,19 +5,29 @@ import logging
 import sys
 import importlib
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
-from starlette.types import Send, Receive, Scope
-from fastapi import Body, FastAPI, HTTPException, Query, Request, Response, WebSocket
-from fastapi.responses import StreamingResponse
+from typing import Any, Dict, List, Optional, Type, Tuple, TypeVar, Annotated
+from functools import lru_cache
 
+from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ValidationError
 from sse_starlette import EventSourceResponse
-from grpc_fastapi_gateway.context import GRPCServicerContextAdapter
-from grpc_fastapi_gateway.patch import patch_h2_protocol
-from grpc_fastapi_gateway.response import BaseHttpResponse
-from grpc_fastapi_gateway.typings import LoggerType
-from grpc_fastapi_gateway.utils import RequestToGrpc
+from starlette.types import Send, Receive, Scope
 
+from .patch import patch_h2_protocol
+from .response import BaseHttpResponse
+from .typings import LoggerType
+from .utils import RequestToGrpc
+from .exceptions import (
+    MethodNotFoundError, ClassLoadingError,
+    ValidationError as GatewayValidationError, ServiceLoadError
+)
+from .decorators import (
+    safe_endpoint_decorator, safe_sse_endpoint_decorator,
+    safe_websocket_endpoint_decorator, safe_client_streaming_endpoint_decorator
+)
+
+
+# Type variables for generic decorators
 InputT = TypeVar("InputT", bound=BaseModel)
 OutputT = TypeVar("OutputT", bound=BaseModel)
 
@@ -27,261 +36,80 @@ logger = logging.getLogger(__name__)
 patch_h2_protocol()
 
 
-def endpoint_generic_decorator(
-    response_cls: Type[OutputT],
-    service_method: Callable[[InputT], Awaitable[BaseHttpResponse[OutputT]]],
-) -> Callable[
-    [Callable[[InputT], Awaitable[BaseHttpResponse[OutputT]]]],
-    Callable[[InputT], Awaitable[BaseHttpResponse[OutputT]]],
-]:
-    async def endpoint_generic(
-        ctx: Request,
-        response: Response,
-        request,
-    ) -> BaseHttpResponse[OutputT]:
-        context = GRPCServicerContextAdapter(ctx, response)
-        rsp = await service_method(request.to_protobuf(), context)
-        data = response_cls.from_protobuf(rsp)
-        response.headers.update(context.trailing_metadata())
-        return BaseHttpResponse[OutputT](code=0, message="success", data=data)
+class CachedClassLoader:
+    """Cached class loader for improved performance"""
 
-    return endpoint_generic
+    def __init__(self, cache_size: int = 128):
+        self._cache: Dict[str, Optional[Type]] = {}
+        self._cache_size = cache_size
 
+    @lru_cache(maxsize=128)
+    def load_class(self, directory: str, class_name: str) -> Optional[Type]:
+        """Load a class with caching"""
+        cache_key = f"{directory}:{class_name}"
 
-def sse_endpoint_generic_decorator(
-    response_cls: Type[OutputT],
-    service_method: Callable[[InputT], AsyncGenerator[str, OutputT]],
-) -> Callable[
-    [Callable[[InputT], AsyncGenerator[str, OutputT]]],
-    Callable[[InputT], EventSourceResponse],
-]:
-    async def sse_endpoint_generic(
-        ctx: Request, response: Response, request
-    ) -> EventSourceResponse:
-        async def async_to_json(rsp: AsyncGenerator[str, OutputT]):
-            async for r in rsp:
-                yield json.dumps(
-                    response_cls.from_protobuf(r).model_dump(), ensure_ascii=False
-                )
-            return
+        if cache_key in self._cache:
+            return self._cache[cache_key]
 
-        context = GRPCServicerContextAdapter(ctx, response)
-        return EventSourceResponse(
-            async_to_json(service_method(request, context)),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
-
-    return sse_endpoint_generic
-
-
-def websocket_endpoint_generic_decorator(
-    request_cls: Type[InputT],
-    response_cls: Type[OutputT],
-    service_method: Callable[[InputT], AsyncGenerator[str, OutputT]],
-    is_webscoket=False,
-) -> Callable[
-    [Callable[[InputT], AsyncGenerator[str, OutputT]]],
-    Callable[[InputT], EventSourceResponse],
-]:
-    async def websocket_endpoint(
-        websocket: WebSocket,
-    ) -> AsyncGenerator[OutputT, None]:
         try:
-            ws = websocket
-            await ws.accept()
+            result = self._scan_and_import_class_safe(directory, class_name)
+            self._cache[cache_key] = result
 
-            async def async_to_pb():
-                async for message in ws.iter_text():
-                    request_obj = json.loads(message)
-                    request = request_cls.model_validate(request_obj)
-                    yield request.to_protobuf()
+            # Manage cache size
+            if len(self._cache) > self._cache_size:
+                # Remove oldest entries
+                keys_to_remove = list(self._cache.keys())[:-self._cache_size]
+                for key in keys_to_remove:
+                    del self._cache[key]
 
-            context = GRPCServicerContextAdapter(websocket, None)
-            # rsp = await service_method(async_to_pb, context)
-            async for r in service_method(async_to_pb(), context):
-                data = response_cls.from_protobuf(r)
-                await ws.send_json(data.model_dump())
+            return result
         except Exception as e:
-            import traceback
+            logger.error(
+                f"Failed to load class {class_name} from {directory}: {e}")
+            raise ClassLoadingError(
+                f"Cannot load class {class_name}", class_name, str(e))
 
-            traceback.print_exc()
-            raise ValueError(
-                f"Error processing WebSocket message: {str(e)}") from e
-        finally:
-            await websocket.close()
+    def _scan_and_import_class_safe(self, directory: str, class_name: str) -> Optional[Type]:
+        """Safely scan and import a class from a directory"""
+        import importlib.util
 
-    async def bidirectional_streaming_endpoint(request: Request):
-        async def process_stream():
-            context = GRPCServicerContextAdapter(request, None)
+        directory = Path(directory)
+        if not directory.exists() or not directory.is_dir():
+            raise ClassLoadingError(
+                f"Directory {directory} does not exist or is not a directory",
+                class_name,
+                f"Invalid directory: {directory}"
+            )
 
-            async def _to_pb():
-                async for chunk in request.stream():
-                    if chunk:
-                        print(f"Received chunk: {chunk.decode()}")
-                        try:
-                            data = json.loads(chunk.decode())
-                            yield request_cls.model_validate(data).to_protobuf()
-                        except json.JSONDecodeError:
-                            print(f"Invalid JSON data: {chunk.decode()}")
-
-            async for r in service_method(_to_pb(), context):
-                data = response_cls.from_protobuf(r)
-                yield json.dumps(data.model_dump(), ensure_ascii=False)
-
-        return StreamingResponse(
-            process_stream(),
-            media_type="application/octet-stream",
-        )
-
-    if is_webscoket:
-        return websocket_endpoint
-    else:
-        return bidirectional_streaming_endpoint
-
-
-def client_streaming_endpoint_generic_decorator(
-    request_cls: Type[InputT],
-    response_cls: Type[OutputT],
-    service_method: Callable[[AsyncGenerator[InputT, None]], Awaitable[OutputT]],
-    is_websocket=False,
-) -> Callable[
-    [Callable[[AsyncGenerator[InputT, None]], Awaitable[OutputT]]],
-    Callable[[WebSocket], Awaitable[None]],
-]:
-    """
-    Decorator for client streaming RPC calls
-    Client sends multiple requests and server returns a single response
-    """
-    async def websocket_client_streaming_endpoint(
-        websocket: WebSocket,
-    ) -> None:
-        try:
-            ws = websocket
-            await ws.accept()
-
-            async def async_request_stream():
-                """Generate request stream from WebSocket messages"""
-                try:
-                    async for message in ws.iter_text():
-                        if message.strip():  # Skip empty messages
-                            try:
-                                request_obj = json.loads(message)
-                                request = request_cls.model_validate(request_obj)
-                                yield request.to_protobuf()
-                            except json.JSONDecodeError as e:
-                                logger.error(f"Invalid JSON from client: {e}")
-                                await ws.send_json({"error": "Invalid JSON format"})
-                                continue
-                            except ValidationError as e:
-                                logger.error(f"Request validation failed: {e}")
-                                await ws.send_json({"error": f"Validation error: {e.errors()}"})
-                                continue
-                except Exception as e:
-                    logger.error(f"Error in request stream: {e}")
-                    raise
-
-            context = GRPCServicerContextAdapter(websocket, None)
-            
-            # Call the streaming service method
-            response = await service_method(async_request_stream(), context)
-            
-            # Send the single response back to client
-            if response:
-                data = response_cls.from_protobuf(response)
-                await ws.send_json({
-                    "type": "response",
-                    "data": data.model_dump()
-                })
-            
-            # Send completion signal
-            await ws.send_json({"type": "complete"})
-            
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            logger.error(f"Error in client streaming endpoint: {e}")
-            try:
-                await ws.send_json({
-                    "type": "error",
-                    "error": str(e)
-                })
-            except Exception:
-                pass  # Connection might be closed
-        finally:
-            try:
-                await websocket.close()
-            except Exception:
-                pass  # Connection might already be closed
-
-    async def http_client_streaming_endpoint(request: Request):
-        """
-        HTTP endpoint for client streaming using chunked transfer encoding
-        Client sends multiple JSON objects separated by newlines
-        """
-        async def process_client_stream():
-            context = GRPCServicerContextAdapter(request, None)
-
-            async def request_stream():
-                """Generate request stream from HTTP chunks"""
-                buffer = ""
-                async for chunk in request.stream():
-                    if chunk:
-                        buffer += chunk.decode('utf-8')
-                        # Process complete lines (JSON objects)
-                        while '\n' in buffer:
-                            line, buffer = buffer.split('\n', 1)
-                            line = line.strip()
-                            if line:
-                                try:
-                                    data = json.loads(line)
-                                    request_obj = request_cls.model_validate(data)
-                                    yield request_obj.to_protobuf()
-                                except (json.JSONDecodeError, ValidationError) as e:
-                                    logger.error(f"Error processing request chunk: {e}")
-                                    continue
-                
-                # Process any remaining data in buffer
-                if buffer.strip():
-                    try:
-                        data = json.loads(buffer.strip())
-                        request_obj = request_cls.model_validate(data)
-                        yield request_obj.to_protobuf()
-                    except (json.JSONDecodeError, ValidationError) as e:
-                        logger.error(f"Error processing final chunk: {e}")
+        for py_file in directory.glob("**/*.py"):
+            if py_file.name.startswith("__"):
+                continue
 
             try:
-                # Call the streaming service method
-                response = await service_method(request_stream(), context)
-                
-                if response:
-                    data = response_cls.from_protobuf(response)
-                    return BaseHttpResponse[response_cls](
-                        code=0, 
-                        message="success", 
-                        data=data
-                    )
-                else:
-                    return BaseHttpResponse[response_cls](
-                        code=0,
-                        message="success",
-                        data=None
-                    )
-                    
+                # Generate a unique module name to avoid conflicts
+                module_name = f"temp_module_{py_file.stem}_{id(py_file)}"
+                spec = importlib.util.spec_from_file_location(
+                    module_name, py_file)
+
+                if spec is None or spec.loader is None:
+                    continue
+
+                module = importlib.util.module_from_spec(spec)
+                module.__file__ = str(py_file)
+                module.__package__ = None
+
+                spec.loader.exec_module(module)
+
+                if hasattr(module, class_name):
+                    cls = getattr(module, class_name)
+                    if inspect.isclass(cls):
+                        return cls
+
             except Exception as e:
-                logger.error(f"Error in client streaming HTTP endpoint: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                logger.debug(f"Error importing from {py_file}: {e}")
+                continue
 
-        if is_websocket:
-            return websocket_client_streaming_endpoint
-        else:
-            # For HTTP, return the response directly
-            return await http_client_streaming_endpoint(request)
-
-    if is_websocket:
-        return websocket_client_streaming_endpoint
-    else:
-        return http_client_streaming_endpoint
+        return None
 
 
 class Gateway:
@@ -477,21 +305,18 @@ class Gateway:
 
     def load_services(self):
         """
-                Load gRPC services from a JSON file.
-                This method reads a JSON file containing service definitions and initializes
-                the services for the gRPC server.
+        Load gRPC services from a JSON file.
 
-                {
+        This method reads a JSON file containing service definitions and initializes
+        the services for the gRPC server. The JSON structure should contain service
+        definitions with methods, their input/output types, HTTP mappings, and streaming types.
+
+        Example JSON structure:
+        {
             "Greeter": {
                 "SayHello": {
                     "input_type": ".helloworld.HelloRequest",
                     "output_type": ".helloworld.HelloReply",
-                    "options": {
-                        "[google.api.http]": {
-                            "post": "/v1/helloworld",
-                            "body": "*"
-                        }
-                    },
                     "streaming_type": "unary",
                     "method_full_name": "/helloworld.Greeter/SayHello",
                     "http": {
@@ -499,217 +324,319 @@ class Gateway:
                         "path": "/v1/helloworld",
                         "body": "*"
                     }
-                },
-                "SayHelloStreamReply": {
-                    "input_type": ".helloworld.HelloRequest",
-                    "output_type": ".helloworld.HelloReply",
-                    "options": {
-                        "[google.api.http]": {
-                            "post": "/v1/helloworld/stream",
-                            "body": "*"
-                        }
-                    },
-                    "streaming_type": "server_streaming",
-                    "method_full_name": "/helloworld.Greeter/SayHelloStreamReply",
-                    "http": {
-                        "method": "POST",
-                        "path": "/v1/helloworld/stream",
-                        "body": "*"
-                    }
-                },
-                "SayHelloBidiStream": {
-                    "input_type": ".helloworld.HelloRequest",
-                    "output_type": ".helloworld.HelloReply",
-                    "options": {
-                        "[google.api.http]": {
-                            "post": "/v1/helloworld/bidi",
-                            "body": "*"
-                        }
-                    },
-                    "streaming_type": "bidirectional_streaming",
-                    "method_full_name": "/helloworld.Greeter/SayHelloBidiStream",
-                    "http": {
-                        "method": "POST",
-                        "path": "/v1/helloworld/bidi",
-                        "body": "*"
-                    }
-                },
-            "SayHelloStream": {
-                    "input_type": ".helloworld.HelloRequest",
-                    "output_type": ".helloworld.HelloReply",
-                    "options": {
-                        "[google.api.http]": {
-                            "post": "/v1/helloworld/sse",
-                            "body": "*"
-                        }
-                    },
-                    "streaming_type": "client_streaming",
-                    "method_full_name": "/helloworld.Greeter/SayHelloStream",
-                    "http": {
-                        "method": "POST",
-                        "path": "/v1/helloworld/sse",
-                        "body": "*"
-                    }
-        }
+                }
             }
         }
+
+        Raises:
+            ServiceLoadError: If services cannot be loaded
+            ValidationError: If service definitions are invalid
         """
         services_json_file = f"{self._models_dir}/services.json"
+
         if not os.path.exists(services_json_file):
-            raise FileNotFoundError(
-                f"Services JSON file not found: {services_json_file}"
-            )
-        with open(services_json_file, "r", encoding="utf-8") as f:
-            services_data: Dict[str, Any] = json.load(f)
+            raise ServiceLoadError(
+                f"Services JSON file not found: {services_json_file}")
+
+        try:
+            with open(services_json_file, "r", encoding="utf-8") as f:
+                services_data: Dict[str, Any] = json.load(f)
+
+            # Validate services data structure
+            if not isinstance(services_data, dict):
+                raise GatewayValidationError(
+                    "Services data must be a dictionary", [])
+
             for service_name, service_info in services_data.items():
-                group, service_class = self._get_service_class(service_name)
-                for method_name, method_info in service_info.items():
-                    service_method = getattr(service_class, method_name, None)
-                    if not service_method:
-                        raise AttributeError(
-                            f"Method {method_name} not found in service {service_name}"
-                        )
-                    http_info = method_info.get("http", {})
-                    if http_info:
-                        input_type: str = method_info.get("input_type", "")
-                        output_type = method_info.get("output_type", "")
-                        if not input_type or not output_type:
-                            raise ValueError(
-                                f"Input or output type not specified for method {method_name} in service {service_name}"
-                            )
-                        _in = input_type.split(".")[-1]
-                        _out = output_type.split(".")[-1]
-                        input_cls, output_cls = self._get_io_models(_in, _out)
-                        stream_type = method_info.get(
-                            "streaming_type", "unary")
-                        # endpoint = endpoint_generic(input_cls, service_method)
-                        method_full_name = method_info.get(
-                            "method_full_name", "")
-                        input_pb2, output_pb2 = self._get_io_pb2(
-                            input_type.split(
-                                ".")[-1], output_type.split(".")[-1]
-                        )
-                        from google.protobuf import descriptor_pool, message_factory
+                try:
+                    self._load_service_methods(service_name, service_info)
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to load service {service_name}: {e}")
+                    raise ServiceLoadError(
+                        f"Failed to load service {service_name}: {e}")
 
-                        pool = descriptor_pool.Default()
-                        input_type = input_type.removeprefix(".")
-                        output_type = output_type.removeprefix(".")
-                        in_nested_proto = pool.FindMessageTypeByName(
-                            input_type)
-                        in_nested_cls = message_factory.GetMessageClass(
-                            in_nested_proto)
-                        out_nested_proto = pool.FindMessageTypeByName(
-                            output_type)
-                        out_nested_cls = message_factory.GetMessageClass(
-                            out_nested_proto
-                        )
-                        self._services[method_full_name] = {
-                            "service": service_class,
-                            "method": service_method,
-                            "input_type": input_cls,
-                            "output_type": output_cls,
-                            "input_pb2": input_pb2,
-                            "output_pb2": output_pb2,
-                            "streaming_type": stream_type,
-                            "http_info": http_info,
-                            "group": group,
-                            "input_message_cls": in_nested_cls,
-                            "output_message_cls": out_nested_cls,
-                        }
-                        endpoint = endpoint_generic_decorator(
-                            output_cls, service_method
-                        )
+        except json.JSONDecodeError as e:
+            raise ServiceLoadError(f"Invalid JSON in services file: {e}")
+        except Exception as e:
+            raise ServiceLoadError(f"Failed to load services: {e}")
 
-                        if stream_type == "unary":
-                            endpoint = endpoint_generic_decorator(
-                                output_cls, service_method
-                            )
-                        elif stream_type == "server_streaming":
-                            endpoint = sse_endpoint_generic_decorator(
-                                output_cls, service_method
-                            )
-                        elif stream_type == "client_streaming":
-                            endpoint = client_streaming_endpoint_generic_decorator(
-                                input_cls, output_cls, service_method, True
-                            )
-                            self.fastapi_app.add_api_websocket_route(
-                                path=http_info.get("path", ""),
-                                endpoint=endpoint,
-                            )
-                            self.fastapi_app.add_api_route(
-                                http_info.get("path", ""),
-                                endpoint=client_streaming_endpoint_generic_decorator(
-                                    input_cls, output_cls, service_method, False
-                                ),
-                                methods=[http_info.get("method", "POST").upper()],
-                                tags=[group],
-                                description=service_method.__doc__,
-                                summary=f"""{service_method.__doc__}
-                                (Client streaming - multiple requests, single response. 
-                                WebSocket support for HTTP/1, chunked transfer for HTTP/2)"""
-                                if service_method.__doc__
-                                else f"""{service_name}.{method_name}
-                                (Client streaming - multiple requests, single response. 
-                                WebSocket support for HTTP/1, chunked transfer for HTTP/2)""",
-                            )
-                            self.logger.debug(
-                                f"Added client streaming route for {method_full_name} at {http_info.get('path', '')}"
-                            )
-                            continue
-                        elif stream_type == "bidirectional_streaming":
-                            endpoint = websocket_endpoint_generic_decorator(
-                                input_cls, output_cls, service_method, True
-                            )
-                            self.fastapi_app.add_api_websocket_route(
-                                path=http_info.get("path", ""),
-                                endpoint=endpoint,
-                            )
-                            self.fastapi_app.add_api_route(
-                                http_info.get("path", ""),
-                                endpoint=websocket_endpoint_generic_decorator(
-                                    input_cls, output_cls, service_method, False
-                                ),
-                                methods=[http_info.get("method", "POST").upper()],
-                                tags=[group],
-                                description=service_method.__doc__,
-                                summary=f"""{service_method.__doc__}
-                                (Using the WebSocket protocol for bidirectional streaming communication under HTTP/1,
-                                while also supporting bidirectional streaming communication with HTTP/2 protocol)"""
-                                if service_method.__doc__
-                                else f"""{service_name}.{method_name}
-                                (Using the WebSocket protocol for bidirectional streaming communication under HTTP/1,
-                                while also supporting bidirectional streaming communication with HTTP/2 protocol)""",
-                            )
-                            self.logger.debug(
-                                f"Added WebSocket route for {method_full_name} at {http_info.get('path', '')}"
-                            )
-                            continue
-                        use_body = http_info.get("body", None)
-                        input_annotations = input_cls
-                        if use_body:
-                            input_annotations = Annotated[input_cls, Body()]
-                        else:
-                            input_annotations = Annotated[input_cls, Query()]
-                        endpoint.__annotations__ = {
-                            "ctx": Request,
-                            "response": Response,
-                            "request": input_annotations,
-                            "return": BaseHttpResponse[output_cls],
-                        }
-                        summary = service_method.__doc__
-                        if not summary:
-                            summary = f"{service_name}.{method_name}"
-                        if stream_type == "server_streaming":
-                            summary = f"{summary} (SSE)"
-                        self.fastapi_app.add_api_route(
-                            path=http_info.get("path", ""),
-                            endpoint=endpoint,
-                            methods=[http_info.get("method", "POST").upper()],
-                            response_model=BaseHttpResponse[output_cls],
-                            description=service_method.__doc__,
-                            tags=[group],
-                            summary=summary,
-                        )
+    def _load_service_methods(self, service_name: str, service_info: Dict[str, Any]):
+        """Load methods for a specific service."""
+        group, service_class = self._get_service_class(service_name)
+
+        for method_name, method_info in service_info.items():
+            try:
+                self._register_service_method(
+                    service_name, method_name, method_info, service_class, group
+                )
+            except Exception as e:
+                self.logger.error(
+                    f"Failed to register method {method_name}: {e}")
+                raise
+
+    def _register_service_method(
+        self,
+        service_name: str,
+        method_name: str,
+        method_info: Dict[str, Any],
+        service_class: Type,
+        group: str
+    ):
+        """Register a single service method with appropriate endpoint handlers."""
+        # Validate method exists
+        service_method = getattr(service_class, method_name, None)
+        if not service_method:
+            raise MethodNotFoundError(
+                f"Method {method_name} not found in service {service_name}"
+            )
+
+        http_info = method_info.get("http", {})
+        if not http_info:
+            self.logger.warning(
+                f"No HTTP info for method {method_name}, skipping")
+            return
+
+        # Validate required fields
+        input_type = method_info.get("input_type", "")
+        output_type = method_info.get("output_type", "")
+        method_full_name = method_info.get("method_full_name", "")
+
+        if not all([input_type, output_type, method_full_name]):
+            raise GatewayValidationError(
+                f"Missing required fields for method {method_name} in service {service_name}",
+                ["input_type", "output_type", "method_full_name"]
+            )
+
+        # Get model classes
+        _in = input_type.split(".")[-1]
+        _out = output_type.split(".")[-1]
+        input_cls, output_cls = self._get_io_models(_in, _out)
+
+        # Get protobuf classes
+        input_pb2, output_pb2 = self._get_io_pb2(_in, _out)
+
+        # Get protobuf message classes
+        in_nested_cls, out_nested_cls = self._get_protobuf_message_classes(
+            input_type, output_type
+        )
+
+        stream_type = method_info.get("streaming_type", "unary")
+
+        # Store service information
+        self._services[method_full_name] = {
+            "service": service_class,
+            "method": service_method,
+            "input_type": input_cls,
+            "output_type": output_cls,
+            "input_pb2": input_pb2,
+            "output_pb2": output_pb2,
+            "streaming_type": stream_type,
+            "http_info": http_info,
+            "group": group,
+            "input_message_cls": in_nested_cls,
+            "output_message_cls": out_nested_cls,
+        }
+
+        # Register endpoints based on streaming type
+        self._register_endpoints(
+            service_name, method_name, method_full_name,
+            stream_type, http_info, input_cls, output_cls,
+            service_method, group
+        )
+
+    def _get_protobuf_message_classes(self, input_type: str, output_type: str):
+        """Get protobuf message classes for input and output types."""
+        try:
+            from google.protobuf import descriptor_pool, message_factory
+
+            pool = descriptor_pool.Default()
+            input_type = input_type.removeprefix(".")
+            output_type = output_type.removeprefix(".")
+
+            in_nested_proto = pool.FindMessageTypeByName(input_type)
+            in_nested_cls = message_factory.GetMessageClass(in_nested_proto)
+
+            out_nested_proto = pool.FindMessageTypeByName(output_type)
+            out_nested_cls = message_factory.GetMessageClass(out_nested_proto)
+
+            return in_nested_cls, out_nested_cls
+
+        except Exception as e:
+            raise ServiceLoadError(
+                f"Failed to get protobuf message classes: {e}")
+
+    def _register_endpoints(
+        self,
+        service_name: str,
+        method_name: str,
+        method_full_name: str,
+        stream_type: str,
+        http_info: Dict[str, Any],
+        input_cls: Type,
+        output_cls: Type,
+        service_method: callable,
+        group: str
+    ):
+        """Register FastAPI endpoints based on streaming type."""
+        path = http_info.get("path", "")
+        method = http_info.get("method", "POST").upper()
+
+        if stream_type == "unary":
+            self._register_unary_endpoint(
+                path, method, input_cls, output_cls, service_method, group, service_name, method_name
+            )
+        elif stream_type == "server_streaming":
+            self._register_sse_endpoint(
+                path, method, input_cls, output_cls, service_method, group, service_name, method_name
+            )
+        elif stream_type == "client_streaming":
+            self._register_client_streaming_endpoints(
+                path, method, input_cls, output_cls, service_method, group,
+                service_name, method_name, method_full_name
+            )
+        elif stream_type == "bidirectional_streaming":
+            self._register_websocket_endpoints(
+                path, method, input_cls, output_cls, service_method, group,
+                service_name, method_name, method_full_name
+            )
+        else:
+            raise GatewayValidationError(
+                f"Unknown streaming type: {stream_type}", ["streaming_type"])
+
+    def _register_unary_endpoint(
+        self, path: str, method: str, input_cls: Type, output_cls: Type,
+        service_method: callable, group: str, service_name: str, method_name: str
+    ):
+        """Register unary endpoint."""
+        endpoint = safe_endpoint_decorator(output_cls, service_method)
+
+        # Set up annotations
+        self._setup_endpoint_annotations(endpoint, input_cls, output_cls, True)
+
+        summary = service_method.__doc__ or f"{service_name}.{method_name}"
+
+        self.fastapi_app.add_api_route(
+            path=path,
+            endpoint=endpoint,
+            methods=[method],
+            response_model=BaseHttpResponse[output_cls],
+            description=service_method.__doc__,
+            tags=[group],
+            summary=summary,
+        )
+
+        self.logger.debug(
+            f"Added unary route for {service_name}.{method_name} at {path}")
+
+    def _register_sse_endpoint(
+        self, path: str, method: str, input_cls: Type, output_cls: Type,
+        service_method: callable, group: str, service_name: str, method_name: str
+    ):
+        """Register server-sent events endpoint."""
+        endpoint = safe_sse_endpoint_decorator(output_cls, service_method)
+
+        # Set up annotations
+        self._setup_endpoint_annotations(endpoint, input_cls, output_cls, True)
+
+        summary = f"{service_method.__doc__ or f'{service_name}.{method_name}'} (SSE)"
+
+        self.fastapi_app.add_api_route(
+            path=path,
+            endpoint=endpoint,
+            methods=[method],
+            response_model=BaseHttpResponse[output_cls],
+            description=service_method.__doc__,
+            tags=[group],
+            summary=summary,
+        )
+
+        self.logger.debug(
+            f"Added SSE route for {service_name}.{method_name} at {path}")
+
+    def _register_client_streaming_endpoints(
+        self, path: str, method: str, input_cls: Type, output_cls: Type,
+        service_method: callable, group: str, service_name: str,
+        method_name: str, method_full_name: str
+    ):
+        """Register client streaming endpoints (WebSocket + HTTP)."""
+        # WebSocket endpoint
+        ws_endpoint = safe_client_streaming_endpoint_decorator(
+            input_cls, output_cls, service_method, True
+        )
+        self.fastapi_app.add_api_websocket_route(
+            path=path, endpoint=ws_endpoint)
+
+        # HTTP endpoint for fallback
+        http_endpoint = safe_client_streaming_endpoint_decorator(
+            input_cls, output_cls, service_method, False
+        )
+
+        summary = f"""{service_method.__doc__ or f'{service_name}.{method_name}'}
+        (Client streaming - multiple requests, single response. 
+        WebSocket support for HTTP/1, chunked transfer for HTTP/2)"""
+
+        self.fastapi_app.add_api_route(
+            path=path,
+            endpoint=http_endpoint,
+            methods=[method],
+            tags=[group],
+            description=service_method.__doc__,
+            summary=summary,
+        )
+
+        self.logger.debug(
+            f"Added client streaming routes for {method_full_name} at {path}")
+
+    def _register_websocket_endpoints(
+        self, path: str, method: str, input_cls: Type, output_cls: Type,
+        service_method: callable, group: str, service_name: str,
+        method_name: str, method_full_name: str
+    ):
+        """Register bidirectional streaming endpoints (WebSocket + HTTP fallback)."""
+        # WebSocket endpoint
+        ws_endpoint = safe_websocket_endpoint_decorator(
+            input_cls, output_cls, service_method, True
+        )
+        self.fastapi_app.add_api_websocket_route(
+            path=path, endpoint=ws_endpoint)
+
+        # HTTP endpoint for fallback
+        http_endpoint = safe_websocket_endpoint_decorator(
+            input_cls, output_cls, service_method, False
+        )
+
+        summary = f"""{service_method.__doc__ or f'{service_name}.{method_name}'}
+        (Using the WebSocket protocol for bidirectional streaming communication under HTTP/1,
+        while also supporting bidirectional streaming communication with HTTP/2 protocol)"""
+
+        self.fastapi_app.add_api_route(
+            path=path,
+            endpoint=http_endpoint,
+            methods=[method],
+            tags=[group],
+            description=service_method.__doc__,
+            summary=summary,
+        )
+
+        self.logger.debug(
+            f"Added WebSocket routes for {method_full_name} at {path}")
+
+    def _setup_endpoint_annotations(
+        self, endpoint: callable, input_cls: Type, output_cls: Type, use_body: bool = True
+    ):
+        """Set up endpoint annotations for request/response types."""
+        if use_body:
+            input_annotations = Annotated[input_cls, Body()]
+        else:
+            input_annotations = Annotated[input_cls, Query()]
+
+        endpoint.__annotations__ = {
+            "ctx": Request,
+            "response": Response,
+            "request": input_annotations,
+            "return": BaseHttpResponse[output_cls],
+        }
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
         if self._is_grpc_request(scope):

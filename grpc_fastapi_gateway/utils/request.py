@@ -62,10 +62,11 @@ class RequestToGrpc:
             return None
         compression_flag = raw_data[0]
         message_length = int.from_bytes(raw_data[1:5], "big")
-        message_body = raw_data[5 : 5 + message_length]
+        message_body = raw_data[5: 5 + message_length]
         if compression_flag == 0x01:
             try:
-                message_body = RequestToGrpc.decompress_body(message_body, algorithm)
+                message_body = RequestToGrpc.decompress_body(
+                    message_body, algorithm)
             except Exception as e:
                 raise ValueError(f"Failed to decompress message body: {e}")
         message = messsage_cls()
