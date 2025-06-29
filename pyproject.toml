@@ -1,17 +1,17 @@
 [project]
 name = "protobuf-pydantic-gen"
-version = "0.1.7"
+version = "0.1.9"
 description = "A tool for converting between Pydantic models and Protobuf messages, specifically enabling the generation of Pydantic BaseModel classes from .proto files."
 requires-python = ">=3.9"
 authors = [
     { name = "geebytes", email = "vforfreedom96@gmail.com" }
 ]
 readme = "README.md"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 dependencies = [
     "grpcio>=1.50.0",
     "grpcio-tools>=1.50.0",
-    "protobuf>=4.21.12,<7.0.0",
+    "protobuf>=5.27.0,<7.0.0",
     "pydantic>=2.4.1",
     "jinja2>=3.0.0",
     "peewee>=3.17.5",
@@ -20,34 +20,33 @@ dependencies = [
     "pydantic-core>=2.20.0",
     "annotated-types>=0.7.0",
     "autopep8>=2.3.1",
-    "fastapi>=0.115.12",
     "starlette>=0.46.2",
-    "hypercorn==0.17.3",
     "googleapis-common-protos>=1.70.0",
-    "sse-starlette>=2.3.6",
-    "brotli>=1.1.0",
     "zstandard>=0.23.0",
-    "patchy>=2.9.0",
-    "granian>=2.3.4",
-    "patch-ng>=1.18.1",
-    "httpx>=0.28.1",
-    "websockets>=15.0.1",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.0.0",
     "pydantic-settings>=2.10.1",
+    "pgvector>=0.4.2",
+    "requests>=2.32.5",
 ]
 
 
 [project.scripts]
 protoc-gen-pydantic = 'protobuf_pydantic_gen.generator:main'
-protoc-gen-client= 'grpc_fastapi_client_gen.main:main'
+
+[project.optional-dependencies]
+auth = [
+    "asyncpg>=0.30.0",
+]
 [tool.setuptools]
-package-dir = {"protobuf_pydantic_gen" = "protobuf_pydantic_gen","grpc_fastapi_gateway" = "grpc_fastapi_gateway","grpc_fastapi_client_gen" = "grpc_fastapi_client_gen"}
+package-dir = {"protobuf_pydantic_gen" = "protobuf_pydantic_gen"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["protobuf_pydantic_gen*"]
 
 [tool.setuptools.package-data]
 "protobuf_pydantic_gen" = ["protobuf_pydantic_gen/*.j2"]
-"grpc_fastapi_client_gen" = ["grpc_fastapi_client_gen/*.j2"]
-"grpc_fastapi_gateway" = ["grpc_fastapi_gateway/*.patch"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel"]
@@ -68,4 +67,3 @@ name = "testpypi"
 url = "https://test.pypi.org/simple/"
 publish-url = "https://test.pypi.org/legacy/"
 explicit = true
-

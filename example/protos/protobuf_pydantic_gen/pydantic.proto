@@ -26,8 +26,10 @@ message Annotation {
     double ge=15;
     double lt=16;
     double le=17;
-    string foreign_key=19;
+    string foreign_key=19[json_name="foreign_key"];
     string label=21;
+    string default_factory=22[json_name="default_factory"];
+    string enum_storage=23[json_name="enum_storage"];
 
 }
 
@@ -47,6 +49,30 @@ extend google.protobuf.MessageOptions {
 }
 extend google.protobuf.FieldOptions {
 	Annotation field = 50101;
+}
+
+// ------------------------------
+// Service / Method Auth Options
+// ------------------------------
+// 用于标记服务或具体 RPC 方法是否需要鉴权以及鉴权范围。
+message AuthOption {
+    // 是否需要鉴权
+    bool required = 1 [json_name="required"];
+    // 授权范围（如 OAuth2 scopes）
+    repeated string scopes = 2 [json_name="scopes"];
+    // 也可按需扩展角色/权限等
+    string role = 3 [json_name="role"];
+    string permission = 4 [json_name="permission"];
+}
+
+// service 级别默认鉴权配置（可被 method 级别覆盖）
+extend google.protobuf.ServiceOptions {
+    AuthOption service_auth = 50301;
+}
+
+// method 级别鉴权配置（优先级高于 service 级别）
+extend google.protobuf.MethodOptions {
+    AuthOption method_auth = 50302;
 }
 
 message EnumValueOptions {

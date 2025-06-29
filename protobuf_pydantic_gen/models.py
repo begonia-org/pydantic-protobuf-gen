@@ -1,6 +1,7 @@
 """
 Data models for protobuf to pydantic conversion
 """
+
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -8,6 +9,7 @@ from enum import Enum
 
 class MessageType(Enum):
     """Type of message being generated"""
+
     CLASS = "class"
     ENUM = "enum"
 
@@ -15,6 +17,7 @@ class MessageType(Enum):
 @dataclass
 class Field:
     """Represents a field in a protobuf message"""
+
     name: str
     type: str
     repeated: bool
@@ -37,6 +40,7 @@ class Field:
 @dataclass
 class EnumField:
     """Represents an enum field"""
+
     name: str
     value: str
 
@@ -54,6 +58,7 @@ class EnumField:
 @dataclass
 class Message:
     """Represents a protobuf message or enum"""
+
     message_name: str
     fields: List[Field]
     message_type: MessageType = MessageType.CLASS
@@ -76,8 +81,9 @@ class Message:
     def _snake_case(self, name: str) -> str:
         """Convert camelCase to snake_case"""
         import re
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+        s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+        return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
     def __str__(self) -> str:
         return f"Message({self.message_name}, {len(self.fields)} fields, type={self.message_type.value})"
@@ -86,6 +92,7 @@ class Message:
 @dataclass
 class ServiceMethod:
     """Represents a gRPC service method"""
+
     name: str
     input_type: str
     output_type: str
@@ -103,10 +110,21 @@ class ServiceMethod:
         if not self.output_type:
             raise ValueError("Output type cannot be empty")
 
+    def get(self, attr: str, default=None):
+        """Get attribute value with default fallback"""
+        return getattr(self, attr, default)
+
+    def __getitem__(self, key: str):
+        """Enable dictionary-style access"""
+        if hasattr(self, key):
+            return getattr(self, key)
+        raise KeyError(f"'{key}' not found in ServiceMethod")
+
 
 @dataclass
 class Service:
     """Represents a gRPC service"""
+
     name: str
     methods: List[ServiceMethod]
     package: str = ""
@@ -119,10 +137,21 @@ class Service:
     def __str__(self) -> str:
         return f"Service({self.name}, {len(self.methods)} methods)"
 
+    def get(self, attr: str, default=None):
+        """Get attribute value with default fallback"""
+        return getattr(self, attr, default)
+
+    def __getitem__(self, key: str):
+        """Enable dictionary-style access"""
+        if hasattr(self, key):
+            return getattr(self, key)
+        raise KeyError(f"'{key}' not found in Service")
+
 
 @dataclass
 class GenerationResult:
     """Result of code generation"""
+
     filename: str
     content: str
     messages: List[Message]

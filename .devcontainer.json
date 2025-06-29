@@ -53,7 +53,10 @@
                 "ms-python.mypy-type-checker",
                 "charliermarsh.ruff",
                 "plex.vscode-protolint",
-                "zxh404.vscode-proto3"
+                "zxh404.vscode-proto3",
+                "Vue.volar",
+                "DrBlury.protobuf-vsc",
+                "Anthropic.claude-code"
             ]
         }
     }

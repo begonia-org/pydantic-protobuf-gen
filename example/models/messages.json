@@ -18,11 +18,12 @@
             "required": false,
             "ext": {
                 "description": "\"Name of the example\"",
-                "example": "\"'ohn Doe\"",
                 "default": "\"John Doe\"",
                 "alias": "\"full_name\"",
-                "primary_key": true,
-                "max_length": 128
+                "max_length": 128,
+                "json_schema_extra": {
+                    "example": "ohn Doe"
+                }
             },
             "description": "\"Name of the example\""
         }
@@ -36,10 +37,11 @@
                 "description": "\"Name of the example\"",
                 "default": "\"John Doe\"",
                 "alias": "\"full_name\"",
-                "primary_key": true,
-                "max_length": 128,
                 "sa_column_kwargs": {
                     "comment": "Name of the example"
+                },
+                "schema_extra": {
+                    "label": "名称"
                 }
             },
             "description": "\"Name of the example\""
@@ -54,6 +56,9 @@
                 "alias": "\"years\"",
                 "sa_column_kwargs": {
                     "comment": "Age of the example"
+                },
+                "schema_extra": {
+                    "label": "年龄"
                 }
             },
             "description": "\"Age of the example\""
@@ -82,7 +87,7 @@
         },
         "entry": {
             "type": "Dict[str, Any]",
-            "repeated": true,
+            "repeated": false,
             "required": false,
             "ext": {
                 "description": "\"Properties of the example\"",
@@ -108,10 +113,8 @@
             "required": true,
             "ext": {
                 "description": "\"Creation date of the example\"",
-                "default": "datetime.datetime.now()",
-                "sa_column_kwargs": {
-                    "comment": "Creation date of the example"
-                }
+                "default_factory": "datetime.datetime.now",
+                "sa_column": "Column(TIMESTAMP(timezone=True), nullable=True, doc='Creation date of the example')"
             },
             "description": "\"Creation date of the example\""
         },
@@ -122,7 +125,7 @@
             "ext": {
                 "description": "\"Type of the example\"",
                 "default": "ExampleType.TYPE1",
-                "sa_column": "Column(Enum[ExampleType], doc=\"Type of the example\")"
+                "sa_column": "Column(ExampleTypeType, nullable=False, doc='Type of the example')"
             },
             "description": "\"Type of the example\""
         },
@@ -137,6 +140,28 @@
                 "sa_column": "Column(Integer, doc=\"Score of the example\")"
             },
             "description": "\"Score of the example\""
+        },
+        "metadatas": {
+            "type": "Dict[str, Any]",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Metadata attributes and their values for the document\"",
+                "default": null,
+                "sa_column": "Column(JSON, doc=\"Metadata attributes and their values for the document\")"
+            },
+            "description": "\"Metadata attributes and their values for the document\""
+        },
+        "embeddings": {
+            "type": "float",
+            "repeated": true,
+            "required": false,
+            "ext": {
+                "description": "\"Embedding vector for the example\"",
+                "default": "0.0",
+                "sa_column": "Column(Vector(1563), doc=\"Embedding vector for the example\")"
+            },
+            "description": "\"Embedding vector for the example\""
         }
     },
     "Example3": {
@@ -150,6 +175,28 @@
             "description": ""
         }
     },
+    "HealthResponse": {
+        "healthy": {
+            "type": "bool",
+            "repeated": false,
+            "required": true,
+            "ext": {
+                "description": "\"Indicates if the service is healthy\"",
+                "default": "False"
+            },
+            "description": "\"Indicates if the service is healthy\""
+        },
+        "message": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Health status message\"",
+                "default": "\"\""
+            },
+            "description": "\"Health status message\""
+        }
+    },
     "HelloRequest": {
         "name": {
             "type": "str",
@@ -157,8 +204,10 @@
             "required": true,
             "ext": {
                 "description": "\"The name of the person to greet\"",
-                "example": "\"'John Doe'\"",
-                "default": "\"John Doe\""
+                "default": "\"John Doe\"",
+                "json_schema_extra": {
+                    "example": "'John Doe'"
+                }
             },
             "description": "\"The name of the person to greet\""
         },
@@ -168,8 +217,10 @@
             "required": false,
             "ext": {
                 "description": "\"The language of the greeting\"",
-                "example": "\"'en'\"",
-                "default": "\"en\""
+                "default": "\"en\"",
+                "json_schema_extra": {
+                    "example": "'en'"
+                }
             },
             "description": "\"The language of the greeting\""
         }
@@ -181,8 +232,10 @@
             "required": true,
             "ext": {
                 "description": "\"The greeting message\"",
-                "example": "\"'Hello, John Doe!'\"",
-                "default": "\"Hello, John Doe!\""
+                "default": "\"Hello, John Doe!\"",
+                "json_schema_extra": {
+                    "example": "'Hello, John Doe!'"
+                }
             },
             "description": "\"The greeting message\""
         },
@@ -192,8 +245,10 @@
             "required": false,
             "ext": {
                 "description": "\"The language of the greeting\"",
-                "example": "\"'en'\"",
-                "default": "\"en\""
+                "default": "\"en\"",
+                "json_schema_extra": {
+                    "example": "'en'"
+                }
             },
             "description": "\"The language of the greeting\""
         }

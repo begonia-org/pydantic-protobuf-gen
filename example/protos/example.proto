@@ -9,12 +9,12 @@ import "example2.proto";
 package pydantic_example;
 message Nested {
 
-  string name = 1[(pydantic.field) = {description: "Name of the example",example: "'ohn Doe",alias: "full_name",default: "John Doe",max_length:128,primary_key:true}];
+  string name = 1[(pydantic.field) = {description: "Name of the example",example: "ohn Doe",alias: "full_name",default: "John Doe",max_length:128}];
 }
 message Example {
     option (pydantic.database) = { 
         as_table: true
-        table_name: "users",
+        table_name: "example_table",
         compound_index:{
             indexs:["name","age"],
             index_type:"UNIQUE",
@@ -27,15 +27,18 @@ message Example {
         }
     };
 
-  string name = 1[(pydantic.field) = {description: "Name of the example",alias: "full_name",default: "John Doe",label:"字段名称",max_length:128,primary_key:true}];
+  string name = 1[(pydantic.field) = {description: "Name of the example",alias: "full_name",default:"John Doe",label:"名称"}];
   optional int32 age = 2 [(pydantic.field) = {description: "Age of the example",alias: "years",default: "30",label:"年龄"}];
   // Note that the default value here is a string format, using single quotes, representing a JSON array
   repeated string emails = 3 [(pydantic.field) = {description: "Emails of the example",sa_column_type:"JSON",default:'["example@example.com","example2@example.com"]'}];
   repeated Example2 examples = 9 [(pydantic.field) = {description: "Nested message",sa_column_type:"JSON"}];
   map<string, google.protobuf.Any> entry = 4 [(pydantic.field) = {description: "Properties of the example",default:"{}",sa_column_type:"JSON"}];
-Nested nested=8[(pydantic.field) = {description: "Nested message",sa_column_type:"JSON"}];
-  google.protobuf.Timestamp created_at = 5 [(pydantic.field) = {description: "Creation date of the example",default: "datetime.datetime.now()",required: true}];
-  ExampleType type = 6 [(pydantic.field) = {description: "Type of the example",default: "ExampleType.TYPE1",sa_column_type:"Enum[ExampleType]"}];
+  Nested nested=8[(pydantic.field) = {description: "Nested message",sa_column_type:"JSON"}];
+  google.protobuf.Timestamp created_at = 5 [(pydantic.field) = {description: "Creation date of the example",default: "datetime.datetime.now",required: true}];
+  ExampleType type = 6 [(pydantic.field) = {description: "Type of the example",default: "ExampleType.TYPE1"}];
   float score = 7 [(pydantic.field) = {description: "Score of the example",default: "0.0",gt: 0.0,le: 100.0,field_type: "Integer"}];
+  map<string, google.protobuf.Any> metadatas = 10[json_name="metadatas",(pydantic.field) = {description: 'Metadata attributes and their values for the document', sa_column_type:"JSON",required:false}];
+  repeated float embeddings = 11 [(pydantic.field) = {description: "Embedding vector for the example",sa_column_type:"Vector(1563)"}];
+
 }
 

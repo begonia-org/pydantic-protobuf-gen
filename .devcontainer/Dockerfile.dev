@@ -30,9 +30,17 @@ RUN if [ "$USE_MIRROR_UBUNTU" = "true" ]; then \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 USER $USERNAME
-
+ENV NVM_DIR="/home/$USERNAME/.nvm"
+ENV PNPM_HOME="/home/$USERNAME/.pnpm"
+ENV PATH="$PNPM_HOME:$NVM_DIR:$PATH"
 RUN pip config set global.index-url $PIP_INDEX_URL && \
     pip config set global.trusted-host $(echo "$PIP_INDEX_URL" | sed -E 's|^https?://([^/]+).*|\1|') && \
     . $VIRTUAL_ENV/bin/activate  && \
     uv sync -v --active --all-packages --default-index $PIP_INDEX_URL --index-strategy unsafe-best-match --prerelease=allow --no-build-isolation && \
-    cp .devcontainer/protobuf_pydantic_gen.pth  /opt/.uv.venv/lib/python${PYTHON_VERSION}/site-packages/protobuf_pydantic_gen.pth
+    cp .devcontainer/protobuf_pydantic_gen.pth  /opt/.uv.venv/lib/python${PYTHON_VERSION}/site-packages/protobuf_pydantic_gen.pth && \
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && \
+    . $NVM_DIR/nvm.sh && \
+    nvm install 20 && nvm use 20 && \
+    corepack enable pnpm && \
+    pnpm config set registry https://registry.npmmirror.com && \
+    pnpm install -g ts-proto

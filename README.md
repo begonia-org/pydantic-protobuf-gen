@@ -2,337 +2,150 @@
 
 # protobuf-pydantic-gen
 
-This tool converts Protocol Buffer description language into pydantic `BaseModel` classes and supports converting pydantic models back to protobuf messages. It also enables the transformation of protobuf description language into `sqlmodel` ORM models.
+protobuf-pydantic-gen is a Python code generator that turns Protocol Buffer schemas into Pydantic and SQLModel models. It keeps protobuf conversion helpers close to the generated classes, preserves schema metadata as companion files, and lets a single `.proto` definition drive validation, storage-oriented models, and Python-side application code.
 
-# grpc_fastapi_gateway
-This tool converts Protocol Buffer description language into gRPC services and transforms them into FastAPI routes. It automates `FastAPI` route generation based on `gRPC service` definitions, eliminating the need for additional code.
+## Overview
 
-### Transport Protocols
-
-| gRPC Type | Protocol | Description |
-|-----------|----------|-------------|
-| Unary | HTTP/JSON | Standard REST API calls |
-| Server Streaming | Server-Sent Events (SSE) | HTTP streaming with `text/event-stream` |
-| Client Streaming | WebSocket | Bidirectional WebSocket connection |
-| Bidirectional Streaming | WebSocket | Bidirectional WebSocket connection |
-
-# grpc_fastapi_client_gen
-
-This tool automatically generates type-safe gRPC FastAPI clients from protobuf service definitions. It creates async HTTP clients that support unary calls, server streaming, and bidirectional streaming through WebSockets.
-
-## 🚀 Quick Links
-
-- **[Quick Start Guide](QUICKSTART.md)** - Get running in 5 minutes
-- **[Example Project](./example/)** - Full working example with server and client
+This project is built for teams that already use Protocol Buffers as the source of truth but want a more ergonomic Python model layer.
 
 ## Features
 
-- **protobuf-pydantic-gen**: 
-  - Supports conversion of protobuf primitive types to Python primitive types  
-  - Converts protobuf description language into pydantic `BaseModel` classes  
-  - Transforms protobuf description language into `sqlmodel` ORM models  
-  - Implements `to_protobuf` and `from_protobuf` methods for `BaseModel` classes to enable bidirectional conversion between pydantic models and protobuf messages  
-  - Provides `pydantic BaseModel Field` parameter options for protobuf description files  
+- Generate Pydantic `BaseModel` classes directly from `.proto` messages.
+- Generate SQLModel table classes when a message sets `(pydantic.database).as_table = true`.
+- Keep `to_protobuf()` and `from_protobuf()` helpers on generated models for round-trip conversion.
+- Emit metadata files such as `messages.json`, `fields.json`, `services.json`, and `tables.py` for downstream tooling.
+- Preserve same-file forward references and nested message relationships in generated output.
+- Control field and message behavior through proto annotations such as `(pydantic.field)` and `(pydantic.database)`.
+- Keep generated Python protobuf stubs and application-facing models in the same workflow.
 
-- **grpc_fastapi_gateway**:
-  - Converts protobuf description language into gRPC services and transforms them into FastAPI routes  
-  - Generates `FastAPI` routes based on `gRPC service` definitions without requiring extra code  
+## Why Use It
 
-- **grpc_fastapi_client_gen**:
-  - Generates type-safe async HTTP clients from protobuf service definitions
-  - Supports all gRPC call types: unary, server streaming, client streaming, and bidirectional streaming
-  - Uses HTTP/REST for unary calls, Server-Sent Events (SSE) for server streaming, and WebSockets for bidirectional streaming
-  - Includes comprehensive error handling and connection management
-  - Provides built-in authentication support (API key/Bearer token)
-  - Generates test suites with integration, unit, and performance tests
+- Keep protobuf schema, runtime validation, and persistence-facing models aligned.
+- Avoid hand-writing repetitive Pydantic or SQLModel definitions for large proto surfaces.
+- Use proto annotations to control model behavior instead of scattering Python-only model metadata.
+- Generate machine-readable metadata alongside code for inspection, registries, or automation.
+
+## Typical Workflow
+
+1. Define messages and custom annotations in `.proto` files.
+2. Run `grpc_tools.protoc` with the `protoc-gen-pydantic` plugin.
+3. Import the generated models in your Python application.
+4. Convert between generated models and protobuf messages with `to_protobuf()` and `from_protobuf()`.
+
+## Five-Minute Quickstart
+
+The following repository example covers the main project workflow: generate Python protobuf stubs, generate models, then validate protobuf round-trip behavior.
+
+## Requirements
+
+- Python 3.9 or newer.
+- `protoc` and `grpcio-tools` available in your environment.
+- `protobuf >= 5.27.0, < 7.0.0`.
+- `pydantic >= 2.4.1`.
+- `sqlmodel >= 0.0.19` when you generate table models.
 
 ## Installation
+
+Install the package:
 
 ```shell
 pip install protobuf-pydantic-gen
 ```
-# Example Usage of protobuf-pydantic-gen
-```protobuf
-syntax = "proto3";
 
-import "google/protobuf/descriptor.proto";
-import "protobuf_pydantic_gen/pydantic.proto";
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/any.proto";
-import "constant.proto";
-import "example2.proto";
-package pydantic_example;
-message Nested {
+Make the extension schema available on your proto include path. In this repository it lives at `protos/protobuf_pydantic_gen/pydantic.proto`; in your own project you should vendor that file into a shared proto include directory.
 
-  string name = 1[(pydantic.field) = {description: "Name of the example",example: "'ohn Doe",alias: "full_name",default: "John Doe",max_length:128,primary_key:true}];
-}
-message Example {
-    option (pydantic.database) = { 
-        as_table: true
-        table_name: "users",
-        compound_index:{
-            indexs:["name","age"],
-            index_type:"UNIQUE",
-            name:"uni_name_age"
-        },
-        compound_index:{
-            indexs:["name"],
-            index_type:"PRIMARY",
-            name:"index_name"
-        }
-    };
+For container-based development, the repository also ships a [Dockerfile](Dockerfile) based on Python 3.11 and Debian Bookworm.
 
-  string name = 1[(pydantic.field) = {description: "Name of the example",alias: "full_name",default: "John Doe",max_length:128,primary_key:true}];
-  optional int32 age = 2 [(pydantic.field) = {description: "Age of the example",alias: "years",default: "30"}];
-  // Note: The default value is a string-formatted JSON array using single quotes
-  repeated string emails = 3 [(pydantic.field) = {description: "Emails of the example",default:'["example@example.com","example2@example.com"]'}];
-  repeated Example2 examples = 9 [(pydantic.field) = {description: "Nested message",sa_column_type:"JSON"}];
-  map<string, google.protobuf.Any> entry = 4 [(pydantic.field) = {description: "Properties of the example",default:"{}"}];
-Nested nested=8[(pydantic.field) = {description: "Nested message",sa_column_type:"JSON"}];
-  google.protobuf.Timestamp created_at = 5 [(pydantic.field) = {description: "Creation date of the example",default: "datetime.datetime.now()",required: true}];
-  ExampleType type = 6 [(pydantic.field) = {description: "Type of the example",default: "ExampleType.TYPE1",sa_column_type:"Enum[ExampleType]"}];
-  float score = 7 [(pydantic.field) = {description: "Score of the example",default: "0.0",gt: 0.0,le: 100.0,field_type: "Integer"}];
-}
-```
-
-**Compile the protobuf file to generate pydantic models and SQLModel ORM models:**
-    
-```shell
-python3 -m grpc_tools.protoc --proto_path=./protos -I=./protos -I=./ --python_out=./pb --pyi_out=./pb --grpc_python_out=./pb --pydantic_out=./models "./protos/example.proto"
-```
-
-```python
-#!/usr/bin/env python
-# -*- encoding: utf-8 -*-
-'''
-@File    :   example.py
-@Time    :
-@Desc    :
-'''
-
-import datetime
-from .constant_model import ExampleType
-from .example2_model import Example2
-from google.protobuf import message as _message, message_factory
-from protobuf_pydantic_gen.ext import PySQLModel, PydanticModel, model2protobuf, pool, protobuf2model
-from pydantic import BaseModel, ConfigDict, Field as _Field
-from sqlmodel import Column, Enum, Field, Integer, JSON, PrimaryKeyConstraint, SQLModel, UniqueConstraint
-from typing import Any, Dict, List, Optional, Type
-
-class Nested(BaseModel):
-    model_config = ConfigDict(protected_namespaces=())
-
-    name: Optional[str] = _Field(
-        description="Name of the example",
-        example="'ohn Doe",
-        default="John Doe",
-        alias="full_name",
-        primary_key=True,
-        max_length=128)
-
-    def to_protobuf(self) -> _message.Message:
-        _proto = pool.FindMessageTypeByName("pydantic_example.Nested")
-        _cls: Type[_message.Message] = message_factory.GetMessageClass(_proto)
-        return model2protobuf(self, _cls())
-
-    @classmethod
-    def from_protobuf(cls: Type[PydanticModel], src: _message.Message) -> PydanticModel:
-        return protobuf2model(cls, src)
-
-class Example(SQLModel, table=True):
-    model_config = ConfigDict(protected_namespaces=())
-    __tablename__ = "users"
-    __table_args__ = (
-        UniqueConstraint(
-            "name", "age", name='uni_name_age'), PrimaryKeyConstraint(
-            "name", name='index_name'),)
-    name: Optional[str] = Field(
-        description="Name of the example",
-        default="John Doe",
-        alias="full_name",
-        primary_key=True,
-        max_length=128,
-        sa_column_kwargs={
-            'comment': 'Name of the example'})
-    age: Optional[int] = Field(
-        description="Age of the example",
-        default=30,
-        alias="years",
-        sa_column_kwargs={
-            'comment': 'Age of the example'})
-    emails: Optional[List[str]] = Field(description="Emails of the example", default=[
-                                        'example@example.com', 'example2@example.com'], sa_column_kwargs={'comment': 'Emails of the example'})
-    examples: Optional[List[Example2]] = Field(
-        description="Nested message", default=None, sa_column=Column(JSON, doc="Nested message"))
-    entry: Optional[Dict[str, Any]] = Field(description="Properties of the example", default={
-    }, sa_column=Column(JSON, doc="Properties of the example"))
-    nested: Optional[Nested] = Field(description="Nested message", sa_column=Column(JSON, doc="Nested message"))
-    created_at: datetime.datetime = Field(
-        description="Creation date of the example",
-        default=datetime.datetime.now(),
-        sa_column_kwargs={
-            'comment': 'Creation date of the example'})
-    type: Optional[ExampleType] = Field(
-        description="Type of the example",
-        default=ExampleType.TYPE1,
-        sa_column=Column(
-            Enum[ExampleType],
-            doc="Type of the example"))
-    score: Optional[float] = Field(
-        description="Score of the example",
-        default=0.0,
-        le=100.0,
-        sa_type=Integer,
-        sa_column_kwargs={
-            'comment': 'Score of the example'})
-
-    def to_protobuf(self) -> _message.Message:
-        _proto = pool.FindMessageTypeByName("pydantic_example.Example")
-        _cls: Type[_message.Message] = message_factory.GetMessageClass(_proto)
-        return model2protobuf(self, _cls())
-
-    @classmethod
-    def from_protobuf(cls: Type[PySQLModel], src: _message.Message) -> PySQLModel:
-        return protobuf2model(cls, src)
-```
-
-### grpc_fastapi_gateway Usage Example
-
- - Reference [example](./example/) directory for a complete example of using `grpc_fastapi_gateway` with `protobuf-pydantic-gen`.
-
- - Compile the protobuf file into a pydantic model and output services.json
+Generate protobuf stubs and Pydantic/SQLModel outputs:
 
 ```shell
-cd example/protos && make py
-```
+mkdir -p example/pb example/models
 
-OR
-```shell
-python3 -m grpc_tools.protoc  --plugin=protoc-gen-custom=protobuf_pydantic_gen/main.py --custom_out=./example/models --python_out=./example/pb --grpc_python_out=./example/pb  -I ./example  -I ./example/protos helloworld.proto
-```
-
-## grpc_fastapi_client_gen Usage
-
-### Quick Start
-
-1. **Generate Client Code from Protobuf**
-
-```shell
-# Using the client generator plugin
 python3 -m grpc_tools.protoc \
-    --proto_path=./protos \
-    --proto_path=./ \
-    --client_out=./client \
-    --client_opt=package_name=example \
-    --client_opt=models_dir=./models \
-    --client_opt=class_name=MyAPIClient \
-    ./protos/helloworld.proto
+  --proto_path=./example/protos \
+  --proto_path=./protos \
+  --proto_path=. \
+  --python_out=./example/pb \
+  --pyi_out=./example/pb \
+  --grpc_python_out=./example/pb \
+  --pydantic_out=./example/models \
+  ./example/protos/constant.proto \
+  ./example/protos/example2.proto \
+  ./example/protos/example.proto
 ```
 
-2. **Or using Makefile (recommended)**
+Run the representative model tests:
 
 ```shell
-cd example/protos && make py_cli
+pytest example/tests/test_models.py -q
 ```
 
-### Generated Client Features
-
-The generated client provides:
-
-- **Type-safe async methods** for all gRPC service methods
-- **Automatic serialization/deserialization** using Pydantic models
-- **Multiple transport protocols**:
-  - HTTP/JSON for unary calls
-  - Server-Sent Events (SSE) for server streaming
-  - WebSockets for bidirectional streaming
-- **Built-in authentication** (API key/Bearer token support)
-- **Connection management** and error handling
-
-### Using the Generated Client
+Use the generated model:
 
 ```python
-import asyncio
-from example.client.example_client import ExampleClient
-from example.models.helloworld_model import HelloRequest, HelloReply
+from example.models.example_model import Example
 
-async def main():
-    # Initialize client
-    client = ExampleClient(
-        base_url="http://localhost:8000",
-        api_key="your-api-key",  # Optional
-        timeout=30.0
-    )
-    
-    # Unary call
-    request = HelloRequest(name="Alice", language="en")
-    response = await client.greeter_say_hello(request)
-    print(f"Response: {response.message}")
-    
-    # Server streaming
-    async for response in client.greeter_say_hello_stream_reply(request):
-        print(f"Stream response: {response.message}")
-        if some_condition:  # Control stream termination
-            break
-    
-    # Bidirectional streaming
-    async def input_generator():
-        for name in ["Bob", "Charlie", "David"]:
-            yield HelloRequest(name=name, language="en")
-            await asyncio.sleep(1)  # Simulate delay
-    
-    async for response in client.greeter_say_hello_bidi_stream(input_generator()):
-        print(f"Bidi response: {response.message}")
+model = Example(name="demo", age=1)
+proto = model.to_protobuf()
+roundtrip = Example.from_protobuf(proto)
 
-if __name__ == "__main__":
-    asyncio.run(main())
+assert roundtrip.name == "demo"
 ```
 
-### Client Configuration Options
+See [QUICKSTART.md](QUICKSTART.md) for a fuller walkthrough and validation notes.
 
-```python
-client = ExampleClient(
-    base_url="https://api.example.com",  # Server base URL
-    api_key="sk-...",                    # Optional API key for authentication
-    timeout=60.0                         # Request timeout in seconds
-)
+## Generated Outputs
 
-# Custom headers for individual requests
-custom_headers = {"X-Custom-Header": "value"}
-response = await client.greeter_say_hello(request, headers=custom_headers)
-```
+For each processed proto file, the plugin can emit:
 
-### Plugin Parameters
+- `*_model.py`: generated Pydantic and SQLModel classes.
+- `*_pb2.py`, `*_pb2.pyi`, `*_pb2_grpc.py`: standard Python protobuf outputs from `grpc_tools.protoc`.
+- `messages.json`: message-level metadata.
+- `fields.json`: field-level metadata.
+- `services.json`: service metadata extracted from the proto descriptors.
+- `tables.py`: an anti-corruption layer that re-exports SQLModel table classes with a configurable alias suffix.
 
-When using `protoc-gen-client`, you can customize generation with these parameters:
+## Configuration Summary
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `package_name` | Python package name for imports,used for ${package_name}.models | Required |
-| `models_dir` | Directory containing Pydantic models,eg:./models | Required |
-| `class_name` | Generated client class name | `Client` |
-| `services_json` | Path to services.json file | `{models_dir}/services.json` |
-| `template_dir` | Custom Jinja2 template directory | Built-in templates |
+The current project configuration surface is implemented in [protobuf_pydantic_gen/config.py](protobuf_pydantic_gen/config.py):
 
-Example with custom parameters:
-```shell
-python3 -m grpc_tools.protoc \
-    --client_out=./output \
-    --client_opt=package_name=myapp \
-    --client_opt=models_dir=./myapp/models \
-    --client_opt=class_name=MyCustomClient \
-    --client_opt=services_json=./custom/services.json \
-    ./protos/*.proto
-```
+| Environment Variable | Purpose | Default |
+| --- | --- | --- |
+| `PROTOBUF_PYDANTIC_LOG_LEVEL` | Generator log level | `INFO` |
+| `PROTOBUF_PYDANTIC_MAX_LINE_LENGTH` | Formatting width | `120` |
+| `PROTOBUF_PYDANTIC_SQLMODEL` | Optional SQLModel-related configuration hook | `false` |
+| `PROTOBUF_PYDANTIC_SKIP_GOOGLE` | Skip selected Google protobuf types | `true` |
+| `PROTOBUF_PYDANTIC_GENERATE_TABLES` | Emit `tables.py` when table models exist | `true` |
+| `PROTOBUF_PYDANTIC_TABLE_ALIAS_SUFFIX` | Alias suffix used in `tables.py` | `Row` |
+
+Proto annotations remain the primary way to shape generated classes, especially `(pydantic.field)` and `(pydantic.database)`.
+
+## Documentation
+
+- [QUICKSTART.md](QUICKSTART.md): shortest validated path from proto to generated models.
+- [docs/INSTALLATION.md](docs/INSTALLATION.md): environment setup and packaging notes.
+- [docs/USAGE.md](docs/USAGE.md): protoc entrypoints, outputs, and workflow details.
+- [docs/PROTO_EXTENSIONS.md](docs/PROTO_EXTENSIONS.md): model-generation annotations reference.
+- [docs/SQLMODEL_GUIDE.md](docs/SQLMODEL_GUIDE.md): table-model behavior, constraints, and `tables.py`.
+- [docs/RUNTIME_CONVERSION.md](docs/RUNTIME_CONVERSION.md): runtime protobuf and model conversion APIs.
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): common problems and verified fixes.
+
+## Repository Layout
+
+- [example](example) contains the validated model-generation example used by the quickstart.
+- [protobuf_pydantic_gen](protobuf_pydantic_gen) contains the generator, templates, runtime conversion helpers, and type mapping logic.
+- [protos](protos) contains shared proto definitions and the extension schema used by the generator.
+- [tests](tests) contains regression coverage for generation behavior and runtime conversion.
+- [example/frontend](example/frontend), [example/web](example/web), and [protobuf-typescript-client-gen](protobuf-typescript-client-gen) remain in the repository as legacy or adjacent assets, but they are not the primary focus of the current Python model-generation workflow.
+
+## Current Focus
+
+The actively documented and verified path in this repository is the Python protoc plugin together with its runtime helpers. Historical gateway-related flows and some generated client assets still exist in the repository, but the maintained documentation focuses on Python model generation and protobuf round-trip support.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Run the test suite
-6. Submit a pull request
+Pull requests should keep the documented behavior aligned with executable behavior. When updating generation behavior, update the relevant documentation and tests in the same change.
 
 ## License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details. and supports transforming gRPC services into FastAPI routes. It automates `FastAPI` route generation based on `gRPC service` definitions, eliminating the need for additional code.
+This project is licensed under the Apache 2.0 License. See [LICENSE](LICENSE).

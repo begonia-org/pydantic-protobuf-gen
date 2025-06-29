@@ -30,6 +30,10 @@ class GeneratorConfig(BaseModel):
         True, description="Skip Google protobuf types")
     add_table_args: bool = Field(
         True, description="Add table args for SQLModel")
+    generate_tables_py: bool = Field(
+        True, description="Generate tables.py anti-corruption layer for table models")
+    table_alias_suffix: str = Field(
+        "Row", description="Suffix for table alias in tables.py (e.g. User -> UserRow)")
 
     # Template configuration
     template_file: str = Field(
@@ -82,6 +86,11 @@ class GeneratorConfig(BaseModel):
             skip_google_types=os.getenv(
                 "PROTOBUF_PYDANTIC_SKIP_GOOGLE", "true").lower()
             == "true",
+            generate_tables_py=os.getenv(
+                "PROTOBUF_PYDANTIC_GENERATE_TABLES", "true").lower()
+            == "true",
+            table_alias_suffix=os.getenv(
+                "PROTOBUF_PYDANTIC_TABLE_ALIAS_SUFFIX", "Row"),
         )
 
 

@@ -1,11 +1,13 @@
 """
 Service and HTTP metadata extraction utilities
 """
+
 import logging
 from typing import Dict, Any, List, Optional
 from google.protobuf import descriptor_pb2
 from google.protobuf.json_format import MessageToDict
 from google.api import annotations_pb2
+from . import pydantic_pb2
 from .models import Service, ServiceMethod
 
 logger = logging.getLogger(__name__)
@@ -15,8 +17,7 @@ class ServiceProcessor:
     """Processes gRPC service definitions"""
 
     def extract_services_from_file(
-        self,
-        proto_file: descriptor_pb2.FileDescriptorProto
+        self, proto_file: descriptor_pb2.FileDescriptorProto
     ) -> List[Service]:
         """
         Extract all services from a protobuf file
@@ -35,17 +36,17 @@ class ServiceProcessor:
             for method_desc in service_desc.method:
                 try:
                     method = self._extract_method(
-                        method_desc, proto_file.package, service_desc.name)
+                        method_desc,
+                        proto_file.package,
+                        service_desc.name,
+                        service_desc.options,
+                    )
                     methods.append(method)
-                except Exception as e:
-                    logger.error(
-                        f"Error extracting method {method_desc.name}: {e}")
+                except Exception:
                     continue
 
             service = Service(
-                name=service_desc.name,
-                methods=methods,
-                package=proto_file.package
+                name=service_desc.name, methods=methods, package=proto_file.package
             )
             services.append(service)
 
@@ -55,7 +56,8 @@ class ServiceProcessor:
         self,
         method: descriptor_pb2.MethodDescriptorProto,
         package: str,
-        service_name: str
+        service_name: str,
+        service_options: descriptor_pb2.ServiceOptions,
     ) -> ServiceMethod:
         """Extract method information"""
         streaming_info = self._get_streaming_info(method)
@@ -65,6 +67,50 @@ class ServiceProcessor:
         service_full_name = f"/{package}.{service_name}" if package else service_name
         method_full_name = f"{service_full_name}/{method.name}"
 
+        # Build options dict and merge custom extensions (method_auth / service_auth)
+        options_dict = MessageToDict(method.options) if method.options else {}
+        try:
+            logger.debug(
+                f"Parsing pydantic auth options for {service_name}.{method.name}"
+            )
+            auth_info: Optional[dict] = None
+            # Prefer method-level auth if present
+            if method.options and method.options.HasExtension(pydantic_pb2.method_auth):
+                m_auth = method.options.Extensions[pydantic_pb2.method_auth]
+                auth_info = {
+                    "source": "method",
+                    "required": bool(getattr(m_auth, "required", False)),
+                    "scopes": list(getattr(m_auth, "scopes", [])),
+                    "role": getattr(m_auth, "role", "") or None,
+                    "permission": getattr(m_auth, "permission", "") or None,
+                }
+            elif service_options and service_options.HasExtension(
+                pydantic_pb2.service_auth
+            ):
+                s_auth = service_options.Extensions[pydantic_pb2.service_auth]
+                auth_info = {
+                    "source": "service",
+                    "required": bool(getattr(s_auth, "required", False)),
+                    "scopes": list(getattr(s_auth, "scopes", [])),
+                    "role": getattr(s_auth, "role", "") or None,
+                    "permission": getattr(s_auth, "permission", "") or None,
+                }
+
+            if auth_info:
+                options_dict = options_dict or {}
+                options_dict["pydantic_auth"] = auth_info
+            # if method.options and method.options.HasExtension(
+            #     pydantic_pb2.method_extra
+            # ):
+            #     m_extra = method.options.Extensions[pydantic_pb2.method_extra]
+            #     extra_info = MessageToDict(m_extra)
+            #     options_dict = options_dict or {}
+            #     options_dict["extra"] = extra_info
+        except Exception as e:
+            logger.warning(
+                f"Failed to parse pydantic auth options for {service_name}.{method.name}: {e}"
+            )
+
         return ServiceMethod(
             name=method.name,
             input_type=method.input_type,
@@ -72,10 +118,12 @@ class ServiceProcessor:
             streaming_type=streaming_info["streaming_type"],
             method_full_name=method_full_name,
             http_info=http_info,
-            options=MessageToDict(method.options) if method.options else None
+            options=options_dict or None,
         )
 
-    def _get_streaming_info(self, method: descriptor_pb2.MethodDescriptorProto) -> Dict[str, Any]:
+    def _get_streaming_info(
+        self, method: descriptor_pb2.MethodDescriptorProto
+    ) -> Dict[str, Any]:
         """
         Get streaming information for a method
 
@@ -102,7 +150,9 @@ class ServiceProcessor:
             "is_streaming": client_streaming or server_streaming,
         }
 
-    def _extract_http_info(self, method: descriptor_pb2.MethodDescriptorProto) -> Optional[Dict[str, Any]]:
+    def _extract_http_info(
+        self, method: descriptor_pb2.MethodDescriptorProto
+    ) -> Optional[Dict[str, Any]]:
         """Extract HTTP annotation information"""
         try:
             if not method.options.HasExtension(annotations_pb2.http):
@@ -149,8 +199,7 @@ class ServiceProcessor:
             return http_info
 
         except Exception as e:
-            logger.error(
-                f"Error extracting HTTP info for method {method.name}: {e}")
+            logger.error(f"Error extracting HTTP info for method {method.name}: {e}")
             return None
 
     def _extract_http_rule(self, rule) -> Dict[str, Any]:
@@ -178,7 +227,9 @@ class ServiceProcessor:
 
         return rule_info
 
-    def services_to_dict(self, services: List[Service]) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    def services_to_dict(
+        self, services: List[Service]
+    ) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """Convert services to dictionary format for JSON output"""
         services_dict = {}
 

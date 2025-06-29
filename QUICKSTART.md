@@ -1,135 +1,130 @@
-# Quick Start Guide
+# Quickstart / 快速开始
 
-Get up and running with protobuf-pydantic-gen, grpc-fastapi-gateway, and grpc-fastapi-client-gen in 5 minutes.
+This quickstart documents the shortest verified path in the current repository release scope: generate Python protobuf stubs and Pydantic/SQLModel models from the example protos, then validate round-trip conversion.
 
-## Installation
+本快速开始只覆盖当前仓库已验证的正式发布范围：从示例 proto 生成 Python protobuf stub 与 Pydantic/SQLModel 模型，并验证往返转换。
 
-```bash
-pip install protobuf-pydantic-gen
+## 1. Prerequisites / 前置条件
+
+- Python 3.9+
+- `protoc`
+- `grpcio-tools`
+- Installed package or editable workspace dependencies
+
+```shell
+pip install protobuf-pydantic-gen grpcio-tools
 ```
 
-## 1. Define Your Service (hello.proto)
+If you work inside this repository, `uv sync` is the preferred setup path.
 
-```protobuf
-syntax = "proto3";
-import "google/api/annotations.proto";
+如果你在本仓库内操作，推荐使用 `uv sync` 初始化环境。
 
-package hello;
+## 2. Generate Models / 生成模型
 
-service Greeter {
-  rpc SayHello (HelloRequest) returns (HelloReply) {
-    option (google.api.http) = {
-      post: "/v1/hello"
-      body: "*"
-    };
-  }
-}
+From the repository root, run:
 
-message HelloRequest {
-  string name = 1;
-}
+在仓库根目录执行：
 
-message HelloReply {
-  string message = 1;
-}
-```
+```shell
+mkdir -p example/pb example/models
 
-## 2. Generate Everything
-
-```bash
-# Generate models, server routes, and client
 python3 -m grpc_tools.protoc \
-    --proto_path=. \
-    --python_out=./pb \
-    --grpc_python_out=./pb \
-    --pydantic_out=./models \
-    --client_out=./client \
-    --pydantic_opt=package_name=hello \
-    --client_opt=package_name=hello \
-    --client_opt=models_dir=./models \
-    hello.proto
+	--proto_path=./example/protos \
+	--proto_path=./protos \
+	--proto_path=. \
+	--python_out=./example/pb \
+	--pyi_out=./example/pb \
+	--grpc_python_out=./example/pb \
+	--pydantic_out=./example/models \
+	./example/protos/constant.proto \
+	./example/protos/example2.proto \
+	./example/protos/example.proto
 ```
 
-## 3. Create Server (server.py)
+This command validates three things at once:
+
+这个命令同时验证三件事：
+
+- `grpc_tools.protoc` can find the plugin entrypoint `protoc-gen-pydantic`.
+- The custom annotation schema `protobuf_pydantic_gen/pydantic.proto` is on the include path.
+- The generator can emit metadata files and `tables.py` alongside model files.
+
+## 3. Inspect the Outputs / 查看输出
+
+You should now have or refresh the following files:
+
+此时你应当已经得到或刷新以下文件：
+
+- `example/models/example_model.py`
+- `example/models/example2_model.py`
+- `example/pb/example_pb2.py`
+- `messages.json`
+- `fields.json`
+- `services.json`
+- `tables.py`
+
+`example_model.py` demonstrates both model styles used by the project:
+
+`example_model.py` 同时展示了本项目的两种生成模型：
+
+- `Nested`, a regular Pydantic `BaseModel`
+- `Example`, a SQLModel table because `(pydantic.database).as_table = true`
+
+## 4. Validate Round-Trip Conversion / 验证往返转换
+
+Run the representative test file:
+
+执行代表性测试：
+
+```shell
+pytest example/tests/test_models.py -q
+```
+
+This test suite verifies model defaults, nested message handling, enums, and `to_protobuf()` / `from_protobuf()` round-trip behavior.
+
+这组测试会验证默认值、嵌套消息、枚举，以及 `to_protobuf()` / `from_protobuf()` 的往返行为。
+
+## 5. Use the Generated Model / 使用生成模型
 
 ```python
-from fastapi import FastAPI
-from grpc_fastapi_gateway import create_gateway
-from hello.models.hello_model import HelloRequest, HelloReply
+from example.models.example_model import Example
 
-app = FastAPI()
+model = Example(name="demo", age=1)
+proto = model.to_protobuf()
+clone = Example.from_protobuf(proto)
 
-# Implement your service
-async def say_hello(request: HelloRequest) -> HelloReply:
-    return HelloReply(message=f"Hello, {request.name}!")
-
-# Auto-generate routes from protobuf
-gateway = create_gateway("./models/services.json", "hello.models")
-gateway.implement("Greeter.SayHello", say_hello)
-app.include_router(gateway.router)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, port=8000)
+assert clone.name == model.name
+assert clone.age == model.age
 ```
 
-## 4. Use Generated Client (client_example.py)
+## 6. What This Quickstart Covers / 本快速开始覆盖的范围
 
-```python
-import asyncio
-from client.hello_client import HelloClient
-from hello.models.hello_model import HelloRequest
+Included:
 
-async def main():
-    client = HelloClient(base_url="http://localhost:8000")
-    
-    request = HelloRequest(name="World")
-    response = await client.greeter_say_hello(request)
-    print(response.message)  # "Hello, World!"
+已覆盖：
 
-asyncio.run(main())
-```
+- Python protoc plugin execution
+- Pydantic model generation
+- SQLModel table generation
+- Metadata file generation
+- Runtime protobuf round-trip conversion
 
-## 5. Run and Test
+Not included in the current verified release path:
 
-```bash
-# Terminal 1: Start server
-python server.py
+不属于当前已验证正式发布路径：
 
-# Terminal 2: Test client
-python client_example.py
-```
+- Deprecated gateway generation flow
+- Generated HTTP clients
+- TypeScript client generation
+- Frontend demo applications
 
-That's it! You now have:
-- ✅ Type-safe Pydantic models from protobuf
-- ✅ Auto-generated FastAPI routes with validation  
-- ✅ Async HTTP client with proper typing
-- ✅ Full test suite for the client
+Continue with the detailed manual:
 
-## Next Steps
+继续阅读正式手册：
 
-- Check out the [complete example](./example/) for advanced features
-- Explore streaming support (SSE and WebSockets)
-- Add authentication and custom headers
-- Run the generated test suite
-
-## Generated File Structure
-
-```
-./
-├── hello.proto              # Your service definition
-├── server.py               # Your FastAPI server
-├── client_example.py       # Client usage example
-├── models/                 # Generated Pydantic models
-│   ├── hello_model.py
-│   └── services.json
-├── pb/                     # Generated protobuf files  
-│   ├── hello_pb2.py
-│   └── hello_pb2_grpc.py
-└── client/                 # Generated HTTP client
-    ├── hello_client.py
-    └── tests/
-        ├── test_client.py
-        ├── test_performance.py
-        └── run_tests.py
-```
+- [docs/INSTALLATION.md](docs/INSTALLATION.md)
+- [docs/USAGE.md](docs/USAGE.md)
+- [docs/PROTO_EXTENSIONS.md](docs/PROTO_EXTENSIONS.md)
+- [docs/SQLMODEL_GUIDE.md](docs/SQLMODEL_GUIDE.md)
+- [docs/RUNTIME_CONVERSION.md](docs/RUNTIME_CONVERSION.md)
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)

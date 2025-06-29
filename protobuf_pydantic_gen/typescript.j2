@@ -1,0 +1,365 @@
+{# filepath: /app/protobuf_pydantic_gen/ts_client.j2 #}
+/**
+ * Auto-generated gRPC FastAPI client
+ * Generated from services.json
+ */
+
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import WebSocket from 'ws';
+
+{% for import_statement in model_imports %}
+{{ import_statement }}
+{% endfor %}
+
+// Define empty request interface for health check
+interface EmptyRequest {
+  // Empty request model for health check
+}
+
+interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in?: number;
+}
+
+interface OpenIDConfiguration {
+  token_endpoint: string;
+  [key: string]: any;
+}
+
+export class {{ class_name }} {
+  /**Generated gRPC FastAPI client with type safety*/
+  
+  private baseUrl: string;
+  private timeout: number;
+  private clientId: string;
+  private clientSecret: string;
+  private tokenUrl: string = '';
+  private defaultToken: TokenResponse | null = null;
+  private axiosInstance: AxiosInstance;
+
+  constructor(
+    baseUrl: string,
+    clientId: string,
+    clientSecret: string,
+    openidDiscoveryUrl: string,
+    timeout: number = 30000
+  ) {
+    this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.timeout = timeout;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+
+    this.axiosInstance = axios.create({
+      timeout: this.timeout,
+      baseURL: this.baseUrl,
+    });
+
+    this.initializeAuth(openidDiscoveryUrl);
+  }
+
+  private async initializeAuth(openidDiscoveryUrl: string): Promise<void> {
+    try {
+      // Get OpenID configuration
+      const configResponse = await axios.get<OpenIDConfiguration>(openidDiscoveryUrl);
+      this.tokenUrl = configResponse.data.token_endpoint;
+
+      // Get Access Token (Client Credentials Flow)
+      const tokenResponse = await axios.post<TokenResponse>(
+        this.tokenUrl,
+        new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: this.clientId,
+          client_secret: this.clientSecret,
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      );
+
+      this.defaultToken = tokenResponse.data;
+    } catch (error) {
+      console.error('Failed to initialize authentication:', error);
+      throw error;
+    }
+  }
+
+  private buildHeaders(extraHeaders?: Record<string, string>): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.defaultToken) {
+      headers.Authorization = `${this.defaultToken.token_type} ${this.defaultToken.access_token}`;
+    }
+
+    if (extraHeaders) {
+      Object.assign(headers, extraHeaders);
+    }
+
+    return headers;
+  }
+
+  private buildWebSocketUri(path: string): string {
+    const url = new URL(this.baseUrl);
+    const wsScheme = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsScheme}//${url.host}/${path.replace(/^\//, '')}`;
+  }
+
+{% for service_name, methods in services.items() %}
+  // {{ service_name }} methods
+{% for method_name, method_info in methods.items() %}
+{% set snake_name = method_info.snake_name %}
+{% set input_type = method_info.input_type %}
+{% set output_type = method_info.output_type %}
+{% set streaming_type = method_info.streaming_type %}
+{% set http_method = method_info.http.method %}
+{% set http_path = method_info.http.path %}
+{% set use_body = method_info.http.body %}
+
+{% if streaming_type == "unary" %}
+  async {{ snake_name }}(
+    request: {{ input_type }},
+    headers?: Record<string, string>
+  ): Promise<{{ output_type }}> {
+    /**{{ method_name }} - Unary RPC call*/
+    const url = '{{ http_path }}';
+    const requestHeaders = this.buildHeaders(headers);
+
+    try {
+      {% if use_body and http_method in ["POST", "PUT", "PATCH"] %}
+      const response = await this.axiosInstance.{{ http_method.lower() }}<{ data?: {{ output_type }} } | {{ output_type }}>(
+        url,
+        request,
+        { headers: requestHeaders }
+      );
+      {% else %}
+      const response = await this.axiosInstance.{{ http_method.lower() }}<{ data?: {{ output_type }} } | {{ output_type }}>(
+        url,
+        {
+          params: request,
+          headers: requestHeaders,
+        }
+      );
+      {% endif %}
+
+      const data = response.data;
+      return 'data' in data ? data.data! : data as {{ output_type }};
+    } catch (error) {
+      console.error('Error in {{ snake_name }}:', error);
+      throw error;
+    }
+  }
+
+{% elif streaming_type == "server_streaming" %}
+  async* {{ snake_name }}(
+    request: {{ input_type }},
+    headers?: Record<string, string>
+  ): AsyncGenerator<{{ output_type }}, void, unknown> {
+    /**{{ method_name }} - Server streaming RPC call*/
+    const url = `${this.baseUrl}{{ http_path }}`;
+    const requestHeaders = this.buildHeaders(headers);
+    requestHeaders.Accept = 'text/event-stream';
+
+    try {
+      {% if use_body %}
+      const response = await axios.{{ http_method.lower() }}<NodeJS.ReadableStream>(url, request, {
+        headers: requestHeaders,
+        responseType: 'stream',
+      });
+      {% else %}
+      const response = await axios.{{ http_method.lower() }}<NodeJS.ReadableStream>(url, {
+        params: request,
+        headers: requestHeaders,
+        responseType: 'stream',
+      });
+      {% endif %}
+
+      const stream = response.data;
+      let buffer = '';
+
+      for await (const chunk of stream) {
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6);
+            if (dataStr.trim()) {
+              try {
+                const data = JSON.parse(dataStr);
+                yield data as {{ output_type }};
+              } catch (error) {
+                if (dataStr.startsWith('data') && line.length > 6) {
+                  console.error('Failed to parse SSE data:', error, 'with line:', line);
+                  throw new Error(`Invalid SSE data: ${line}`);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error in {{ snake_name }}:', error);
+      throw error;
+    }
+  }
+
+{% elif streaming_type == "client_streaming" %}
+  async {{ snake_name }}(
+    inputStream: AsyncGenerator<{{ input_type }}, void, unknown>,
+    headers?: Record<string, string>
+  ): Promise<{{ output_type }}> {
+    /**{{ method_name }} - Client streaming RPC call*/
+    const uri = this.buildWebSocketUri('{{ http_path }}');
+    const extraHeaders = this.buildHeaders(headers);
+
+    return new Promise<{{ output_type }}>((resolve, reject) => {
+      const ws = new WebSocket(uri, { headers: extraHeaders });
+
+      ws.on('open', async () => {
+        try {
+          // Send all input requests
+          for await (const request of inputStream) {
+            ws.send(JSON.stringify(request));
+          }
+
+          // Signal end of input stream
+          ws.send(JSON.stringify({ __end_stream__: true }));
+        } catch (error) {
+          console.error('Error sending input stream:', error);
+          reject(error);
+        }
+      });
+
+      ws.on('message', (data: WebSocket.Data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          const responseData = 'data' in message ? message.data : message;
+          resolve(responseData as {{ output_type }});
+        } catch (error) {
+          console.error('Failed to parse response:', error);
+          reject(error);
+        }
+      });
+
+      ws.on('close', () => {
+        reject(new Error('WebSocket connection closed unexpectedly'));
+      });
+
+      ws.on('error', (error) => {
+        console.error('Error in client streaming:', error);
+        reject(error);
+      });
+    });
+  }
+
+{% elif streaming_type == "bidirectional_streaming" %}
+  async* {{ snake_name }}(
+    inputStream: AsyncGenerator<{{ input_type }}, void, unknown>,
+    headers?: Record<string, string>
+  ): AsyncGenerator<{{ output_type }}, void, unknown> {
+    /**{{ method_name }} - Bidirectional streaming RPC call*/
+    const uri = this.buildWebSocketUri('{{ http_path }}');
+    const extraHeaders = this.buildHeaders(headers);
+
+    const messageQueue: {{ output_type }}[] = [];
+    let isConnected = false;
+    let connectionError: Error | null = null;
+
+    return new Promise<AsyncGenerator<{{ output_type }}, void, unknown>>((resolve, reject) => {
+      const ws = new WebSocket(uri, { headers: extraHeaders });
+      let shouldClose = false;
+
+      const generator = (async function* () {
+        // Wait for connection to be established
+        while (!isConnected && !connectionError) {
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+
+        if (connectionError) {
+          throw connectionError;
+        }
+
+        // Send input stream in background
+        (async () => {
+          try {
+            for await (const request of inputStream) {
+              if (shouldClose) break;
+              ws.send(JSON.stringify(request));
+            }
+          } catch (error) {
+            console.error('Error sending input:', error);
+          } finally {
+            shouldClose = true;
+          }
+        })();
+
+        // Yield messages as they arrive
+        while (!shouldClose || messageQueue.length > 0) {
+          if (messageQueue.length > 0) {
+            yield messageQueue.shift()!;
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 10));
+          }
+        }
+      })();
+
+      ws.on('open', () => {
+        isConnected = true;
+        resolve(generator);
+      });
+
+      ws.on('message', (data: WebSocket.Data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          const responseData = 'data' in message ? message.data : message;
+          messageQueue.push(responseData as {{ output_type }});
+        } catch (error) {
+          console.error('Failed to parse WebSocket message:', error);
+        }
+      });
+
+      ws.on('close', () => {
+        console.log('WebSocket connection closed');
+        shouldClose = true;
+      });
+
+      ws.on('error', (error) => {
+        console.error('Error in bidirectional streaming:', error);
+        connectionError = error;
+        if (!isConnected) {
+          reject(error);
+        }
+      });
+    });
+  }
+
+{% endif %}
+{% endfor %}
+{% endfor %}
+}
+
+// Example usage
+async function main() {
+  const client = new {{ class_name }}(
+    'http://localhost:8010',
+    '868f6104062b6688f2dc',
+    'd99826c412531be23926063cc053791385d4d5be',
+    'http://127.0.0.1:8000/.well-known/openid-configuration'
+  );
+
+  try {
+    // Example method call - adjust based on your actual methods
+    // const response = await client.someMethod({ name: 'Test User' });
+    // console.log(response);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+// Uncomment to run the example
+// main();

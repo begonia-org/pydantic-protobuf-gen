@@ -1,32 +1,31 @@
 # Makefile
 
-# 定义变量
 PROTOC = protoc
-PYTHON = python3
 TS_PROTO_PLUGIN = $(shell which protoc-gen-ts_proto)
-PY_PYDANTIC_PLUGIN = $(shell which grpc_python_plugin)
-# TS_PROTO_PLUGIN = $(shell which protoc-gen-ts_proto)
+TS_CLIENT_PLUGIN = $(shell which protoc-gen-ts_client)
 
-# 目标文件夹
 PROTO_DIR = .
 OUTPUT_DIR = ..
 PB_OUTPUT_DIR = $(OUTPUT_DIR)/pb
-MODELS_DIR= $(OUTPUT_DIR)/models
-PY_CLIENT_OUTPUT_DIR = $(OUTPUT_DIR)/client
-# 生成的文件
-TS_OUTPUT_DIR="../pb"
-# 文件列表
+MODELS_DIR = $(OUTPUT_DIR)/models
+TS_OUTPUT_DIR = "../web/src/proto"
+TS_CLIENT_OUTPUT_DIR = "../web/src/services"
+
 PY_PROTO_FILES = $(wildcard $(PROTO_DIR)/*.proto)
 TS_PROTO_FILES = $(wildcard $(PROTO_DIR)/*.proto)
 
 PY_ARGS = --python_out=$(PB_OUTPUT_DIR) \
-          --pyi_out=$(PB_OUTPUT_DIR) \
-		  --grpc_python_out=$(PB_OUTPUT_DIR) --pydantic_out=$(MODELS_DIR) --pydantic_opt=package_name=example --pydantic_opt=client_out=../ --pydantic_opt=models_dir=$(MODELS_DIR) \
-		  --proto_path=$(PROTO_DIR) --proto_path=./
+		--pyi_out=$(PB_OUTPUT_DIR) \
+		--grpc_python_out=$(PB_OUTPUT_DIR) --pydantic_out=$(MODELS_DIR) \
+		--proto_path=$(PROTO_DIR) --proto_path=./
 TS_ARGS = --plugin="protoc-gen-ts=$(TS_PROTO_PLUGIN)" \
-           --ts_proto_opt=esModuleInterop=true --ts_proto_opt=paths=source_relative \
-           --ts_proto_opt=snakeToCamel=false --ts_proto_opt=oneof=unions \
-           --ts_proto_out=$(TS_OUTPUT_DIR)
+		--ts_proto_opt=esModuleInterop=true --ts_proto_opt=paths=source_relative \
+		--ts_proto_opt=snakeToCamel=false --ts_proto_opt=oneof=unions \
+		--ts_proto_out=$(TS_OUTPUT_DIR) \
+		--plugin="protoc-gen-axios=${TS_CLIENT_PLUGIN}" \
+		--axios_out=$(TS_CLIENT_OUTPUT_DIR) \
+		--axios_opt=ts_out=$(TS_OUTPUT_DIR) \
+		--axios_opt=axios_out=$(TS_CLIENT_OUTPUT_DIR) \
 
 
 common:
@@ -34,12 +33,11 @@ common:
 
 models:
 	@mkdir -p $(MODELS_DIR)
-.PHONY: make_dir generate python,common, ts, py_cli
-clean:
-	@rm -rf $(COMMON_PROTO_FILES)
-# 生成所有代码
-generate: make_dir py.print,common,desc
 
+.PHONY: common models clean py ts ts-cli print
+
+clean:
+	@rm -rf $(PB_OUTPUT_DIR) $(MODELS_DIR)
 
 py: $(PY_PROTO_FILES) | common
 	@mkdir -p $(MODELS_DIR)
@@ -50,17 +48,18 @@ py: $(PY_PROTO_FILES) | common
 	echo "#!/usr/bin/env python" > $(MODELS_DIR)/__init__.py
 	python3 -m grpc_tools.protoc --proto_path=$(PROTO_DIR) --proto_path=./ $(PY_ARGS) $?
 	sed -i '/from/!s/import \(.*\) as/from . import \1 as/g' $(PB_OUTPUT_DIR)/*pb2*.py
-py_cli:
-	@mkdir -p $(PY_CLIENT_OUTPUT_DIR)
-	python3 -m grpc_tools.protoc \
-		--proto_path=$(PROTO_DIR) --proto_path=./ \
-		--client_out=$(PY_CLIENT_OUTPUT_DIR) --client_opt=package_name=example \
-		--client_opt=models_dir=$(MODELS_DIR) \
-		--client_opt=class_name=ExampleClient \
-		$(PY_PROTO_FILES)
+
 ts: $(TS_PROTO_FILES) | common
 	@mkdir -p $(TS_OUTPUT_DIR)
 	$(PROTOC) --proto_path=$(PROTO_DIR) --proto_path=./ $(TS_ARGS) $?
+
+ts-cli:
+	@mkdir -p $(TS_CLIENT_OUTPUT_DIR)
+	$(PROTOC) --proto_path=$(PROTO_DIR) --proto_path=./ \
+		--plugin="protoc-gen-axios=$(TS_CLIENT_PLUGIN)" \
+		--axios_out=$(TS_CLIENT_OUTPUT_DIR) \
+		--axios_opt=ts_out=$(TS_OUTPUT_DIR),axios_out=$(TS_CLIENT_OUTPUT_DIR) \
+		$(TS_PROTO_FILES)
 
 print:
 	@echo $(PY_PROTO_FILES)

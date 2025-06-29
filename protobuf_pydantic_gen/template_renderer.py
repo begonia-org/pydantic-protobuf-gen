@@ -3,15 +3,32 @@ Template rendering utilities
 """
 
 import os
+import sys
 import logging
 import subprocess
 import tempfile
+from pathlib import Path
 from typing import List
 from jinja2 import FileSystemLoader, Environment
 from .models import Message
 from .config import get_config
 
 logger = logging.getLogger(__name__)
+
+
+def get_ruff_path() -> str:
+    """Get the path to ruff based on the current Python interpreter's bin directory."""
+    # Get the directory where the Python interpreter is located
+    python_path = Path(sys.executable)
+    bin_dir = python_path.parent
+
+    # Try to find ruff in the same bin directory as the Python interpreter
+    ruff_path = bin_dir / "ruff"
+    if ruff_path.exists():
+        return str(ruff_path)
+
+    # Fallback to system ruff if not found
+    return "ruff"
 
 
 class TemplateRenderer:
@@ -78,18 +95,29 @@ class TemplateRenderer:
             raise
 
     def format_with_ruff(self, code: str) -> str:
+        ruff_cmd = get_ruff_path()
         with tempfile.NamedTemporaryFile("w+", suffix=".py", delete=False) as tmp:
             tmp.write(code)
             tmp.flush()
             tmp_name = tmp.name
 
             try:
+                # First, fix linting issues (remove unused imports, sort imports, etc.)
                 subprocess.run(
-                    ["ruff", "format", tmp_name],
+                    [ruff_cmd, "check", "--fix", "--unsafe-fixes", tmp_name],
+                    check=False,  # Don't fail if there are unfixable issues
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+
+                # Then format the code
+                subprocess.run(
+                    [ruff_cmd, "format", tmp_name],
                     check=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
+
                 with open(tmp_name, "r") as f:
                     formatted = f.read()
                 return formatted

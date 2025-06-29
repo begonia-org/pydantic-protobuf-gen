@@ -5,7 +5,7 @@ from google.protobuf import descriptor_pb2
 from typing import Dict, Set
 
 # Version information
-__version__ = "0.1.0"
+__version__ = "0.1.8"
 
 # Protobuf to Python type mappings
 FIELD_TYPE_MAPPING: Dict[int, str] = {
@@ -43,6 +43,10 @@ DEFAULT_VALUES: Dict[str, str] = {
 # Special protobuf types
 SPECIAL_PROTOBUF_TYPES: Dict[str, str] = {
     ".google.protobuf.Timestamp": "datetime.datetime",
+    ".google.protobuf.Struct": "Dict[str, Any]",
+    ".google.protobuf.ListValue": "List[Any]",
+    ".google.protobuf.Value": "Any",
+    ".google.protobuf.FieldMask": "List[str]",
 }
 
 # Files to skip during generation
@@ -68,7 +72,7 @@ CONDITIONAL_IMPORTS = {
     'typing_any': "Any",
     'protobuf_message': "from google.protobuf import message as _message",
     'protobuf_factory': "from google.protobuf import message_factory",
-    'ext_functions': "from protobuf_pydantic_gen.ext import model2protobuf, protobuf2model, pool",
+    'ext_functions': "from protobuf_pydantic_gen.ext import model2protobuf, protobuf2model, pool, GenericEnumType",
 }
 
 # SQL Model imports (optional)

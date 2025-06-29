@@ -15,12 +15,15 @@ build/
 develop-eggs/
 dist/
 downloads/
+.pnpm-store/
+.pnpm-store
 eggs/
 .eggs/
 lib64/
 parts/
 sdist/
-
+node_modules/
+protobuf-typescript-client-gen/node_modules/
 var/
 wheels/
 /models/
@@ -205,4 +208,5 @@ results
 .venv.make
 .devcontainer/dev.toml
 dev.toml
+.env
 project-template/.devcontainer/dev.toml

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 class AnyTransformer:
     @classmethod
-    def any_type_to_protobuf(cls, value: Any) -> any_pb2.Any:
+    def any_type_to_protobuf(cls, value: Any, type_hint: str = None) -> any_pb2.Any:
         """
         Convert a Python value to a protobuf Any message
         Args:
@@ -17,8 +17,10 @@ class AnyTransformer:
         Raises:
             ValueError: If the value type is not supported
         """
+        if not value:
+            value = None
         any_value = any_pb2.Any()
-        wrapper = cls._convert_to_protobuf_message(value)
+        wrapper = cls._convert_to_protobuf_message(value, type_hint)
         any_value.Pack(wrapper)
         return any_value
 
@@ -26,6 +28,7 @@ class AnyTransformer:
     def _convert_to_protobuf_message(
         cls,
         value: Any,
+        type_hint: str = None,
     ) -> Union[
         wrappers_pb2.StringValue,
         wrappers_pb2.Int64Value,

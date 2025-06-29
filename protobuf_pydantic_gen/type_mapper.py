@@ -1,6 +1,7 @@
 """
 Type mapping and conversion utilities
 """
+
 import json
 import logging
 from typing import Dict, List, Set, Optional, Tuple, Any
@@ -16,7 +17,9 @@ class TypeMapper:
     def __init__(self, descriptor_pool: descriptor_pool.DescriptorPool):
         self.pool = descriptor_pool
 
-    def get_message_info(self, field: descriptor_pb2.FieldDescriptorProto) -> Dict[str, Any]:
+    def get_message_info(
+        self, field: descriptor_pb2.FieldDescriptorProto
+    ) -> Dict[str, Any]:
         """
         Get message information for a field
 
@@ -24,24 +27,29 @@ class TypeMapper:
             field: Protobuf field descriptor
 
         Returns:
-            Dictionary with message information
+            Dictionary with message information including package
         """
-        if field.type in [descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE,
-                          descriptor_pb2.FieldDescriptorProto.TYPE_ENUM]:
-
+        if field.type in [
+            descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE,
+            descriptor_pb2.FieldDescriptorProto.TYPE_ENUM,
+        ]:
             if self._is_map_field(field):
                 return {}
+            if getattr(field, "type_name", "") in SPECIAL_PROTOBUF_TYPES:
+                return {}
             type_name = field.type_name
-            if type_name.startswith('.'):
+            if type_name.startswith("."):
                 type_name = type_name[1:]
             if field.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE:
                 desc = self.pool.FindMessageTypeByName(type_name)
             if field.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
                 desc = self.pool.FindEnumTypeByName(type_name)
             file_name: str = desc.file.name
+            package_name: str = desc.file.package
             return {
                 "message": type_name,
                 "file": file_name.removesuffix(".proto"),  # 添加文件名
+                "package": package_name,  # 添加包名
             }
         return {}
 
@@ -50,7 +58,7 @@ class TypeMapper:
         field: descriptor_pb2.FieldDescriptorProto,
         imports: Set[str],
         type_mapping: Dict[str, str],
-        file_name: str
+        file_name: str,
     ) -> str:
         """
         Convert protobuf field type to Python type
@@ -66,16 +74,25 @@ class TypeMapper:
         """
         # Handle special Google protobuf types
         if hasattr(field, "type_name") and field.type_name in SPECIAL_PROTOBUF_TYPES:
-            return SPECIAL_PROTOBUF_TYPES[field.type_name]
+            mapped = SPECIAL_PROTOBUF_TYPES[field.type_name]
+            if "Dict" in mapped:
+                imports.add("Dict")
+            if "List" in mapped:
+                imports.add("List")
+            if "Any" in mapped:
+                imports.add("Any")
+            return mapped
 
         # Handle message types
-        if (hasattr(field, "type_name") and
-                field.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE):
-
+        if (
+            hasattr(field, "type_name")
+            and field.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE
+        ):
             # Check if it's a map field
             if self._is_map_field(field):
                 key_type, value_type = self._get_map_field_types(
-                    field, imports, type_mapping, file_name)
+                    field, imports, type_mapping, file_name
+                )
                 if key_type and value_type:
                     imports.add("Dict")
                     return f"Dict[{key_type}, {value_type}]"
@@ -90,33 +107,14 @@ class TypeMapper:
             type_name = field.type_name.split(".")[-1]
             type_mapping[type_name] = file_name
             return type_name
-        # if field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:
-        #     # Handle repeated fields
-        #     if field.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE:
-        #         # Check if it's a map field
-        #         if self._is_map_field(field):
-        #             key_type, value_type = self._get_map_field_types(
-        #                 field, imports, type_mapping, file_name)
-        #             if key_type and value_type:
-        #                 imports.add("Dict")
-        #                 return f"Dict[{key_type}, {value_type}]"
-        #         else:
-        #             type_name = field.type_name.split(".")[-1]
-        #             type_mapping[type_name] = file_name
-        #             return f"List[{type_name}]"
-        #     elif field.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
-        #         type_name = field.type_name.split(".")[-1]
-        #         type_mapping[type_name] = file_name
-        #         return f"List[{type_name}]"
-        # Handle basic types
         return FIELD_TYPE_MAPPING.get(field.type, "Any")
 
     def _is_map_field(self, field: descriptor_pb2.FieldDescriptorProto) -> bool:
         """Check if field is a map type"""
         return (
-            field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED and
-            field.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE and
-            field.type_name.endswith("Entry")
+            field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
+            and field.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE
+            and field.type_name.endswith("Entry")
         )
 
     def _get_map_field_types(
@@ -124,7 +122,7 @@ class TypeMapper:
         field: descriptor_pb2.FieldDescriptorProto,
         imports: Set[str],
         type_mapping: Dict[str, str],
-        file_name: str
+        file_name: str,
     ) -> Tuple[Optional[str], Optional[str]]:
         """Get key and value types for map fields"""
         try:
@@ -139,10 +137,12 @@ class TypeMapper:
             for nested_field in message_descriptor.fields:
                 if nested_field.name == "key":
                     key_type = self.get_field_type(
-                        nested_field, imports, type_mapping, file_name)
+                        nested_field, imports, type_mapping, file_name
+                    )
                 elif nested_field.name == "value":
                     value_type = self.get_field_type(
-                        nested_field, imports, type_mapping, file_name)
+                        nested_field, imports, type_mapping, file_name
+                    )
 
             return key_type, value_type
         except Exception as e:
@@ -153,14 +153,19 @@ class TypeMapper:
         self,
         type_str: str,
         ext: Dict[str, Any],
-        field_descriptor: descriptor_pb2.FieldDescriptorProto
+        field_descriptor: descriptor_pb2.FieldDescriptorProto,
     ) -> Dict[str, Any]:
         """Set default value based on type and extensions"""
+        is_repeated = (
+            field_descriptor.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
+            and not self._is_map_field(field_descriptor)
+        )
+
         if "default" in ext:
             # Handle existing default value
             if type_str == "str":
                 # Remove extra quotes and re-quote properly
-                value = str(ext["default"]).strip('"\'')
+                value = str(ext["default"]).strip("\"'")
                 ext["default"] = f'"{value}"'
             elif type_str.startswith("Dict") or type_str.startswith("List"):
                 try:
@@ -168,21 +173,32 @@ class TypeMapper:
                         ext["default"] = json.loads(ext["default"])
                 except (json.JSONDecodeError, TypeError):
                     logger.warning(
-                        f"Failed to parse default value as JSON: {ext['default']}")
+                        f"Failed to parse default value as JSON: {ext['default']}"
+                    )
                     ext["default"] = None
+            elif type_str == "datetime.datetime":
+                # For datetime types with default, convert to default_factory
+                ext["default_factory"] = ext["default"]
+                ext.pop("default", None)
         else:
             # Set type-appropriate default
-            if type_str in DEFAULT_VALUES:
+            if is_repeated:
+                ext["default"] = []
+            elif type_str in DEFAULT_VALUES:
                 ext["default"] = DEFAULT_VALUES[type_str]
             elif field_descriptor.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
-                enum_type_name = field_descriptor.type_name.split('.')[-1]
+                enum_type_name = field_descriptor.type_name.split(".")[-1]
                 ext["default"] = f"{enum_type_name}(0)"
             else:
                 ext["default"] = None
+        if "default_factory" in ext and "default" in ext:
+            ext.pop("default", None)
 
         return ext
 
-    def sanitize_python_values(self, type_str: str, ext: Dict[str, Any]) -> Dict[str, Any]:
+    def sanitize_python_values(
+        self, type_str: str, ext: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Sanitize extension values for Python code generation"""
         for key in ["example", "description", "alias"]:
             if key in ext and isinstance(ext[key], str):

@@ -17,6 +17,21 @@
                 "body": "*"
             }
         },
+        "GEEDelete": {
+            "input_type": ".helloworld.HelloRequest",
+            "output_type": ".helloworld.HelloReply",
+            "streaming_type": "unary",
+            "method_full_name": "/helloworld.Greeter/GEEDelete",
+            "options": {
+                "[google.api.http]": {
+                    "delete": "/v1/helloworld"
+                }
+            },
+            "http": {
+                "method": "DELETE",
+                "path": "/v1/helloworld"
+            }
+        },
         "SayHelloStreamReply": {
             "input_type": ".helloworld.HelloRequest",
             "output_type": ".helloworld.HelloReply",
@@ -58,14 +73,61 @@
             "method_full_name": "/helloworld.Greeter/SayHelloStream",
             "options": {
                 "[google.api.http]": {
-                    "post": "/v1/helloworld/sse",
+                    "post": "/v1/helloworld/client_stream",
                     "body": "*"
                 }
             },
             "http": {
                 "method": "POST",
-                "path": "/v1/helloworld/sse",
+                "path": "/v1/helloworld/client_stream",
                 "body": "*"
+            }
+        },
+        "Health": {
+            "input_type": ".google.protobuf.Empty",
+            "output_type": ".helloworld.HealthResponse",
+            "streaming_type": "unary",
+            "method_full_name": "/helloworld.Greeter/Health",
+            "options": {
+                "[google.api.http]": {
+                    "get": "/health"
+                }
+            },
+            "http": {
+                "method": "GET",
+                "path": "/health"
+            }
+        },
+        "AuthCheck": {
+            "input_type": ".helloworld.HelloRequest",
+            "output_type": ".helloworld.HelloReply",
+            "streaming_type": "unary",
+            "method_full_name": "/helloworld.Greeter/AuthCheck",
+            "options": {
+                "[pydantic.method_auth]": {
+                    "required": true,
+                    "scopes": [
+                        "read",
+                        "write"
+                    ]
+                },
+                "[google.api.http]": {
+                    "get": "/v1/helloworld/authcheck"
+                },
+                "pydantic_auth": {
+                    "source": "method",
+                    "required": true,
+                    "scopes": [
+                        "read",
+                        "write"
+                    ],
+                    "role": null,
+                    "permission": null
+                }
+            },
+            "http": {
+                "method": "GET",
+                "path": "/v1/helloworld/authcheck"
             }
         }
     }

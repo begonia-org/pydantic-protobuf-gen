@@ -14,6 +14,8 @@
 
 syntax = "proto3";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/empty.proto";
+
 import "protobuf_pydantic_gen/pydantic.proto";
 import "google/api/annotations.proto";
 option java_multiple_files = true;
@@ -32,6 +34,12 @@ service Greeter {
       body: "*"
     };
   }
+  
+    rpc GEEDelete (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      delete: "/v1/helloworld"
+    };
+  }
 
   rpc SayHelloStreamReply (HelloRequest) returns (stream HelloReply) {
     option (google.api.http) = {
@@ -48,12 +56,29 @@ service Greeter {
   }
     rpc SayHelloStream (stream HelloRequest) returns (HelloReply) {
         option (google.api.http) = {
-        post: "/v1/helloworld/sse"
+        post: "/v1/helloworld/client_stream"
         body: "*"
         };
     }
+    rpc Health(google.protobuf.Empty) returns (HealthResponse) {
+        option (google.api.http) = {
+            get: "/health"
+        };
+    }
+    rpc AuthCheck(HelloRequest) returns (HelloReply) {
+        option (google.api.http) = {
+            get: "/v1/helloworld/authcheck"
+        };
+        option (pydantic.method_auth) = {
+            required: true,
+            scopes: ["read", "write"]
+        };
+    }
 }
-
+message HealthResponse {
+    bool healthy = 1[json_name="healthy",(pydantic.field) = {description: "Indicates if the service is healthy",required:true}];
+    string message = 2[json_name="message",(pydantic.field) = {description: "Health status message",required:false}];
+}
 // The request message containing the user's name.
 message HelloRequest {
   string name = 1[(pydantic.field) = {

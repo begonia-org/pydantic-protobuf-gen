@@ -19,13 +19,8 @@ RUN if [ "$USE_MIRROR_UBUNTU" = "true" ]; then \
     && uv venv --seed $DEFAULT_VENV \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-ENV UV_LINK_MODE=copy \
-    PIP_INDEX_URL=$PIP_INDEX_URL \
-    VIRTUAL_ENV=$DEFAULT_VENV \
-    UV_PROJECT_ENVIRONMENT=$DEFAULT_VENV \
-    UV_PYTHON=$DEFAULT_VENV/bin/python3 \
-    UV_INDEX=$PIP_INDEX_URL \
-    UV_DEFAULT_INDEX=$PIP_INDEX_URL
+
+    
 RUN pip config set global.index-url $PIP_INDEX_URL && \
     pip config set global.trusted-host $(echo "$PIP_INDEX_URL" | sed -E 's|^https?://([^/]+).*|\1|') && \
     . $DEFAULT_VENV/bin/activate  && \

@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
-'''
+"""
 @File    :   utils.py
 @Time    :   2024/04/28 11:01:31
-@Desc    :   
-'''
+@Desc    :
+"""
 
 import os
 import inspect
 import importlib.util
+from google.protobuf import descriptor_pb2
 
 
 def load_module_from_file(module_name, file_path):
@@ -26,11 +27,12 @@ def scan_classes_in_directory(directory):
         return class_import_paths
     for root, dirs, files in os.walk(directory):
         for file in files:
-            if file.endswith('.py'):
+            if file.endswith(".py"):
                 # 构建模块名和文件路径
                 file_path = os.path.join(root, file)
                 module_name = os.path.splitext(os.path.relpath(file_path, directory))[
-                    0].replace(os.sep, '.')
+                    0
+                ].replace(os.sep, ".")
 
                 # 动态加载模块
                 try:
@@ -39,7 +41,7 @@ def scan_classes_in_directory(directory):
                     for name, obj in inspect.getmembers(module, inspect.isclass):
                         # 过滤掉从其他模块导入的类
                         if obj.__module__ == module.__name__:
-                            class_import_paths[name] = f'{obj.__module__}.{name}'
+                            class_import_paths[name] = f"{obj.__module__}.{name}"
                 except Exception as e:
                     print(f"Error loading {module_name}: {e}")
 
@@ -53,8 +55,30 @@ def get_class_import_path(directory: str, class_name: str):
             return path
 
 
+def is_map_field(
+    field_desc: descriptor_pb2.FieldDescriptorProto,
+    message_desc: descriptor_pb2.DescriptorProto,
+):
+    # if field_desc.type != descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE:
+    #     return False
+
+    type_name = field_desc.type_name
+    if type_name.startswith("."):
+        type_name = type_name[1:]
+
+    nested_type_name = type_name.split(".")[-1]
+    for nested in message_desc.nested_type:
+        # print(f"Checking nested type: {nested.name} against {nested_type_name}")
+        if nested.name == nested_type_name:
+            if hasattr(nested.options, "map_entry") and nested.options.map_entry:
+                return True
+
+    return False
+
+
 # 替换为你的目标目录路径
-if __name__ == '__main__':
+if __name__ == "__main__":
     classes = scan_classes_in_directory(
-        '/data/work/begonia-org/pydantic-protobuf/example/models')
+        "/data/work/begonia-org/pydantic-protobuf/example/models"
+    )
     print(classes)

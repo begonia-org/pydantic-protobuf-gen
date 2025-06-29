@@ -1,3 +1,6 @@
 {
-    "debugpy.debugJustMyCode": false
+    "debugpy.debugJustMyCode": false,
+    "python.analysis.extraPaths": [
+        "/app"
+    ]
 }
