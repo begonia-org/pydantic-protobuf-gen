@@ -109,7 +109,6 @@ That's it! You now have:
 ## Next Steps
 
 - Check out the [complete example](./example/) for advanced features
-- Read the [client usage guide](./CLIENT_USAGE_GUIDE.md) for detailed client usage
 - Explore streaming support (SSE and WebSockets)
 - Add authentication and custom headers
 - Run the generated test suite
