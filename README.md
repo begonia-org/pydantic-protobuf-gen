@@ -307,8 +307,8 @@ When using `protoc-gen-client`, you can customize generation with these paramete
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `package_name` | Python package name for imports | Required |
-| `models_dir` | Directory containing Pydantic models | Required |
+| `package_name` | Python package name for imports,used for ${package_name}.models | Required |
+| `models_dir` | Directory containing Pydantic models,eg:./models | Required |
 | `class_name` | Generated client class name | `Client` |
 | `services_json` | Path to services.json file | `{models_dir}/services.json` |
 | `template_dir` | Custom Jinja2 template directory | Built-in templates |

@@ -322,8 +322,8 @@ response = await client.greeter_say_hello(request, headers=custom_headers)
 
 | 参数 | 描述 | 默认值 |
 |------|------|---------|
-| `package_name` | 导入的Python包名 | 必需 |
-| `models_dir` | 包含Pydantic模型的目录 | 必需 |
+| `package_name` | 导入的Python包名,{package_name}.models | 必需 |
+| `models_dir` | 包含Pydantic模型的目录,，例如./models | 必需 |
 | `class_name` | 生成的客户端类名 | `Client` |
 | `services_json` | services.json文件路径 | `{models_dir}/services.json` |
 | `template_dir` | 自定义Jinja2模板目录 | 内置模板 |

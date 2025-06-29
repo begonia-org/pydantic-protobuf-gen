@@ -130,7 +130,6 @@ class ExampleClient:
         sender_task = None
 
         try:
-            # Connect with proper parameter name
             websocket = await websockets.connect(uri, extra_headers=extra_headers)
 
             # Create a flag to signal when to stop sending
@@ -145,18 +144,17 @@ class ExampleClient:
                         message = request.model_dump_json(exclude_none=True)
                         await websocket.send(message)
                 except asyncio.CancelledError:
-                    logger.debug("Send inputs task cancelled")
+                    pass
                 except Exception as e:
                     logger.error(f"Error sending input: {e}")
+                    raise
                 finally:
-                    # Signal close without actually closing (let context manager handle it)
                     should_close.set()
 
             # Start sender task
             sender_task = asyncio.create_task(send_inputs())
 
             try:
-                # Receive outputs
                 async for message in websocket:
                     try:
                         data = json.loads(message)
@@ -170,21 +168,55 @@ class ExampleClient:
                 raise
 
         except Exception as e:
-            logger.error(f"WebSocket connection failed: {e}")
+            logger.error(f"Error in bidirectional streaming: {e}")
             raise
         finally:
-            # Clean up tasks and connections
-            should_close.set() if 'should_close' in locals() else None
-
-            if sender_task and not sender_task.done():
+            if sender_task:
                 sender_task.cancel()
                 try:
-                    await asyncio.wait_for(sender_task, timeout=2.0)
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    logger.debug("Sender task cleanup completed")
+                    await sender_task
+                except asyncio.CancelledError:
+                    pass
+            if websocket:
+                await websocket.close()
 
-            if websocket and not websocket.closed:
-                try:
-                    await websocket.close()
-                except Exception:
-                    logger.debug("WebSocket close during cleanup")
+    async def greeter_say_hello_stream(
+        self,
+        input_stream: AsyncGenerator[HelloRequest, None],
+        headers: Optional[Dict[str, Any]] = None
+    ) -> HelloReply:
+        """SayHelloStream - Client streaming RPC call"""
+        uri = self._build_websocket_uri("/v1/helloworld/sse")
+        extra_headers = self._build_headers(headers)
+
+        websocket = None
+        try:
+            websocket = await websockets.connect(uri, extra_headers=extra_headers)
+
+            # Send all input requests
+            async for request in input_stream:
+                message = request.model_dump_json(exclude_none=True)
+                await websocket.send(message)
+
+            # Signal end of input stream
+            await websocket.send(json.dumps({"__end_stream__": True}))
+
+            # Wait for single response
+            response_message = await websocket.recv()
+
+            try:
+                data = json.loads(response_message)
+                return HelloReply(**data)
+            except (json.JSONDecodeError, ValidationError) as e:
+                logger.error(f"Failed to parse response: {e}")
+                raise
+
+        except ConnectionClosed:
+            logger.error("WebSocket connection closed unexpectedly")
+            raise
+        except Exception as e:
+            logger.error(f"Error in client streaming: {e}")
+            raise
+        finally:
+            if websocket:
+                await websocket.close()

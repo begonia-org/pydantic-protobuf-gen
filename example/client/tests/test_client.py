@@ -149,6 +149,101 @@ class TestExampleClientIntegration:
             await client.greeter_say_hello(request)
         print("✓ Timeout handling test passed")
 
+    @pytest.mark.asyncio
+    async def test_greeter_say_hello_client_stream(self, client):
+        """Test client streaming: SayHelloStream"""
+
+        async def input_generator():
+            """Generate multiple input requests for client streaming"""
+            names = ["Alice", "Bob", "Charlie"]
+            for name in names:
+                request = HelloRequest(name=name, language="en")
+                print(f"→ Sending: {name}")
+                yield request
+                await asyncio.sleep(0.1)  # Small delay between sends
+
+        try:
+            # Client streaming: send multiple requests, get single response
+            response = await client.greeter_say_hello_stream(input_generator())
+
+            assert isinstance(response, HelloReply)
+            print(f"✓ Client stream response: {response.message}")
+
+        except Exception as e:
+            # Allow connection errors if server doesn't support WebSocket
+            if "connection" in str(e).lower() or "websocket" in str(e).lower():
+                pytest.skip(
+                    f"WebSocket not available for client streaming: {e}")
+            else:
+                pytest.fail(f"SayHelloStream failed: {e}")
+
+    @pytest.mark.asyncio
+    async def test_greeter_say_hello_stream_empty_input(self, client):
+        """Test client streaming with empty input"""
+
+        async def empty_generator():
+            """Generate no input requests"""
+            return
+            yield  # This line is never reached
+
+        try:
+            response = await client.greeter_say_hello_stream(empty_generator())
+            assert isinstance(response, HelloReply)
+            print(f"✓ Empty client stream response: {response.message}")
+
+        except Exception as e:
+            if "connection" in str(e).lower() or "websocket" in str(e).lower():
+                pytest.skip(f"WebSocket not available: {e}")
+            else:
+                pytest.fail(f"Empty client stream failed: {e}")
+
+    @pytest.mark.asyncio
+    async def test_greeter_say_hello_stream_single_input(self, client):
+        """Test client streaming with single input"""
+
+        async def single_generator():
+            """Generate single input request"""
+            request = HelloRequest(name="SingleUser", language="en")
+            print(f"→ Sending single: {request.name}")
+            yield request
+
+        try:
+            response = await client.greeter_say_hello_stream(single_generator())
+
+            assert isinstance(response, HelloReply)
+            assert "SingleUser" in response.message
+            print(f"✓ Single client stream response: {response.message}")
+
+        except Exception as e:
+            if "connection" in str(e).lower() or "websocket" in str(e).lower():
+                pytest.skip(f"WebSocket not available: {e}")
+            else:
+                pytest.fail(f"Single client stream failed: {e}")
+
+    @pytest.mark.asyncio
+    async def test_greeter_say_hello_stream_large_batch(self, client):
+        """Test client streaming with large batch of inputs"""
+
+        async def large_batch_generator():
+            """Generate large batch of input requests"""
+            for i in range(10):
+                request = HelloRequest(name=f"BatchUser{i}", language="en")
+                print(f"→ Sending batch {i}: {request.name}")
+                yield request
+                await asyncio.sleep(0.05)  # Small delay
+
+        try:
+            response = await client.greeter_say_hello_stream(large_batch_generator())
+
+            assert isinstance(response, HelloReply)
+            print(f"✓ Large batch client stream response: {response.message}")
+
+        except Exception as e:
+            if "connection" in str(e).lower() or "websocket" in str(e).lower():
+                pytest.skip(f"WebSocket not available: {e}")
+            else:
+                pytest.fail(f"Large batch client stream failed: {e}")
+
 
 class TestExampleClientUnit:
     """Unit tests for ExampleClient helper methods"""

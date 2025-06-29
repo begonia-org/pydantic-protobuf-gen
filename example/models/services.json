@@ -50,6 +50,23 @@
                 "path": "/v1/helloworld/ws",
                 "body": "*"
             }
+        },
+        "SayHelloStream": {
+            "input_type": ".helloworld.HelloRequest",
+            "output_type": ".helloworld.HelloReply",
+            "options": {
+                "[google.api.http]": {
+                    "post": "/v1/helloworld/sse",
+                    "body": "*"
+                }
+            },
+            "streaming_type": "client_streaming",
+            "method_full_name": "/helloworld.Greeter/SayHelloStream",
+            "http": {
+                "method": "POST",
+                "path": "/v1/helloworld/sse",
+                "body": "*"
+            }
         }
     }
 }

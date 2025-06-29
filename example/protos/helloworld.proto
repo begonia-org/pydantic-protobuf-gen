@@ -46,6 +46,12 @@ service Greeter {
       body: "*"
     };
   }
+    rpc SayHelloStream (stream HelloRequest) returns (HelloReply) {
+        option (google.api.http) = {
+        post: "/v1/helloworld/sse"
+        body: "*"
+        };
+    }
 }
 
 // The request message containing the user's name.

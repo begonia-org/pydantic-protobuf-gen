@@ -101,6 +101,29 @@ class TestClientPerformance:
         
         assert avg_latency < 1000  # Average should be less than 1 second
 
+    async def test_client_streaming_performance(self):
+        """Test client streaming performance"""
+        request_count = 50
+        
+        async def performance_stream():
+            for i in range(request_count):
+                yield HelloRequest(name=f"PerfUser{i}", language="en")
+        
+        start_time = time.time()
+        response = await self.client.greeter_say_hello_stream(performance_stream())
+        end_time = time.time()
+        
+        total_time = end_time - start_time
+        throughput = request_count / total_time
+        
+        print("Client streaming performance:")
+        print(f"  Requests: {request_count}")
+        print(f"  Total time: {total_time:.2f}s")
+        print(f"  Throughput: {throughput:.2f} requests/second")
+        
+        assert response.message is not None
+        assert total_time < 30  # Should complete within 30 seconds
+
 
 if __name__ == "__main__":
     async def run_tests():
@@ -120,6 +143,9 @@ if __name__ == "__main__":
         print()
         
         await test_instance.test_latency_distribution()
+        print()
+        
+        await test_instance.test_client_streaming_performance()
         print()
         
         print("All performance tests completed!")

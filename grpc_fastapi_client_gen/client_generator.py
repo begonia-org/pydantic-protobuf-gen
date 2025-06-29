@@ -1,5 +1,5 @@
 """
-基于 Jinja2 的客户端代码生成器
+Jinja2-based client code generator
 """
 import json
 import ast
@@ -10,13 +10,13 @@ from jinja2 import Environment, FileSystemLoader
 
 
 def to_snake_case(name: str) -> str:
-    """转换为snake_case"""
+    """Convert to snake_case"""
     import re
     return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
 
 
 class ClientCodeGenerator:
-    """客户端代码生成器"""
+    """Client code generator"""
 
     def __init__(self, template_dir: str = None):
         if template_dir is None:
@@ -28,15 +28,15 @@ class ClientCodeGenerator:
             lstrip_blocks=True
         )
 
-        # 添加自定义过滤器
+        # Add custom filters
         self.env.filters['to_snake_case'] = self._to_snake_case
 
     def _to_snake_case(self, name: str) -> str:
-        """转换为snake_case"""
+        """Convert to snake_case"""
         return to_snake_case(name)
 
     def scan_models_directory(self, package_name: str, models_dir: str) -> Dict[str, str]:
-        """扫描模型目录，获取所有BaseModel类的导入语句"""
+        """Scan model directory to get import statements for all BaseModel classes"""
         models_dir = Path(models_dir)
         model_imports = {}
 
@@ -55,7 +55,7 @@ class ClientCodeGenerator:
 
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef):
-                        # 检查是否继承自BaseModel
+                        # Check if inherits from BaseModel
                         for base in node.bases:
                             is_basemodel = False
 
@@ -80,7 +80,7 @@ class ClientCodeGenerator:
         return model_imports
 
     def _calculate_import_path(self, py_file: Path, models_dir: Path, package_name: str) -> str:
-        """计算导入路径"""
+        """Calculate import path"""
         try:
             relative_path = py_file.relative_to(models_dir)
             module_path_parts = list(
@@ -96,7 +96,7 @@ class ClientCodeGenerator:
             return f".models.{py_file.stem}"
 
     def parse_services_json(self, services_json_path: str) -> Dict[str, Any]:
-        """解析services.json文件"""
+        """Parse services.json file"""
         with open(services_json_path, 'r', encoding='utf-8') as f:
             return json.load(f)
 
@@ -106,11 +106,11 @@ class ClientCodeGenerator:
         model_imports: Dict[str, str],
         class_name: str = "Client"
     ) -> Dict[str, Any]:
-        """准备模板数据"""
-        # 收集使用的模型
+        """Prepare template data"""
+        # Collect used models
         used_models: Set[str] = set()
 
-        # 处理服务数据
+        # Process service data
         processed_services = {}
 
         for service_name, service_info in services_data.items():
@@ -141,7 +141,7 @@ class ClientCodeGenerator:
 
             processed_services[service_name] = processed_methods
 
-        # 准备导入语句
+        # Prepare import statements
         import_statements = []
         for model_name in sorted(used_models):
             if model_name and model_name in model_imports:
@@ -165,17 +165,17 @@ class ClientCodeGenerator:
         class_name: str = "Client",
         template_name: str = "client.j2"
     ) -> str:
-        """生成客户端代码"""
-        # 解析服务定义
+        """Generate client code"""
+        # Parse service definitions
         services_data = self.parse_services_json(services_json_path)
 
-        # 扫描模型目录
+        # Scan model directory
         model_imports = self.scan_models_directory(package_name, models_dir)
 
-        # 准备模板数据
+        # Prepare template data
         template_data = self.prepare_template_data(
             services_data, model_imports, class_name)
-        # 渲染模板
+        # Render template
         template = self.env.get_template(template_name)
         generated_code = template.render(**template_data)
         return generated_code
@@ -189,7 +189,7 @@ def generate_client_from_services(
     class_name: str = "GeneratedClient",
     template_dir: str = None
 ) -> str:
-    """便捷函数：从services.json生成客户端代码"""
+    """Convenience function: generate client code from services.json"""
     generator = ClientCodeGenerator(template_dir)
     return generator.generate_client_code(
         services_json_path=services_json_path,
@@ -201,7 +201,7 @@ def generate_client_from_services(
 
 
 if __name__ == "__main__":
-    # 使用示例
+    # Usage example
     generator = ClientCodeGenerator()
 
     output_file = generator.generate_client_code(

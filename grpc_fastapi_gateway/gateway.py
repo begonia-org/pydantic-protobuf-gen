@@ -95,20 +95,19 @@ def websocket_endpoint_generic_decorator(
                 async for message in ws.iter_text():
                     request_obj = json.loads(message)
                     request = request_cls.model_validate(request_obj)
-                    print(f"WebSocket Request data: {request}")
                     yield request.to_protobuf()
 
             context = GRPCServicerContextAdapter(websocket, None)
             # rsp = await service_method(async_to_pb, context)
             async for r in service_method(async_to_pb(), context):
                 data = response_cls.from_protobuf(r)
-                print(f"WebSocket Response data: {data}")
                 await ws.send_json(data.model_dump())
         except Exception as e:
             import traceback
 
             traceback.print_exc()
-            raise ValueError(f"Error processing WebSocket message: {str(e)}") from e
+            raise ValueError(
+                f"Error processing WebSocket message: {str(e)}") from e
         finally:
             await websocket.close()
 
@@ -139,6 +138,150 @@ def websocket_endpoint_generic_decorator(
         return websocket_endpoint
     else:
         return bidirectional_streaming_endpoint
+
+
+def client_streaming_endpoint_generic_decorator(
+    request_cls: Type[InputT],
+    response_cls: Type[OutputT],
+    service_method: Callable[[AsyncGenerator[InputT, None]], Awaitable[OutputT]],
+    is_websocket=False,
+) -> Callable[
+    [Callable[[AsyncGenerator[InputT, None]], Awaitable[OutputT]]],
+    Callable[[WebSocket], Awaitable[None]],
+]:
+    """
+    Decorator for client streaming RPC calls
+    Client sends multiple requests and server returns a single response
+    """
+    async def websocket_client_streaming_endpoint(
+        websocket: WebSocket,
+    ) -> None:
+        try:
+            ws = websocket
+            await ws.accept()
+
+            async def async_request_stream():
+                """Generate request stream from WebSocket messages"""
+                try:
+                    async for message in ws.iter_text():
+                        if message.strip():  # Skip empty messages
+                            try:
+                                request_obj = json.loads(message)
+                                request = request_cls.model_validate(request_obj)
+                                yield request.to_protobuf()
+                            except json.JSONDecodeError as e:
+                                logger.error(f"Invalid JSON from client: {e}")
+                                await ws.send_json({"error": "Invalid JSON format"})
+                                continue
+                            except ValidationError as e:
+                                logger.error(f"Request validation failed: {e}")
+                                await ws.send_json({"error": f"Validation error: {e.errors()}"})
+                                continue
+                except Exception as e:
+                    logger.error(f"Error in request stream: {e}")
+                    raise
+
+            context = GRPCServicerContextAdapter(websocket, None)
+            
+            # Call the streaming service method
+            response = await service_method(async_request_stream(), context)
+            
+            # Send the single response back to client
+            if response:
+                data = response_cls.from_protobuf(response)
+                await ws.send_json({
+                    "type": "response",
+                    "data": data.model_dump()
+                })
+            
+            # Send completion signal
+            await ws.send_json({"type": "complete"})
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            logger.error(f"Error in client streaming endpoint: {e}")
+            try:
+                await ws.send_json({
+                    "type": "error",
+                    "error": str(e)
+                })
+            except Exception:
+                pass  # Connection might be closed
+        finally:
+            try:
+                await websocket.close()
+            except Exception:
+                pass  # Connection might already be closed
+
+    async def http_client_streaming_endpoint(request: Request):
+        """
+        HTTP endpoint for client streaming using chunked transfer encoding
+        Client sends multiple JSON objects separated by newlines
+        """
+        async def process_client_stream():
+            context = GRPCServicerContextAdapter(request, None)
+
+            async def request_stream():
+                """Generate request stream from HTTP chunks"""
+                buffer = ""
+                async for chunk in request.stream():
+                    if chunk:
+                        buffer += chunk.decode('utf-8')
+                        # Process complete lines (JSON objects)
+                        while '\n' in buffer:
+                            line, buffer = buffer.split('\n', 1)
+                            line = line.strip()
+                            if line:
+                                try:
+                                    data = json.loads(line)
+                                    request_obj = request_cls.model_validate(data)
+                                    yield request_obj.to_protobuf()
+                                except (json.JSONDecodeError, ValidationError) as e:
+                                    logger.error(f"Error processing request chunk: {e}")
+                                    continue
+                
+                # Process any remaining data in buffer
+                if buffer.strip():
+                    try:
+                        data = json.loads(buffer.strip())
+                        request_obj = request_cls.model_validate(data)
+                        yield request_obj.to_protobuf()
+                    except (json.JSONDecodeError, ValidationError) as e:
+                        logger.error(f"Error processing final chunk: {e}")
+
+            try:
+                # Call the streaming service method
+                response = await service_method(request_stream(), context)
+                
+                if response:
+                    data = response_cls.from_protobuf(response)
+                    return BaseHttpResponse[response_cls](
+                        code=0, 
+                        message="success", 
+                        data=data
+                    )
+                else:
+                    return BaseHttpResponse[response_cls](
+                        code=0,
+                        message="success",
+                        data=None
+                    )
+                    
+            except Exception as e:
+                logger.error(f"Error in client streaming HTTP endpoint: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        if is_websocket:
+            return websocket_client_streaming_endpoint
+        else:
+            # For HTTP, return the response directly
+            return await http_client_streaming_endpoint(request)
+
+    if is_websocket:
+        return websocket_client_streaming_endpoint
+    else:
+        return http_client_streaming_endpoint
 
 
 class Gateway:
@@ -195,7 +338,8 @@ class Gateway:
                 # Generate a unique module name to avoid conflicts
                 module_name = f"temp_module_{py_file.stem}_{id(py_file)}"
 
-                spec = importlib.util.spec_from_file_location(module_name, py_file)
+                spec = importlib.util.spec_from_file_location(
+                    module_name, py_file)
 
                 if spec is None or spec.loader is None:
                     continue
@@ -230,7 +374,8 @@ class Gateway:
         package_dir = Path(package_dir)
 
         if not package_dir.exists() or not package_dir.is_dir():
-            raise ValueError(f"Package directory {package_dir} does not exist.")
+            raise ValueError(
+                f"Package directory {package_dir} does not exist.")
 
         # check if the directory is a valid package
         if not (package_dir / "__init__.py").exists():
@@ -299,7 +444,8 @@ class Gateway:
         """
         for group, services in self.service_groups.items():
             for service in services:
-                parent_names = [base.__name__ for base in service.__class__.__bases__]
+                parent_names = [
+                    base.__name__ for base in service.__class__.__bases__]
                 self.logger.debug(
                     f"Service: {service.__class__.__name__}, Parent Names: {parent_names}"
                 )
@@ -387,7 +533,24 @@ class Gateway:
                         "path": "/v1/helloworld/bidi",
                         "body": "*"
                     }
-                }
+                },
+            "SayHelloStream": {
+                    "input_type": ".helloworld.HelloRequest",
+                    "output_type": ".helloworld.HelloReply",
+                    "options": {
+                        "[google.api.http]": {
+                            "post": "/v1/helloworld/sse",
+                            "body": "*"
+                        }
+                    },
+                    "streaming_type": "client_streaming",
+                    "method_full_name": "/helloworld.Greeter/SayHelloStream",
+                    "http": {
+                        "method": "POST",
+                        "path": "/v1/helloworld/sse",
+                        "body": "*"
+                    }
+        }
             }
         }
         """
@@ -417,20 +580,26 @@ class Gateway:
                         _in = input_type.split(".")[-1]
                         _out = output_type.split(".")[-1]
                         input_cls, output_cls = self._get_io_models(_in, _out)
-                        stream_type = method_info.get("streaming_type", "unary")
+                        stream_type = method_info.get(
+                            "streaming_type", "unary")
                         # endpoint = endpoint_generic(input_cls, service_method)
-                        method_full_name = method_info.get("method_full_name", "")
+                        method_full_name = method_info.get(
+                            "method_full_name", "")
                         input_pb2, output_pb2 = self._get_io_pb2(
-                            input_type.split(".")[-1], output_type.split(".")[-1]
+                            input_type.split(
+                                ".")[-1], output_type.split(".")[-1]
                         )
                         from google.protobuf import descriptor_pool, message_factory
 
                         pool = descriptor_pool.Default()
                         input_type = input_type.removeprefix(".")
                         output_type = output_type.removeprefix(".")
-                        in_nested_proto = pool.FindMessageTypeByName(input_type)
-                        in_nested_cls = message_factory.GetMessageClass(in_nested_proto)
-                        out_nested_proto = pool.FindMessageTypeByName(output_type)
+                        in_nested_proto = pool.FindMessageTypeByName(
+                            input_type)
+                        in_nested_cls = message_factory.GetMessageClass(
+                            in_nested_proto)
+                        out_nested_proto = pool.FindMessageTypeByName(
+                            output_type)
                         out_nested_cls = message_factory.GetMessageClass(
                             out_nested_proto
                         )
@@ -455,11 +624,39 @@ class Gateway:
                             endpoint = endpoint_generic_decorator(
                                 output_cls, service_method
                             )
-                        if stream_type == "server_streaming":
+                        elif stream_type == "server_streaming":
                             endpoint = sse_endpoint_generic_decorator(
                                 output_cls, service_method
                             )
-                        if stream_type == "bidirectional_streaming":
+                        elif stream_type == "client_streaming":
+                            endpoint = client_streaming_endpoint_generic_decorator(
+                                input_cls, output_cls, service_method, True
+                            )
+                            self.fastapi_app.add_api_websocket_route(
+                                path=http_info.get("path", ""),
+                                endpoint=endpoint,
+                            )
+                            self.fastapi_app.add_api_route(
+                                http_info.get("path", ""),
+                                endpoint=client_streaming_endpoint_generic_decorator(
+                                    input_cls, output_cls, service_method, False
+                                ),
+                                methods=[http_info.get("method", "POST").upper()],
+                                tags=[group],
+                                description=service_method.__doc__,
+                                summary=f"""{service_method.__doc__}
+                                (Client streaming - multiple requests, single response. 
+                                WebSocket support for HTTP/1, chunked transfer for HTTP/2)"""
+                                if service_method.__doc__
+                                else f"""{service_name}.{method_name}
+                                (Client streaming - multiple requests, single response. 
+                                WebSocket support for HTTP/1, chunked transfer for HTTP/2)""",
+                            )
+                            self.logger.debug(
+                                f"Added client streaming route for {method_full_name} at {http_info.get('path', '')}"
+                            )
+                            continue
+                        elif stream_type == "bidirectional_streaming":
                             endpoint = websocket_endpoint_generic_decorator(
                                 input_cls, output_cls, service_method, True
                             )
@@ -475,12 +672,12 @@ class Gateway:
                                 methods=[http_info.get("method", "POST").upper()],
                                 tags=[group],
                                 description=service_method.__doc__,
-                                summary=f"""{service_method.__doc__}  
-                                (Using the WebSocket protocol for bidirectional streaming communication under HTTP/1, 
+                                summary=f"""{service_method.__doc__}
+                                (Using the WebSocket protocol for bidirectional streaming communication under HTTP/1,
                                 while also supporting bidirectional streaming communication with HTTP/2 protocol)"""
                                 if service_method.__doc__
-                                else f"""{service_name}.{method_name}  
-                                (Using the WebSocket protocol for bidirectional streaming communication under HTTP/1, 
+                                else f"""{service_name}.{method_name}
+                                (Using the WebSocket protocol for bidirectional streaming communication under HTTP/1,
                                 while also supporting bidirectional streaming communication with HTTP/2 protocol)""",
                             )
                             self.logger.debug(
@@ -601,7 +798,8 @@ class Gateway:
                 in_model_cls = service["input_type"]
                 try:
                     message = RequestToGrpc.parse_grpc_message(
-                        request.get("body", b""), in_cls, body_decompress_algorithm
+                        request.get(
+                            "body", b""), in_cls, body_decompress_algorithm
                     )
                     if not message:
                         return request
@@ -682,10 +880,13 @@ class Gateway:
                 more_body = message.get("more_body", False)
                 if body_data:
                     if sse:
-                        body_data = self._get_sse_data(body_data).encode("utf-8")
-                    body = out_model_cls.model_validate_json(body_data.decode("utf-8"))
+                        body_data = self._get_sse_data(
+                            body_data).encode("utf-8")
+                    body = out_model_cls.model_validate_json(
+                        body_data.decode("utf-8"))
                     out_ob2 = body.to_protobuf()
-                    message["body"] = RequestToGrpc.create_grpc_message(out_ob2, "")
+                    message["body"] = RequestToGrpc.create_grpc_message(
+                        out_ob2, "")
                     await original_send(message)
                 if not more_body and not trailers_sent:
                     trailers_sent = True
@@ -723,7 +924,8 @@ class Gateway:
 
         new_scope = self._build_fastapi_scope(scope, path)
         headers = dict(new_scope.get("headers", []))
-        grpc_content_compression = headers.get(b"grpc-accept-encoding", b"").decode()
+        grpc_content_compression = headers.get(
+            b"grpc-accept-encoding", b"").decode()
         fastapi_receive = self._build_fastapi_receive(
             receive, path, grpc_content_compression
         )

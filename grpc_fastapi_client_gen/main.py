@@ -9,7 +9,9 @@ from protobuf_pydantic_gen.main import code_generation
 
 
 def _get_grpc_plugin_parameters(parameters: str) -> Dict[str, Any]:
-    """从命令行参数中获取插件参数"""
+    """
+    Get parameters for gRPC plugin from the request.
+    """
     params = {}
     if not parameters:
         return params
