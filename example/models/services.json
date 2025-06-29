@@ -17,6 +17,23 @@
                 "body": "*"
             }
         },
+        "GEEDelete": {
+            "input_type": ".helloworld.HelloRequest",
+            "output_type": ".helloworld.HelloReply",
+            "streaming_type": "unary",
+            "method_full_name": "/helloworld.Greeter/GEEDelete",
+            "options": {
+                "[google.api.http]": {
+                    "delete": "/v1/helloworld",
+                    "body": "*"
+                }
+            },
+            "http": {
+                "method": "DELETE",
+                "path": "/v1/helloworld",
+                "body": "*"
+            }
+        },
         "SayHelloStreamReply": {
             "input_type": ".helloworld.HelloRequest",
             "output_type": ".helloworld.HelloReply",

@@ -14,8 +14,8 @@ from websockets.exceptions import ConnectionClosed
 from pydantic import ValidationError
 
 # Import all required models
-# HelloReply = Any  # Model not found
-# HelloRequest = Any  # Model not found
+from example.models.helloworld_model import HelloReply
+from example.models.helloworld_model import HelloRequest
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,32 @@ class ExampleClient:
             response = await client.post(
                 url,
                 json=request.model_dump(exclude_none=True),
+                headers=request_headers
+            )
+
+            if response.status_code >= 400:
+                raise httpx.HTTPStatusError(
+                    f"HTTP {response.status_code}",
+                    request=response.request,
+                    response=response
+                )
+
+            data = response.json()
+            return HelloReply(**data.get('data', data))
+
+    async def greeter_gee_delete(
+        self,
+        request: HelloRequest,
+        headers: Optional[Dict[str, Any]] = None
+    ) -> HelloReply:
+        """GEEDelete - Unary RPC call"""
+        url = f"{self.base_url}/v1/helloworld"
+        request_headers = self._build_headers(headers)
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.delete(
+                url,
+                params=request.model_dump(exclude_none=True),
                 headers=request_headers
             )
 

@@ -32,6 +32,12 @@ service Greeter {
       body: "*"
     };
   }
+    rpc GEEDelete (HelloRequest) returns (HelloReply) {
+    option (google.api.http) = {
+      delete: "/v1/helloworld"
+      body: "*"
+    };
+  }
 
   rpc SayHelloStreamReply (HelloRequest) returns (stream HelloReply) {
     option (google.api.http) = {

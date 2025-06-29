@@ -197,7 +197,6 @@ class MessageProcessor:
     ) -> str:
         ext = field.ext
         sqlmodel_imports = set()
-        logger.info(f"Processing field extensions: {msg_ext}")
         if ext:
             if ext.get("field_type") and not ext.get("sa_column_type"):
                 # If field_type is set, use it as sa_column_type

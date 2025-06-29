@@ -78,7 +78,7 @@ class {{ class_name }}:
         request_headers = self._build_headers(headers)
         
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            {% if use_body %}
+            {% if use_body and http_method in ["POST", "PUT", "PATCH"] %}
             response = await client.{{ http_method.lower() }}(
                 url,
                 json=request.model_dump(exclude_none=True),
