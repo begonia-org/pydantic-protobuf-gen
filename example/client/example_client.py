@@ -2,20 +2,20 @@
 Auto-generated gRPC FastAPI client
 Generated from services.json
 """
+
 import asyncio
 import json
 import logging
-from typing import Any, Dict, Optional, AsyncGenerator
+from typing import Any, AsyncGenerator, Dict, Optional
 from urllib.parse import urlparse, urlunparse
 
 import httpx
 import websockets
-from websockets.exceptions import ConnectionClosed
-from pydantic import ValidationError
 
 # Import all required models
-from example.models.helloworld_model import HelloReply
-from example.models.helloworld_model import HelloRequest
+from example.models.helloworld_model import HelloReply, HelloRequest
+from pydantic import ValidationError
+from websockets.exceptions import ConnectionClosed
 
 logger = logging.getLogger(__name__)
 
@@ -23,17 +23,14 @@ logger = logging.getLogger(__name__)
 class ExampleClient:
     """Generated gRPC FastAPI client with type safety"""
 
-    def __init__(
-        self,
-        base_url: str,
-        api_key: str = "",
-        timeout: float = 30.0
-    ):
-        self.base_url = base_url.rstrip('/')
+    def __init__(self, base_url: str, api_key: str = "", timeout: float = 30.0):
+        self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
 
-    def _build_headers(self, extra_headers: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+    def _build_headers(
+        self, extra_headers: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, str]:
         """Build request headers with authentication"""
         headers = {}
         if self.api_key:
@@ -46,21 +43,21 @@ class ExampleClient:
         """Build WebSocket URI from HTTP base URL"""
         parsed = urlparse(self.base_url)
         ws_scheme = "wss" if parsed.scheme == "https" else "ws"
-        return urlunparse((
-            ws_scheme,
-            parsed.netloc,
-            path.lstrip('/'),
-            parsed.params,
-            parsed.query,
-            parsed.fragment
-        ))
+        return urlunparse(
+            (
+                ws_scheme,
+                parsed.netloc,
+                path.lstrip("/"),
+                parsed.params,
+                parsed.query,
+                parsed.fragment,
+            )
+        )
 
     # Greeter methods
 
     async def greeter_say_hello(
-        self,
-        request: HelloRequest,
-        headers: Optional[Dict[str, Any]] = None
+        self, request: HelloRequest, headers: Optional[Dict[str, Any]] = None
     ) -> HelloReply:
         """SayHello - Unary RPC call"""
         url = f"{self.base_url}/v1/helloworld"
@@ -68,25 +65,21 @@ class ExampleClient:
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.post(
-                url,
-                json=request.model_dump(exclude_none=True),
-                headers=request_headers
+                url, json=request.model_dump(exclude_none=True), headers=request_headers
             )
 
             if response.status_code >= 400:
                 raise httpx.HTTPStatusError(
                     f"HTTP {response.status_code}",
                     request=response.request,
-                    response=response
+                    response=response,
                 )
 
             data = response.json()
-            return HelloReply(**data.get('data', data))
+            return HelloReply(**data.get("data", data))
 
     async def greeter_gee_delete(
-        self,
-        request: HelloRequest,
-        headers: Optional[Dict[str, Any]] = None
+        self, request: HelloRequest, headers: Optional[Dict[str, Any]] = None
     ) -> HelloReply:
         """GEEDelete - Unary RPC call"""
         url = f"{self.base_url}/v1/helloworld"
@@ -96,23 +89,21 @@ class ExampleClient:
             response = await client.delete(
                 url,
                 params=request.model_dump(exclude_none=True),
-                headers=request_headers
+                headers=request_headers,
             )
 
             if response.status_code >= 400:
                 raise httpx.HTTPStatusError(
                     f"HTTP {response.status_code}",
                     request=response.request,
-                    response=response
+                    response=response,
                 )
 
             data = response.json()
-            return HelloReply(**data.get('data', data))
+            return HelloReply(**data.get("data", data))
 
     async def greeter_say_hello_stream_reply(
-        self,
-        request: HelloRequest,
-        headers: Optional[Dict[str, Any]] = None
+        self, request: HelloRequest, headers: Optional[Dict[str, Any]] = None
     ) -> AsyncGenerator[HelloReply, None]:
         """SayHelloStreamReply - Server streaming RPC call"""
         url = f"{self.base_url}/v1/helloworld/stream"
@@ -124,13 +115,13 @@ class ExampleClient:
                 "POST",
                 url,
                 json=request.model_dump(exclude_none=True),
-                headers=request_headers
+                headers=request_headers,
             ) as response:
                 if response.status_code >= 400:
                     raise httpx.HTTPStatusError(
                         f"HTTP {response.status_code}",
                         request=response.request,
-                        response=response
+                        response=response,
                     )
 
                 async for line in response.aiter_lines():
@@ -146,7 +137,7 @@ class ExampleClient:
     async def greeter_say_hello_bidi_stream(
         self,
         input_stream: AsyncGenerator[HelloRequest, None],
-        headers: Optional[Dict[str, Any]] = None
+        headers: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[HelloReply, None]:
         """SayHelloBidiStream - Bidirectional streaming RPC call"""
         uri = self._build_websocket_uri("/v1/helloworld/ws")
@@ -209,7 +200,7 @@ class ExampleClient:
     async def greeter_say_hello_stream(
         self,
         input_stream: AsyncGenerator[HelloRequest, None],
-        headers: Optional[Dict[str, Any]] = None
+        headers: Optional[Dict[str, Any]] = None,
     ) -> HelloReply:
         """SayHelloStream - Client streaming RPC call"""
         uri = self._build_websocket_uri("/v1/helloworld/sse")
