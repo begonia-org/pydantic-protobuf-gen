@@ -10,9 +10,13 @@ from jinja2 import Environment, FileSystemLoader
 
 
 def to_snake_case(name: str) -> str:
-    """Convert to snake_case"""
+    """Convert CamelCase or PascalCase to snake_case, handling consecutive uppercase letters correctly."""
     import re
-    return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+    # Replace transitions from lower-to-upper or digit-to-upper with _
+    s1 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', name)
+    # Replace transitions from uppercase followed by uppercase+lower (e.g., HTTPRequest -> HTTP_Request)
+    s2 = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1_\2', s1)
+    return s2.lower()
 
 
 class ClientCodeGenerator:
