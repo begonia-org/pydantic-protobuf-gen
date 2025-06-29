@@ -1,10 +1,13 @@
 """
 Jinja2-based client code generator
 """
+
 import json
 import ast
 import logging
 from pathlib import Path
+import subprocess
+import tempfile
 from typing import Dict, Any, Set
 from jinja2 import Environment, FileSystemLoader
 
@@ -12,10 +15,11 @@ from jinja2 import Environment, FileSystemLoader
 def to_snake_case(name: str) -> str:
     """Convert CamelCase or PascalCase to snake_case, handling consecutive uppercase letters correctly."""
     import re
+
     # Replace transitions from lower-to-upper or digit-to-upper with _
-    s1 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', name)
+    s1 = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
     # Replace transitions from uppercase followed by uppercase+lower (e.g., HTTPRequest -> HTTP_Request)
-    s2 = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1_\2', s1)
+    s2 = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", s1)
     return s2.lower()
 
 
@@ -27,19 +31,48 @@ class ClientCodeGenerator:
             template_dir = Path(__file__).parent
 
         self.env = Environment(
-            loader=FileSystemLoader(template_dir),
-            trim_blocks=True,
-            lstrip_blocks=True
+            loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True
         )
 
         # Add custom filters
-        self.env.filters['to_snake_case'] = self._to_snake_case
+        self.env.filters["to_snake_case"] = self._to_snake_case
 
     def _to_snake_case(self, name: str) -> str:
         """Convert to snake_case"""
         return to_snake_case(name)
 
-    def scan_models_directory(self, package_name: str, models_dir: str) -> Dict[str, str]:
+    def format_with_ruff(self, code: str) -> str:
+        with tempfile.NamedTemporaryFile("w+", suffix=".py", delete=False) as tmp:
+            tmp.write(code)
+            tmp.flush()
+            tmp_name = tmp.name
+            try:
+                subprocess.run(
+                    ["ruff", "format", tmp_name],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                subprocess.run(
+                    ["ruff", "check", "--select", "F401,I", "--fix", tmp_name],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                # Read formatted code
+                with open(tmp_name, "r") as f:
+                    formatted = f.read()
+                return formatted
+            except Exception:
+                return code
+            finally:
+                import os
+
+                os.remove(tmp_name)
+
+    def scan_models_directory(
+        self, package_name: str, models_dir: str
+    ) -> Dict[str, str]:
         """Scan model directory to get import statements for all BaseModel classes"""
         models_dir = Path(models_dir)
         model_imports = {}
@@ -52,7 +85,7 @@ class ClientCodeGenerator:
                 continue
 
             try:
-                with open(py_file, 'r', encoding='utf-8') as f:
+                with open(py_file, "r", encoding="utf-8") as f:
                     content = f.read()
 
                 tree = ast.parse(content)
@@ -63,32 +96,38 @@ class ClientCodeGenerator:
                         for base in node.bases:
                             is_basemodel = False
 
-                            if isinstance(base, ast.Name) and base.id == 'BaseModel':
+                            if isinstance(base, ast.Name) and base.id == "BaseModel":
                                 is_basemodel = True
-                            elif (isinstance(base, ast.Attribute) and
-                                  isinstance(base.value, ast.Name) and
-                                  base.value.id == 'pydantic' and base.attr == 'BaseModel'):
+                            elif (
+                                isinstance(base, ast.Attribute)
+                                and isinstance(base.value, ast.Name)
+                                and base.value.id == "pydantic"
+                                and base.attr == "BaseModel"
+                            ):
                                 is_basemodel = True
 
                             if is_basemodel:
                                 import_path = self._calculate_import_path(
-                                    py_file, models_dir, package_name)
-                                model_imports[node.name] = f"from {import_path} import {node.name}"
+                                    py_file, models_dir, package_name
+                                )
+                                model_imports[node.name] = (
+                                    f"from {import_path} import {node.name}"
+                                )
                                 break
 
             except Exception as e:
-                logging.error(
-                    f"Error processing file {py_file}: {e}")
+                logging.error(f"Error processing file {py_file}: {e}")
                 continue
 
         return model_imports
 
-    def _calculate_import_path(self, py_file: Path, models_dir: Path, package_name: str) -> str:
+    def _calculate_import_path(
+        self, py_file: Path, models_dir: Path, package_name: str
+    ) -> str:
         """Calculate import path"""
         try:
             relative_path = py_file.relative_to(models_dir)
-            module_path_parts = list(
-                relative_path.parts[:-1]) + [relative_path.stem]
+            module_path_parts = list(relative_path.parts[:-1]) + [relative_path.stem]
 
             if module_path_parts and module_path_parts != [py_file.stem]:
                 sub_module = ".".join(module_path_parts)
@@ -101,14 +140,14 @@ class ClientCodeGenerator:
 
     def parse_services_json(self, services_json_path: str) -> Dict[str, Any]:
         """Parse services.json file"""
-        with open(services_json_path, 'r', encoding='utf-8') as f:
+        with open(services_json_path, "r", encoding="utf-8") as f:
             return json.load(f)
 
     def prepare_template_data(
         self,
         services_data: Dict[str, Any],
         model_imports: Dict[str, str],
-        class_name: str = "Client"
+        class_name: str = "Client",
     ) -> Dict[str, Any]:
         """Prepare template data"""
         # Collect used models
@@ -139,8 +178,8 @@ class ClientCodeGenerator:
                     "http": {
                         "method": http_info.get("method", "POST"),
                         "path": http_info.get("path", ""),
-                        "body": http_info.get("body") is not None
-                    }
+                        "body": http_info.get("body") is not None,
+                    },
                 }
 
             processed_services[service_name] = processed_methods
@@ -151,14 +190,13 @@ class ClientCodeGenerator:
             if model_name and model_name in model_imports:
                 import_statements.append(model_imports[model_name])
             elif model_name:
-                import_statements.append(
-                    f"# {model_name} = Any  # Model not found")
+                import_statements.append(f"# {model_name} = Any  # Model not found")
 
         return {
             "class_name": class_name,
             "services": processed_services,
             "model_imports": import_statements,
-            "used_models": list(used_models)
+            "used_models": list(used_models),
         }
 
     def generate_client_code(
@@ -167,7 +205,7 @@ class ClientCodeGenerator:
         models_dir: str,
         package_name: str,
         class_name: str = "Client",
-        template_name: str = "client.j2"
+        template_name: str = "client.j2",
     ) -> str:
         """Generate client code"""
         # Parse service definitions
@@ -178,11 +216,12 @@ class ClientCodeGenerator:
 
         # Prepare template data
         template_data = self.prepare_template_data(
-            services_data, model_imports, class_name)
+            services_data, model_imports, class_name
+        )
         # Render template
         template = self.env.get_template(template_name)
         generated_code = template.render(**template_data)
-        return generated_code
+        return self.format_with_ruff(generated_code)
 
 
 def generate_client_from_services(
@@ -191,7 +230,7 @@ def generate_client_from_services(
     package_name: str,
     output_path: str,
     class_name: str = "GeneratedClient",
-    template_dir: str = None
+    template_dir: str = None,
 ) -> str:
     """Convenience function: generate client code from services.json"""
     generator = ClientCodeGenerator(template_dir)
@@ -200,7 +239,7 @@ def generate_client_from_services(
         models_dir=models_dir,
         package_name=package_name,
         output_path=output_path,
-        class_name=class_name
+        class_name=class_name,
     )
 
 
@@ -213,7 +252,7 @@ if __name__ == "__main__":
         models_dir="/app/example/models",
         package_name="example",
         output_path="/app/example/generated_client.py",
-        class_name="MyAPIClient"
+        class_name="MyAPIClient",
     )
 
     print(f"Generated client code: {output_file}")
