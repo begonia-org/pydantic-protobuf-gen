@@ -2,7 +2,7 @@
 # -*- encoding: utf-8 -*-
 """
 @File    :   helloworld_model.py
-@Time    :   2025-06-29 09:45:31
+@Time    :   2025-06-29 14:58:50
 @Desc    :   Generated Pydantic models from protobuf definitions
 """
 
@@ -16,11 +16,13 @@ class HelloRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
     name: str = _Field(
         description="The name of the person to greet",
-        example="'John Doe'",
         default="John Doe",
+        json_schema_extra={"example": "'John Doe'"},
     )
     language: Optional[str] = _Field(
-        description="The language of the greeting", example="'en'", default="en"
+        description="The language of the greeting",
+        default="en",
+        json_schema_extra={"example": "'en'"},
     )
 
     def to_protobuf(self) -> _message.Message:
@@ -39,11 +41,13 @@ class HelloReply(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
     message: str = _Field(
         description="The greeting message",
-        example="'Hello, John Doe!'",
         default="Hello, John Doe!",
+        json_schema_extra={"example": "'Hello, John Doe!'"},
     )
     language: Optional[str] = _Field(
-        description="The language of the greeting", example="'en'", default="en"
+        description="The language of the greeting",
+        default="en",
+        json_schema_extra={"example": "'en'"},
     )
 
     def to_protobuf(self) -> _message.Message:

@@ -1,4 +1,5 @@
 import datetime
+from example.pb.example_pb2 import Example as ExampleProto  # noqa: F401
 from example.models.example_model import Example, Nested, ExampleType
 from example.models.example2_model import Example2
 
@@ -11,7 +12,7 @@ def test_example_model_basic():
 
 
 def test_nested_model():
-    nested = Nested(name="嵌套")
+    nested = Nested(full_name="嵌套")
     assert nested.name == "嵌套"
 
 

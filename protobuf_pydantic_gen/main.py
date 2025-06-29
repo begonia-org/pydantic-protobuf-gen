@@ -481,7 +481,7 @@ def get_streaming_info(method) -> Dict[str, Any]:
 
 
 def dumps_services(
-    proto_file: descriptor_pb2.FileDescriptorProto
+    proto_file: descriptor_pb2.FileDescriptorProto,
 ) -> Dict[str, Dict[str, Dict[str, Any]]]:
     services_metadata = {}
 
@@ -591,7 +591,7 @@ def generate_code(
                     ext["sa_column"] = (
                         f"Column({ext['sa_column_type']}, doc={ext.get('description', '')})"
                     )
-                    ext.pop("sa_column_type")
+                    ext.pop("sa_column_type", None)
 
                 if is_JSON_field(type_str) and ext and msg_ext.get("as_table", False):
                     sqlmodel_imports.add("JSON")

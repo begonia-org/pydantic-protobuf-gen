@@ -14,7 +14,8 @@
         "nested": "\"Nested message\"",
         "created_at": "\"Creation date of the example\"",
         "type": "\"Type of the example\"",
-        "score": "\"Score of the example\""
+        "score": "\"Score of the example\"",
+        "metadatas": "\"Metadata attributes and their values for the document\""
     },
     "Example3": {
         "name": ""

@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from sqlmodel import SQLModel
 
 from protobuf_pydantic_gen.any_type_transformer import AnyTransformer
+from protobuf_pydantic_gen.utils import is_map_field
 
 pool = descriptor_pool.Default()
 
@@ -41,7 +42,38 @@ def is_map(fd):
     )
 
 
+def get_type_name(fd):
+    """获取 FieldDescriptor 的 type_name"""
+    if fd.type == fd.TYPE_MESSAGE and hasattr(fd, "message_type") and fd.message_type:
+        return f".{fd.message_type.full_name}"
+    elif fd.type == fd.TYPE_ENUM and hasattr(fd, "enum_type") and fd.enum_type:
+        return f".{fd.enum_type.full_name}"
+    else:
+        return ""  # 基础类型没有 type_name
+
+
+def _to_field_proto(fd) -> descriptor_pb2.FieldDescriptorProto:
+    fd_proto = descriptor_pb2.FieldDescriptorProto()
+    fd_proto.name = fd.name
+    fd_proto.number = fd.number
+    fd_proto.label = fd.label
+    fd_proto.type_name = get_type_name(fd)
+    fd_proto.type = fd.type
+    return fd_proto
+
+
+def _to_message_desc(proto) -> descriptor_pb2.DescriptorProto:
+    descriptor = proto.DESCRIPTOR  # 这是 google.protobuf.descriptor.Descriptor 对象
+    # 转为 DescriptorProto
+    descriptor_proto = descriptor_pb2.DescriptorProto()
+    descriptor.CopyToProto(descriptor_proto)
+    return descriptor_proto
+
+
 def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message:
+    # 转为 DescriptorProto
+    descriptor_proto = _to_message_desc(proto)
+
     def _convert_value(fd, value):
         if value is None:
             return _get_default_value(fd)
@@ -100,12 +132,17 @@ def model2protobuf(model: SQLModel, proto: _message.Message) -> _message.Message
     else:
         d = model.model_dump()
         for fd in proto.DESCRIPTOR.fields:
+            fd_proto = _to_field_proto(fd)
+            # fd_proto.type_name = fd.type.name
+
             if fd.name in d:
                 field_value = getattr(model, fd.name)
                 if field_value is None:
-                    d[fd.name] = _get_default_value(fd)
+                    d[fd.name] = _get_default_value(fd_proto, descriptor_proto)
                     continue
-                if fd.label == fd.LABEL_REPEATED and not is_map(fd):
+                if fd.label == fd.LABEL_REPEATED and not is_map_field(
+                    fd_proto, descriptor_proto
+                ):
                     d[fd.name] = [_convert_value(fd, item) for item in field_value]
                 else:
                     d[fd.name] = _convert_value(fd, field_value)
@@ -148,10 +185,16 @@ def _get_detailed_type(attr_type: Type) -> Type:
         return attr_type
 
 
-def _get_default_value(fd: descriptor_pb2.FieldDescriptorProto) -> Any:
-    if fd.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:
+def _get_default_value(
+    fd: descriptor_pb2.FieldDescriptorProto,
+    message_desc: descriptor_pb2.DescriptorProto,
+) -> Any:
+    if (
+        fd.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
+        and not is_map_field(fd, message_desc)
+    ):
         return []
-    elif is_map(fd):
+    elif is_map_field(fd, message_desc):
         return {}
     elif fd.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
         return 0
@@ -198,6 +241,8 @@ def _get_model_cls_by_field(
 
 
 def protobuf2model(model_cls: Type[SQLModel], proto: _message.Message) -> SQLModel:
+    descriptor_proto = _to_message_desc(proto)
+
     def _convert_value(fd, value, model_cls):
         if value is None:
             return None
@@ -260,7 +305,10 @@ def protobuf2model(model_cls: Type[SQLModel], proto: _message.Message) -> SQLMod
     for fd in proto.DESCRIPTOR.fields:
         field_name = fd.name
         # if field_name in proto_dict:
-        value = proto_dict.get(field_name, _get_default_value(fd))
+        value = proto_dict.get(
+            field_name,
+            _get_default_value(_to_field_proto(fd), descriptor_proto),
+        )
         model_data[field_name] = _convert_value(fd, value, model_cls)
 
     # Create and return SQLModel instance

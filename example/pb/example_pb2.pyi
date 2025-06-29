@@ -18,8 +18,15 @@ class Nested(_message.Message):
     def __init__(self, name: _Optional[str] = ...) -> None: ...
 
 class Example(_message.Message):
-    __slots__ = ("name", "age", "emails", "examples", "entry", "nested", "created_at", "type", "score")
+    __slots__ = ("name", "age", "emails", "examples", "entry", "nested", "created_at", "type", "score", "metadatas")
     class EntryEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _any_pb2.Any
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_any_pb2.Any, _Mapping]] = ...) -> None: ...
+    class MetadatasEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -35,6 +42,7 @@ class Example(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     SCORE_FIELD_NUMBER: _ClassVar[int]
+    METADATAS_FIELD_NUMBER: _ClassVar[int]
     name: str
     age: int
     emails: _containers.RepeatedScalarFieldContainer[str]
@@ -44,4 +52,5 @@ class Example(_message.Message):
     created_at: _timestamp_pb2.Timestamp
     type: _constant_pb2.ExampleType
     score: float
-    def __init__(self, name: _Optional[str] = ..., age: _Optional[int] = ..., emails: _Optional[_Iterable[str]] = ..., examples: _Optional[_Iterable[_Union[_example2_pb2.Example2, _Mapping]]] = ..., entry: _Optional[_Mapping[str, _any_pb2.Any]] = ..., nested: _Optional[_Union[Nested, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., type: _Optional[_Union[_constant_pb2.ExampleType, str]] = ..., score: _Optional[float] = ...) -> None: ...
+    metadatas: _containers.MessageMap[str, _any_pb2.Any]
+    def __init__(self, name: _Optional[str] = ..., age: _Optional[int] = ..., emails: _Optional[_Iterable[str]] = ..., examples: _Optional[_Iterable[_Union[_example2_pb2.Example2, _Mapping]]] = ..., entry: _Optional[_Mapping[str, _any_pb2.Any]] = ..., nested: _Optional[_Union[Nested, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., type: _Optional[_Union[_constant_pb2.ExampleType, str]] = ..., score: _Optional[float] = ..., metadatas: _Optional[_Mapping[str, _any_pb2.Any]] = ...) -> None: ...

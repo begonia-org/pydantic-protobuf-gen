@@ -30,7 +30,7 @@ from . import constant_pb2 as constant__pb2
 from . import example2_pb2 as example2__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rexample.proto\x12\x10pydantic_example\x1a google/protobuf/descriptor.proto\x1a$protobuf_pydantic_gen/pydantic.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19google/protobuf/any.proto\x1a\x0e\x63onstant.proto\x1a\x0e\x65xample2.proto\"U\n\x06Nested\x12K\n\x04name\x18\x01 \x01(\tB=\xaa\xbb\x18\x39\n\x13Name of the example\x12\x08\'ohn Doe\x1a\x08John Doe\"\tfull_name@\x01h\x80\x01\"\xae\x07\n\x07\x45xample\x12P\n\x04name\x18\x01 \x01(\tBB\xaa\xbb\x18>\n\x13Name of the example\x1a\x08John Doe\"\tfull_name@\x01h\x80\x01\xaa\x01\x0c\xe5\xad\x97\xe6\xae\xb5\xe5\x90\x8d\xe7\xa7\xb0\x12>\n\x03\x61ge\x18\x02 \x01(\x05\x42,\xaa\xbb\x18(\n\x12\x41ge of the example\x1a\x02\x33\x30\"\x05years\xaa\x01\x06\xe5\xb9\xb4\xe9\xbe\x84H\x00\x88\x01\x01\x12\x62\n\x06\x65mails\x18\x03 \x03(\tBR\xaa\xbb\x18N\n\x15\x45mails of the example\x1a.[\"example@example.com\",\"example2@example.com\"]\xa2\x01\x04JSON\x12I\n\x08\x65xamples\x18\t \x03(\x0b\x32\x1a.pydantic_example.Example2B\x1b\xaa\xbb\x18\x17\n\x0eNested message\xa2\x01\x04JSON\x12_\n\x05\x65ntry\x18\x04 \x03(\x0b\x32$.pydantic_example.Example.EntryEntryB*\xaa\xbb\x18&\n\x19Properties of the example\x1a\x02{}\xa2\x01\x04JSON\x12\x45\n\x06nested\x18\x08 \x01(\x0b\x32\x18.pydantic_example.NestedB\x1b\xaa\xbb\x18\x17\n\x0eNested message\xa2\x01\x04JSON\x12m\n\ncreated_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampB=\xaa\xbb\x18\x39\n\x1c\x43reation date of the example\x1a\x17\x64\x61tetime.datetime.now()0\x01\x12m\n\x04type\x18\x06 \x01(\x0e\x32\x1d.pydantic_example.ExampleTypeB@\xaa\xbb\x18<\n\x13Type of the example\x1a\x11\x45xampleType.TYPE1\xa2\x01\x11\x45num[ExampleType]\x12\x41\n\x05score\x18\x07 \x01(\x02\x42\x32\xaa\xbb\x18.\n\x14Score of the example\x1a\x03\x30.0Z\x07Integer\x89\x01\x00\x00\x00\x00\x00\x00Y@\x1a\x42\n\nEntryEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12#\n\x05value\x18\x02 \x01(\x0b\x32\x14.google.protobuf.Any:\x02\x38\x01:M\xca\xc1\x18I\n\x05users\x12!\n\x04name\n\x03\x61ge\x12\x06UNIQUE\x1a\x0cuni_name_age\x12\x1b\n\x04name\x12\x07PRIMARY\x1a\nindex_name\x18\x01\x42\x06\n\x04_ageb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rexample.proto\x12\x10pydantic_example\x1a google/protobuf/descriptor.proto\x1a$protobuf_pydantic_gen/pydantic.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19google/protobuf/any.proto\x1a\x0e\x63onstant.proto\x1a\x0e\x65xample2.proto\"R\n\x06Nested\x12H\n\x04name\x18\x01 \x01(\tB:\xaa\xbb\x18\x36\n\x13Name of the example\x12\x07ohn Doe\x1a\x08John Doe\"\tfull_nameh\x80\x01\"\x83\t\n\x07\x45xample\x12P\n\x04name\x18\x01 \x01(\tBB\xaa\xbb\x18>\n\x13Name of the example\x1a\x08John Doe\"\tfull_name@\x01h\x80\x01\xaa\x01\x0c\xe5\xad\x97\xe6\xae\xb5\xe5\x90\x8d\xe7\xa7\xb0\x12>\n\x03\x61ge\x18\x02 \x01(\x05\x42,\xaa\xbb\x18(\n\x12\x41ge of the example\x1a\x02\x33\x30\"\x05years\xaa\x01\x06\xe5\xb9\xb4\xe9\xbe\x84H\x00\x88\x01\x01\x12\x62\n\x06\x65mails\x18\x03 \x03(\tBR\xaa\xbb\x18N\n\x15\x45mails of the example\x1a.[\"example@example.com\",\"example2@example.com\"]\xa2\x01\x04JSON\x12I\n\x08\x65xamples\x18\t \x03(\x0b\x32\x1a.pydantic_example.Example2B\x1b\xaa\xbb\x18\x17\n\x0eNested message\xa2\x01\x04JSON\x12_\n\x05\x65ntry\x18\x04 \x03(\x0b\x32$.pydantic_example.Example.EntryEntryB*\xaa\xbb\x18&\n\x19Properties of the example\x1a\x02{}\xa2\x01\x04JSON\x12\x45\n\x06nested\x18\x08 \x01(\x0b\x32\x18.pydantic_example.NestedB\x1b\xaa\xbb\x18\x17\n\x0eNested message\xa2\x01\x04JSON\x12m\n\ncreated_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampB=\xaa\xbb\x18\x39\n\x1c\x43reation date of the example\x1a\x17\x64\x61tetime.datetime.now()0\x01\x12m\n\x04type\x18\x06 \x01(\x0e\x32\x1d.pydantic_example.ExampleTypeB@\xaa\xbb\x18<\n\x13Type of the example\x1a\x11\x45xampleType.TYPE1\xa2\x01\x11\x45num[ExampleType]\x12\x41\n\x05score\x18\x07 \x01(\x02\x42\x32\xaa\xbb\x18.\n\x14Score of the example\x1a\x03\x30.0Z\x07Integer\x89\x01\x00\x00\x00\x00\x00\x00Y@\x12\x8a\x01\n\tmetadatas\x18\n \x03(\x0b\x32(.pydantic_example.Example.MetadatasEntryBB\xaa\xbb\x18>\n5Metadata attributes and their values for the document\xa2\x01\x04JSONR\tmetadatas\x1a\x42\n\nEntryEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12#\n\x05value\x18\x02 \x01(\x0b\x32\x14.google.protobuf.Any:\x02\x38\x01\x1a\x46\n\x0eMetadatasEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12#\n\x05value\x18\x02 \x01(\x0b\x32\x14.google.protobuf.Any:\x02\x38\x01:M\xca\xc1\x18I\n\x05users\x12!\n\x04name\n\x03\x61ge\x12\x06UNIQUE\x1a\x0cuni_name_age\x12\x1b\n\x04name\x12\x07PRIMARY\x1a\nindex_name\x18\x01\x42\x06\n\x04_ageb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,9 +38,11 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'example_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_NESTED'].fields_by_name['name']._loaded_options = None
-  _globals['_NESTED'].fields_by_name['name']._serialized_options = b'\252\273\0309\n\023Name of the example\022\010\'ohn Doe\032\010John Doe\"\tfull_name@\001h\200\001'
+  _globals['_NESTED'].fields_by_name['name']._serialized_options = b'\252\273\0306\n\023Name of the example\022\007ohn Doe\032\010John Doe\"\tfull_nameh\200\001'
   _globals['_EXAMPLE_ENTRYENTRY']._loaded_options = None
   _globals['_EXAMPLE_ENTRYENTRY']._serialized_options = b'8\001'
+  _globals['_EXAMPLE_METADATASENTRY']._loaded_options = None
+  _globals['_EXAMPLE_METADATASENTRY']._serialized_options = b'8\001'
   _globals['_EXAMPLE'].fields_by_name['name']._loaded_options = None
   _globals['_EXAMPLE'].fields_by_name['name']._serialized_options = b'\252\273\030>\n\023Name of the example\032\010John Doe\"\tfull_name@\001h\200\001\252\001\014\345\255\227\346\256\265\345\220\215\347\247\260'
   _globals['_EXAMPLE'].fields_by_name['age']._loaded_options = None
@@ -59,12 +61,16 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_EXAMPLE'].fields_by_name['type']._serialized_options = b'\252\273\030<\n\023Type of the example\032\021ExampleType.TYPE1\242\001\021Enum[ExampleType]'
   _globals['_EXAMPLE'].fields_by_name['score']._loaded_options = None
   _globals['_EXAMPLE'].fields_by_name['score']._serialized_options = b'\252\273\030.\n\024Score of the example\032\0030.0Z\007Integer\211\001\000\000\000\000\000\000Y@'
+  _globals['_EXAMPLE'].fields_by_name['metadatas']._loaded_options = None
+  _globals['_EXAMPLE'].fields_by_name['metadatas']._serialized_options = b'\252\273\030>\n5Metadata attributes and their values for the document\242\001\004JSON'
   _globals['_EXAMPLE']._loaded_options = None
   _globals['_EXAMPLE']._serialized_options = b'\312\301\030I\n\005users\022!\n\004name\n\003age\022\006UNIQUE\032\014uni_name_age\022\033\n\004name\022\007PRIMARY\032\nindex_name\030\001'
   _globals['_NESTED']._serialized_start=199
-  _globals['_NESTED']._serialized_end=284
-  _globals['_EXAMPLE']._serialized_start=287
-  _globals['_EXAMPLE']._serialized_end=1229
-  _globals['_EXAMPLE_ENTRYENTRY']._serialized_start=1076
-  _globals['_EXAMPLE_ENTRYENTRY']._serialized_end=1142
+  _globals['_NESTED']._serialized_end=281
+  _globals['_EXAMPLE']._serialized_start=284
+  _globals['_EXAMPLE']._serialized_end=1439
+  _globals['_EXAMPLE_ENTRYENTRY']._serialized_start=1214
+  _globals['_EXAMPLE_ENTRYENTRY']._serialized_end=1280
+  _globals['_EXAMPLE_METADATASENTRY']._serialized_start=1282
+  _globals['_EXAMPLE_METADATASENTRY']._serialized_end=1352
 # @@protoc_insertion_point(module_scope)

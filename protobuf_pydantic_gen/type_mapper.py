@@ -90,25 +90,6 @@ class TypeMapper:
             type_name = field.type_name.split(".")[-1]
             type_mapping[type_name] = file_name
             return type_name
-        # if field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED:
-        #     # Handle repeated fields
-        #     if field.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE:
-        #         # Check if it's a map field
-        #         if self._is_map_field(field):
-        #             key_type, value_type = self._get_map_field_types(
-        #                 field, imports, type_mapping, file_name)
-        #             if key_type and value_type:
-        #                 imports.add("Dict")
-        #                 return f"Dict[{key_type}, {value_type}]"
-        #         else:
-        #             type_name = field.type_name.split(".")[-1]
-        #             type_mapping[type_name] = file_name
-        #             return f"List[{type_name}]"
-        #     elif field.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
-        #         type_name = field.type_name.split(".")[-1]
-        #         type_mapping[type_name] = file_name
-        #         return f"List[{type_name}]"
-        # Handle basic types
         return FIELD_TYPE_MAPPING.get(field.type, "Any")
 
     def _is_map_field(self, field: descriptor_pb2.FieldDescriptorProto) -> bool:

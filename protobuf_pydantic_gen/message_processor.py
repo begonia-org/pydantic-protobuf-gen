@@ -8,6 +8,8 @@ import logging
 from typing import List, Dict, Set, Any
 from google.protobuf import descriptor_pb2
 from google.protobuf.json_format import MessageToDict
+
+from protobuf_pydantic_gen.utils import is_map_field
 from . import pydantic_pb2
 from .models import Message, Field, EnumField, MessageType
 from .type_mapper import TypeMapper
@@ -163,8 +165,6 @@ class MessageProcessor:
         return False
 
     def safe_python_value(self, key: str, val, field: Field) -> Any:
-        logger.debug(f"Converted string to JSON:{key}:{field.type}: {val}")
-
         if (field.type == "str" and not field.repeated) or key in [
             "description",
             "doc",
@@ -178,7 +178,6 @@ class MessageProcessor:
                 v.startswith("'") and v.endswith("'")
             ):
                 v = v[1:-1]
-            logger.debug(f"Processed string value: {v}")
             try:
                 value = json.loads(v)
                 logger.debug(f"Converted string to JSON: {value}")
@@ -234,6 +233,11 @@ class MessageProcessor:
             )
             imports.add(sqlmodel_imports_str)
         ext.pop("required", None)
+        if ext.get("example"):
+            ext["json_schema_extra"] = ext.get("json_schema_extra", {})
+            example = ext["example"].replace('"', "")
+            ext["json_schema_extra"].update({"example": example})
+            ext.pop("example", None)
         attr = ", ".join(
             f"{key}={self.safe_python_value(key, value, field)}"
             for key, value in ext.items()
@@ -258,7 +262,7 @@ class MessageProcessor:
         # Determine if field is repeated and required
         repeated = (
             field_desc.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
-        )
+        ) and not is_map_field(field_desc, message_desc)
         # required = field_desc.label == descriptor_pb2.FieldDescriptorProto.LABEL_REQUIRED
 
         # Extract field extensions

@@ -2,7 +2,7 @@
 # -*- encoding: utf-8 -*-
 """
 @File    :   example_model.py
-@Time    :   2025-06-29 09:45:31
+@Time    :   2025-06-29 14:58:50
 @Desc    :   Generated Pydantic models from protobuf definitions
 """
 
@@ -29,11 +29,10 @@ class Nested(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
     name: Optional[str] = _Field(
         description="Name of the example",
-        example="'ohn Doe",
         default="John Doe",
         alias="full_name",
-        primary_key=True,
         max_length=128,
+        json_schema_extra={"example": "ohn Doe"},
     )
 
     def to_protobuf(self) -> _message.Message:
@@ -79,7 +78,7 @@ class Example(SQLModel, table=True):
         default=None,
         sa_column=Column(JSON, doc="Nested message"),
     )
-    entry: Optional[List[Dict[str, Any]]] = Field(
+    entry: Optional[Dict[str, Any]] = Field(
         description="Properties of the example",
         default={},
         sa_column=Column(JSON, doc="Properties of the example"),
@@ -104,6 +103,13 @@ class Example(SQLModel, table=True):
         default=0.0,
         le=100.0,
         sa_column=Column(Integer, doc="Score of the example"),
+    )
+    metadatas: Optional[Dict[str, Any]] = Field(
+        description="Metadata attributes and their values for the document",
+        default=None,
+        sa_column=Column(
+            JSON, doc="Metadata attributes and their values for the document"
+        ),
     )
 
     def to_protobuf(self) -> _message.Message:

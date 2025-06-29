@@ -18,11 +18,12 @@
             "required": false,
             "ext": {
                 "description": "\"Name of the example\"",
-                "example": "\"'ohn Doe\"",
                 "default": "\"John Doe\"",
                 "alias": "\"full_name\"",
-                "primary_key": true,
-                "max_length": 128
+                "max_length": 128,
+                "json_schema_extra": {
+                    "example": "ohn Doe"
+                }
             },
             "description": "\"Name of the example\""
         }
@@ -82,7 +83,7 @@
         },
         "entry": {
             "type": "Dict[str, Any]",
-            "repeated": true,
+            "repeated": false,
             "required": false,
             "ext": {
                 "description": "\"Properties of the example\"",
@@ -137,6 +138,17 @@
                 "sa_column": "Column(Integer, doc=\"Score of the example\")"
             },
             "description": "\"Score of the example\""
+        },
+        "metadatas": {
+            "type": "Dict[str, Any]",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Metadata attributes and their values for the document\"",
+                "default": null,
+                "sa_column": "Column(JSON, doc=\"Metadata attributes and their values for the document\")"
+            },
+            "description": "\"Metadata attributes and their values for the document\""
         }
     },
     "Example3": {
@@ -157,8 +169,10 @@
             "required": true,
             "ext": {
                 "description": "\"The name of the person to greet\"",
-                "example": "\"'John Doe'\"",
-                "default": "\"John Doe\""
+                "default": "\"John Doe\"",
+                "json_schema_extra": {
+                    "example": "'John Doe'"
+                }
             },
             "description": "\"The name of the person to greet\""
         },
@@ -168,8 +182,10 @@
             "required": false,
             "ext": {
                 "description": "\"The language of the greeting\"",
-                "example": "\"'en'\"",
-                "default": "\"en\""
+                "default": "\"en\"",
+                "json_schema_extra": {
+                    "example": "'en'"
+                }
             },
             "description": "\"The language of the greeting\""
         }
@@ -181,8 +197,10 @@
             "required": true,
             "ext": {
                 "description": "\"The greeting message\"",
-                "example": "\"'Hello, John Doe!'\"",
-                "default": "\"Hello, John Doe!\""
+                "default": "\"Hello, John Doe!\"",
+                "json_schema_extra": {
+                    "example": "'Hello, John Doe!'"
+                }
             },
             "description": "\"The greeting message\""
         },
@@ -192,8 +210,10 @@
             "required": false,
             "ext": {
                 "description": "\"The language of the greeting\"",
-                "example": "\"'en'\"",
-                "default": "\"en\""
+                "default": "\"en\"",
+                "json_schema_extra": {
+                    "example": "'en'"
+                }
             },
             "description": "\"The language of the greeting\""
         }
