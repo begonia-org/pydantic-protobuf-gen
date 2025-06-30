@@ -18,12 +18,16 @@ from .response import BaseHttpResponse
 from .typings import LoggerType
 from .utils import RequestToGrpc
 from .exceptions import (
-    MethodNotFoundError, ClassLoadingError,
-    ValidationError as GatewayValidationError, ServiceLoadError
+    MethodNotFoundError,
+    ClassLoadingError,
+    ValidationError as GatewayValidationError,
+    ServiceLoadError,
 )
 from .decorators import (
-    safe_endpoint_decorator, safe_sse_endpoint_decorator,
-    safe_websocket_endpoint_decorator, safe_client_streaming_endpoint_decorator
+    safe_endpoint_decorator,
+    safe_sse_endpoint_decorator,
+    safe_websocket_endpoint_decorator,
+    safe_client_streaming_endpoint_decorator,
 )
 
 
@@ -58,18 +62,20 @@ class CachedClassLoader:
             # Manage cache size
             if len(self._cache) > self._cache_size:
                 # Remove oldest entries
-                keys_to_remove = list(self._cache.keys())[:-self._cache_size]
+                keys_to_remove = list(self._cache.keys())[: -self._cache_size]
                 for key in keys_to_remove:
                     del self._cache[key]
 
             return result
         except Exception as e:
-            logger.error(
-                f"Failed to load class {class_name} from {directory}: {e}")
+            logger.error(f"Failed to load class {class_name} from {directory}: {e}")
             raise ClassLoadingError(
-                f"Cannot load class {class_name}", class_name, str(e))
+                f"Cannot load class {class_name}", class_name, str(e)
+            )
 
-    def _scan_and_import_class_safe(self, directory: str, class_name: str) -> Optional[Type]:
+    def _scan_and_import_class_safe(
+        self, directory: str, class_name: str
+    ) -> Optional[Type]:
         """Safely scan and import a class from a directory"""
         import importlib.util
 
@@ -78,7 +84,7 @@ class CachedClassLoader:
             raise ClassLoadingError(
                 f"Directory {directory} does not exist or is not a directory",
                 class_name,
-                f"Invalid directory: {directory}"
+                f"Invalid directory: {directory}",
             )
 
         for py_file in directory.glob("**/*.py"):
@@ -88,8 +94,7 @@ class CachedClassLoader:
             try:
                 # Generate a unique module name to avoid conflicts
                 module_name = f"temp_module_{py_file.stem}_{id(py_file)}"
-                spec = importlib.util.spec_from_file_location(
-                    module_name, py_file)
+                spec = importlib.util.spec_from_file_location(module_name, py_file)
 
                 if spec is None or spec.loader is None:
                     continue
@@ -166,8 +171,7 @@ class Gateway:
                 # Generate a unique module name to avoid conflicts
                 module_name = f"temp_module_{py_file.stem}_{id(py_file)}"
 
-                spec = importlib.util.spec_from_file_location(
-                    module_name, py_file)
+                spec = importlib.util.spec_from_file_location(module_name, py_file)
 
                 if spec is None or spec.loader is None:
                     continue
@@ -202,8 +206,7 @@ class Gateway:
         package_dir = Path(package_dir)
 
         if not package_dir.exists() or not package_dir.is_dir():
-            raise ValueError(
-                f"Package directory {package_dir} does not exist.")
+            raise ValueError(f"Package directory {package_dir} does not exist.")
 
         # check if the directory is a valid package
         if not (package_dir / "__init__.py").exists():
@@ -272,8 +275,7 @@ class Gateway:
         """
         for group, services in self.service_groups.items():
             for service in services:
-                parent_names = [
-                    base.__name__ for base in service.__class__.__bases__]
+                parent_names = [base.__name__ for base in service.__class__.__bases__]
                 self.logger.debug(
                     f"Service: {service.__class__.__name__}, Parent Names: {parent_names}"
                 )
@@ -336,7 +338,8 @@ class Gateway:
 
         if not os.path.exists(services_json_file):
             raise ServiceLoadError(
-                f"Services JSON file not found: {services_json_file}")
+                f"Services JSON file not found: {services_json_file}"
+            )
 
         try:
             with open(services_json_file, "r", encoding="utf-8") as f:
@@ -344,17 +347,16 @@ class Gateway:
 
             # Validate services data structure
             if not isinstance(services_data, dict):
-                raise GatewayValidationError(
-                    "Services data must be a dictionary", [])
+                raise GatewayValidationError("Services data must be a dictionary", [])
 
             for service_name, service_info in services_data.items():
                 try:
                     self._load_service_methods(service_name, service_info)
                 except Exception as e:
-                    self.logger.error(
-                        f"Failed to load service {service_name}: {e}")
+                    self.logger.error(f"Failed to load service {service_name}: {e}")
                     raise ServiceLoadError(
-                        f"Failed to load service {service_name}: {e}")
+                        f"Failed to load service {service_name}: {e}"
+                    )
 
         except json.JSONDecodeError as e:
             raise ServiceLoadError(f"Invalid JSON in services file: {e}")
@@ -371,8 +373,7 @@ class Gateway:
                     service_name, method_name, method_info, service_class, group
                 )
             except Exception as e:
-                self.logger.error(
-                    f"Failed to register method {method_name}: {e}")
+                self.logger.error(f"Failed to register method {method_name}: {e}")
                 raise
 
     def _register_service_method(
@@ -381,7 +382,7 @@ class Gateway:
         method_name: str,
         method_info: Dict[str, Any],
         service_class: Type,
-        group: str
+        group: str,
     ):
         """Register a single service method with appropriate endpoint handlers."""
         # Validate method exists
@@ -393,8 +394,7 @@ class Gateway:
 
         http_info = method_info.get("http", {})
         if not http_info:
-            self.logger.warning(
-                f"No HTTP info for method {method_name}, skipping")
+            self.logger.warning(f"No HTTP info for method {method_name}, skipping")
             return
 
         # Validate required fields
@@ -405,7 +405,7 @@ class Gateway:
         if not all([input_type, output_type, method_full_name]):
             raise GatewayValidationError(
                 f"Missing required fields for method {method_name} in service {service_name}",
-                ["input_type", "output_type", "method_full_name"]
+                ["input_type", "output_type", "method_full_name"],
             )
 
         # Get model classes
@@ -440,9 +440,15 @@ class Gateway:
 
         # Register endpoints based on streaming type
         self._register_endpoints(
-            service_name, method_name, method_full_name,
-            stream_type, http_info, input_cls, output_cls,
-            service_method, group
+            service_name,
+            method_name,
+            method_full_name,
+            stream_type,
+            http_info,
+            input_cls,
+            output_cls,
+            service_method,
+            group,
         )
 
     def _get_protobuf_message_classes(self, input_type: str, output_type: str):
@@ -463,8 +469,7 @@ class Gateway:
             return in_nested_cls, out_nested_cls
 
         except Exception as e:
-            raise ServiceLoadError(
-                f"Failed to get protobuf message classes: {e}")
+            raise ServiceLoadError(f"Failed to get protobuf message classes: {e}")
 
     def _register_endpoints(
         self,
@@ -476,43 +481,83 @@ class Gateway:
         input_cls: Type,
         output_cls: Type,
         service_method: callable,
-        group: str
+        group: str,
     ):
         """Register FastAPI endpoints based on streaming type."""
         path = http_info.get("path", "")
         method = http_info.get("method", "POST").upper()
-
+        use_body = http_info.get("body", None)
         if stream_type == "unary":
             self._register_unary_endpoint(
-                path, method, input_cls, output_cls, service_method, group, service_name, method_name
+                path,
+                method,
+                use_body,
+                input_cls,
+                output_cls,
+                service_method,
+                group,
+                service_name,
+                method_name,
             )
         elif stream_type == "server_streaming":
             self._register_sse_endpoint(
-                path, method, input_cls, output_cls, service_method, group, service_name, method_name
+                path,
+                method,
+                use_body,
+                input_cls,
+                output_cls,
+                service_method,
+                group,
+                service_name,
+                method_name,
             )
         elif stream_type == "client_streaming":
             self._register_client_streaming_endpoints(
-                path, method, input_cls, output_cls, service_method, group,
-                service_name, method_name, method_full_name
+                path,
+                method,
+                use_body,
+                input_cls,
+                output_cls,
+                service_method,
+                group,
+                service_name,
+                method_name,
+                method_full_name,
             )
         elif stream_type == "bidirectional_streaming":
             self._register_websocket_endpoints(
-                path, method, input_cls, output_cls, service_method, group,
-                service_name, method_name, method_full_name
+                path,
+                method,
+                input_cls,
+                output_cls,
+                service_method,
+                group,
+                service_name,
+                method_name,
+                method_full_name,
             )
         else:
             raise GatewayValidationError(
-                f"Unknown streaming type: {stream_type}", ["streaming_type"])
+                f"Unknown streaming type: {stream_type}", ["streaming_type"]
+            )
 
     def _register_unary_endpoint(
-        self, path: str, method: str, input_cls: Type, output_cls: Type,
-        service_method: callable, group: str, service_name: str, method_name: str
+        self,
+        path: str,
+        method: str,
+        use_body: bool,
+        input_cls: Type,
+        output_cls: Type,
+        service_method: callable,
+        group: str,
+        service_name: str,
+        method_name: str,
     ):
         """Register unary endpoint."""
         endpoint = safe_endpoint_decorator(output_cls, service_method)
 
         # Set up annotations
-        self._setup_endpoint_annotations(endpoint, input_cls, output_cls, True)
+        self._setup_endpoint_annotations(endpoint, input_cls, output_cls, use_body)
 
         summary = service_method.__doc__ or f"{service_name}.{method_name}"
 
@@ -527,17 +572,26 @@ class Gateway:
         )
 
         self.logger.debug(
-            f"Added unary route for {service_name}.{method_name} at {path}")
+            f"Added unary route for {service_name}.{method_name} at {path}"
+        )
 
     def _register_sse_endpoint(
-        self, path: str, method: str, input_cls: Type, output_cls: Type,
-        service_method: callable, group: str, service_name: str, method_name: str
+        self,
+        path: str,
+        method: str,
+        use_body: bool,
+        input_cls: Type,
+        output_cls: Type,
+        service_method: callable,
+        group: str,
+        service_name: str,
+        method_name: str,
     ):
         """Register server-sent events endpoint."""
         endpoint = safe_sse_endpoint_decorator(output_cls, service_method)
 
         # Set up annotations
-        self._setup_endpoint_annotations(endpoint, input_cls, output_cls, True)
+        self._setup_endpoint_annotations(endpoint, input_cls, output_cls, use_body)
 
         summary = f"{service_method.__doc__ or f'{service_name}.{method_name}'} (SSE)"
 
@@ -551,28 +605,34 @@ class Gateway:
             summary=summary,
         )
 
-        self.logger.debug(
-            f"Added SSE route for {service_name}.{method_name} at {path}")
+        self.logger.debug(f"Added SSE route for {service_name}.{method_name} at {path}")
 
     def _register_client_streaming_endpoints(
-        self, path: str, method: str, input_cls: Type, output_cls: Type,
-        service_method: callable, group: str, service_name: str,
-        method_name: str, method_full_name: str
+        self,
+        path: str,
+        method: str,
+        use_body: bool,
+        input_cls: Type,
+        output_cls: Type,
+        service_method: callable,
+        group: str,
+        service_name: str,
+        method_name: str,
+        method_full_name: str,
     ):
         """Register client streaming endpoints (WebSocket + HTTP)."""
         # WebSocket endpoint
         ws_endpoint = safe_client_streaming_endpoint_decorator(
-            input_cls, output_cls, service_method, True
+            input_cls, output_cls, service_method, use_body
         )
-        self.fastapi_app.add_api_websocket_route(
-            path=path, endpoint=ws_endpoint)
+        self.fastapi_app.add_api_websocket_route(path=path, endpoint=ws_endpoint)
 
         # HTTP endpoint for fallback
         http_endpoint = safe_client_streaming_endpoint_decorator(
             input_cls, output_cls, service_method, False
         )
 
-        summary = f"""{service_method.__doc__ or f'{service_name}.{method_name}'}
+        summary = f"""{service_method.__doc__ or f"{service_name}.{method_name}"}
         (Client streaming - multiple requests, single response. 
         WebSocket support for HTTP/1, chunked transfer for HTTP/2)"""
 
@@ -586,27 +646,34 @@ class Gateway:
         )
 
         self.logger.debug(
-            f"Added client streaming routes for {method_full_name} at {path}")
+            f"Added client streaming routes for {method_full_name} at {path}"
+        )
 
     def _register_websocket_endpoints(
-        self, path: str, method: str, input_cls: Type, output_cls: Type,
-        service_method: callable, group: str, service_name: str,
-        method_name: str, method_full_name: str
+        self,
+        path: str,
+        method: str,
+        input_cls: Type,
+        output_cls: Type,
+        service_method: callable,
+        group: str,
+        service_name: str,
+        method_name: str,
+        method_full_name: str,
     ):
         """Register bidirectional streaming endpoints (WebSocket + HTTP fallback)."""
         # WebSocket endpoint
         ws_endpoint = safe_websocket_endpoint_decorator(
             input_cls, output_cls, service_method, True
         )
-        self.fastapi_app.add_api_websocket_route(
-            path=path, endpoint=ws_endpoint)
+        self.fastapi_app.add_api_websocket_route(path=path, endpoint=ws_endpoint)
 
         # HTTP endpoint for fallback
         http_endpoint = safe_websocket_endpoint_decorator(
             input_cls, output_cls, service_method, False
         )
 
-        summary = f"""{service_method.__doc__ or f'{service_name}.{method_name}'}
+        summary = f"""{service_method.__doc__ or f"{service_name}.{method_name}"}
         (Using the WebSocket protocol for bidirectional streaming communication under HTTP/1,
         while also supporting bidirectional streaming communication with HTTP/2 protocol)"""
 
@@ -619,11 +686,14 @@ class Gateway:
             summary=summary,
         )
 
-        self.logger.debug(
-            f"Added WebSocket routes for {method_full_name} at {path}")
+        self.logger.debug(f"Added WebSocket routes for {method_full_name} at {path}")
 
     def _setup_endpoint_annotations(
-        self, endpoint: callable, input_cls: Type, output_cls: Type, use_body: bool = True
+        self,
+        endpoint: callable,
+        input_cls: Type,
+        output_cls: Type,
+        use_body: bool = True,
     ):
         """Set up endpoint annotations for request/response types."""
         if use_body:
@@ -725,8 +795,7 @@ class Gateway:
                 in_model_cls = service["input_type"]
                 try:
                     message = RequestToGrpc.parse_grpc_message(
-                        request.get(
-                            "body", b""), in_cls, body_decompress_algorithm
+                        request.get("body", b""), in_cls, body_decompress_algorithm
                     )
                     if not message:
                         return request
@@ -807,13 +876,10 @@ class Gateway:
                 more_body = message.get("more_body", False)
                 if body_data:
                     if sse:
-                        body_data = self._get_sse_data(
-                            body_data).encode("utf-8")
-                    body = out_model_cls.model_validate_json(
-                        body_data.decode("utf-8"))
+                        body_data = self._get_sse_data(body_data).encode("utf-8")
+                    body = out_model_cls.model_validate_json(body_data.decode("utf-8"))
                     out_ob2 = body.to_protobuf()
-                    message["body"] = RequestToGrpc.create_grpc_message(
-                        out_ob2, "")
+                    message["body"] = RequestToGrpc.create_grpc_message(out_ob2, "")
                     await original_send(message)
                 if not more_body and not trailers_sent:
                     trailers_sent = True
@@ -851,8 +917,7 @@ class Gateway:
 
         new_scope = self._build_fastapi_scope(scope, path)
         headers = dict(new_scope.get("headers", []))
-        grpc_content_compression = headers.get(
-            b"grpc-accept-encoding", b"").decode()
+        grpc_content_compression = headers.get(b"grpc-accept-encoding", b"").decode()
         fastapi_receive = self._build_fastapi_receive(
             receive, path, grpc_content_compression
         )

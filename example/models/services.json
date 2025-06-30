@@ -24,14 +24,12 @@
             "method_full_name": "/helloworld.Greeter/GEEDelete",
             "options": {
                 "[google.api.http]": {
-                    "delete": "/v1/helloworld",
-                    "body": "*"
+                    "delete": "/v1/helloworld"
                 }
             },
             "http": {
                 "method": "DELETE",
-                "path": "/v1/helloworld",
-                "body": "*"
+                "path": "/v1/helloworld"
             }
         },
         "SayHelloStreamReply": {

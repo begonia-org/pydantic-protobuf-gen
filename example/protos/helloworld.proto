@@ -35,7 +35,6 @@ service Greeter {
     rpc GEEDelete (HelloRequest) returns (HelloReply) {
     option (google.api.http) = {
       delete: "/v1/helloworld"
-      body: "*"
     };
   }
 
