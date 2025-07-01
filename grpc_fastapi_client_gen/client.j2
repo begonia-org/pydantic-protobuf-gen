@@ -144,7 +144,9 @@ class {{ class_name }}:
                                 data = json.loads(data_str)
                                 yield {{ output_type }}(**data)
                             except (json.JSONDecodeError, ValidationError) as e:
-                                logger.error(f"Failed to parse SSE data: {e}")
+                                if data_str.startswith("data") and len(line) > 6:
+                                    logger.error(f"Failed to parse SSE data: {e} with {line}")
+                                    raise ValueError(f"Invalid SSE data: {line}") from e
 
 {% elif streaming_type == "client_streaming" %}
     async def {{ snake_name }}(

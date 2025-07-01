@@ -10,7 +10,7 @@ from typing import Iterator, Tuple, List, Dict, Set
 from google.protobuf.compiler import plugin_pb2
 from google.protobuf import descriptor_pool
 
-from .constants import SKIP_FILES, BASE_IMPORTS, __version__
+from .constants import CONDITIONAL_IMPORTS, SKIP_FILES, BASE_IMPORTS, __version__
 from .config import get_config, GeneratorConfig
 from .models import GenerationResult, MessageType
 from .type_mapper import TypeMapper, ImportManager
@@ -124,7 +124,7 @@ class CodeGenerator:
         self.import_manager.clear()
         type_mapping: Dict[str, str] = {}
         imports: Set[str] = set(BASE_IMPORTS)
-
+        imports.add(CONDITIONAL_IMPORTS["typing_base"])
         # Process messages and enums
         messages = self.message_processor.extract_messages_from_file(
             proto_file, imports, type_mapping

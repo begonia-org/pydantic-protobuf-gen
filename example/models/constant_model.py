@@ -2,11 +2,12 @@
 # -*- encoding: utf-8 -*-
 """
 @File    :   constant_model.py
-@Time    :   2025-06-30 03:40:31
+@Time    :   2025-07-01 16:17:31
 @Desc    :   Generated Pydantic models from protobuf definitions
 """
 
 from enum import Enum as _Enum
+from typing import Type
 
 
 class ExampleType(_Enum):

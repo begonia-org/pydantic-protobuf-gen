@@ -125,8 +125,7 @@ def safe_sse_endpoint_decorator(
                 if config.debug:
                     logger.exception(f"Error in SSE stream {service_method.__name__}")
                 else:
-                    logger.error(f"Error in SSE stream {service_method.__name__}: {type(e).__name__}")
-                
+                    logger.error(f"Error in SSE stream {service_method.__name__}: {str(e)}")
                 # Send error event
                 yield f"event: error\ndata: {json.dumps({'error': error_msg})}\n\n"
 
