@@ -153,6 +153,9 @@ class GreeterServicer(helloworld_pb2_grpc.GreeterServicer):
             )
             yield confirmation
 
+    async def Health(self, request, context) -> helloworld_pb2.HealthResponse:
+        return helloworld_pb2.HealthResponse(healthy=True, message="Service is healthy")
+
 
 async def grpc_serve():
     """启动 gRPC 服务器"""

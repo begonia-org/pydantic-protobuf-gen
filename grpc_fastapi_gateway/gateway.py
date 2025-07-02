@@ -7,7 +7,8 @@ import importlib
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type, Tuple, TypeVar, Annotated
 from functools import lru_cache
-
+from google.protobuf import message as _message, message_factory
+from google.protobuf import empty_pb2
 from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ValidationError
 from sse_starlette import EventSourceResponse
@@ -43,6 +44,15 @@ patch_h2_protocol()
 class EmptyModel(BaseModel):
     class Config:
         extra = "forbid"
+
+    def to_protobuf(self) -> _message.Message:
+        """Convert Pydantic model to protobuf message"""
+        return empty_pb2.Empty()
+
+    @classmethod
+    def from_protobuf(cls, src: _message.Message) -> "EmptyModel":
+        """Convert protobuf message to Pydantic model"""
+        return EmptyModel()
 
 
 class CachedClassLoader:
