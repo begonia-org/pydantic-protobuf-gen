@@ -162,6 +162,28 @@
             "description": ""
         }
     },
+    "HealthResponse": {
+        "healthy": {
+            "type": "bool",
+            "repeated": false,
+            "required": true,
+            "ext": {
+                "description": "\"Indicates if the service is healthy\"",
+                "default": "False"
+            },
+            "description": "\"Indicates if the service is healthy\""
+        },
+        "message": {
+            "type": "str",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"Health status message\"",
+                "default": "\"\""
+            },
+            "description": "\"Health status message\""
+        }
+    },
     "HelloRequest": {
         "name": {
             "type": "str",

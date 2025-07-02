@@ -14,6 +14,8 @@
 
 syntax = "proto3";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/empty.proto";
+
 import "protobuf_pydantic_gen/pydantic.proto";
 import "google/api/annotations.proto";
 option java_multiple_files = true;
@@ -57,8 +59,16 @@ service Greeter {
         body: "*"
         };
     }
+        rpc Health(google.protobuf.Empty) returns (HealthResponse) {
+        option (google.api.http) = {
+            get: "/health"
+        };
+    }
 }
-
+message HealthResponse {
+    bool healthy = 1[json_name="healthy",(pydantic.field) = {description: "Indicates if the service is healthy",required:true}];
+    string message = 2[json_name="message",(pydantic.field) = {description: "Health status message",required:false}];
+}
 // The request message containing the user's name.
 message HelloRequest {
   string name = 1[(pydantic.field) = {

@@ -82,6 +82,21 @@
                 "path": "/v1/helloworld/sse",
                 "body": "*"
             }
+        },
+        "Health": {
+            "input_type": ".google.protobuf.Empty",
+            "output_type": ".helloworld.HealthResponse",
+            "streaming_type": "unary",
+            "method_full_name": "/helloworld.Greeter/Health",
+            "options": {
+                "[google.api.http]": {
+                    "get": "/health"
+                }
+            },
+            "http": {
+                "method": "GET",
+                "path": "/health"
+            }
         }
     }
 }

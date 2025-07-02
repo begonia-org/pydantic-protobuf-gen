@@ -40,6 +40,11 @@ logger = logging.getLogger(__name__)
 patch_h2_protocol()
 
 
+class EmptyModel(BaseModel):
+    class Config:
+        extra = "forbid"
+
+
 class CachedClassLoader:
     """Cached class loader for improved performance"""
 
@@ -287,9 +292,26 @@ class Gateway:
         raise ValueError(f"Service {servicer_name} not found")
         # raise ValueError(f"Service {service_name} not found")
 
+    def _create_empty_model(self) -> Type[BaseModel]:
+        """
+        Create an empty Pydantic model with the given name.
+        For .google.protobuf.Empty model, we create a simple Pydantic model
+        Returns:
+            Type[BaseModel]: The created Pydantic model class.
+        """
+        return EmptyModel
+
     def _get_io_models(self, input_model: str, output_model: str) -> Tuple[Type, Type]:
-        input_cls = self._scan_and_import_class(self._models_dir, input_model)
-        outpt_cls = self._scan_and_import_class(self._models_dir, output_model)
+        _in = input_model.split(".")[-1]
+        _out = output_model.split(".")[-1]
+        if input_model == ".google.protobuf.Empty":
+            input_cls = self._create_empty_model()
+        else:
+            input_cls = self._scan_and_import_class(self._models_dir, _in)
+        if output_model == ".google.protobuf.Empty":
+            outpt_cls = self._create_empty_model()
+        else:
+            outpt_cls = self._scan_and_import_class(self._models_dir, _out)
         if not input_cls or not outpt_cls:
             raise ValueError(
                 f"Input model {input_model} or output model {output_model} not found in {self._models_dir}"
@@ -297,13 +319,26 @@ class Gateway:
         return input_cls, outpt_cls
 
     def _get_io_pb2(self, input_pb2: str, output_pb2: str) -> Tuple[Type, Type]:
-        input_cls = self._scan_and_import_class(self._pb_dir, input_pb2)
-        outpt_cls = self._scan_and_import_class(self._pb_dir, output_pb2)
-        if not input_cls or not outpt_cls:
+        input_cls = None
+        output_cls = None
+        _in = input_pb2.split(".")[-1]
+        _out = output_pb2.split(".")[-1]
+        if input_pb2 == ".google.protobuf.Empty":
+            from google.protobuf import empty_pb2 as input_pb2
+
+            input_cls = input_pb2.Empty
+        else:
+            input_cls = self._scan_and_import_class(self._pb_dir, _in)
+        if output_pb2 == ".google.protobuf.Empty":
+            from google.protobuf import empty_pb2 as output_pb2
+
+            output_cls = output_pb2.Empty
+        output_cls = self._scan_and_import_class(self._pb_dir, _out)
+        if not input_cls or not output_cls:
             raise ValueError(
                 f"Input pb2 {input_pb2} or output pb2 {output_pb2} not found in {self._pb_dir}"
             )
-        return input_cls, outpt_cls
+        return input_cls, output_cls
 
     def load_services(self):
         """
@@ -409,12 +444,12 @@ class Gateway:
             )
 
         # Get model classes
-        _in = input_type.split(".")[-1]
-        _out = output_type.split(".")[-1]
-        input_cls, output_cls = self._get_io_models(_in, _out)
+        # _in = input_type.split(".")[-1]
+        # _out = output_type.split(".")[-1]
+        input_cls, output_cls = self._get_io_models(input_type, output_type)
 
         # Get protobuf classes
-        input_pb2, output_pb2 = self._get_io_pb2(_in, _out)
+        input_pb2, output_pb2 = self._get_io_pb2(input_type, output_type)
 
         # Get protobuf message classes
         in_nested_cls, out_nested_cls = self._get_protobuf_message_classes(

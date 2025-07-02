@@ -2,7 +2,7 @@
 # -*- encoding: utf-8 -*-
 """
 @File    :   helloworld_model.py
-@Time    :   2025-07-01 16:17:31
+@Time    :   2025-07-02 03:21:16
 @Desc    :   Generated Pydantic models from protobuf definitions
 """
 
@@ -10,6 +10,25 @@ from google.protobuf import message as _message, message_factory
 from protobuf_pydantic_gen.ext import model2protobuf, pool, protobuf2model
 from pydantic import BaseModel, ConfigDict, Field as _Field
 from typing import Optional, Type
+
+
+class HealthResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    healthy: bool = _Field(
+        description="Indicates if the service is healthy", default=False
+    )
+    message: Optional[str] = _Field(description="Health status message", default="")
+
+    def to_protobuf(self) -> _message.Message:
+        """Convert Pydantic model to protobuf message"""
+        _proto = pool.FindMessageTypeByName("helloworld.HealthResponse")
+        _cls: Type[_message.Message] = message_factory.GetMessageClass(_proto)
+        return model2protobuf(self, _cls())
+
+    @classmethod
+    def from_protobuf(cls, src: _message.Message) -> "HealthResponse":
+        """Convert protobuf message to Pydantic model"""
+        return protobuf2model(cls, src)
 
 
 class HelloRequest(BaseModel):

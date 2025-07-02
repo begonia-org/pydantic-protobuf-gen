@@ -20,6 +20,10 @@
     "Example3": {
         "name": ""
     },
+    "HealthResponse": {
+        "healthy": "\"Indicates if the service is healthy\"",
+        "message": "\"Health status message\""
+    },
     "HelloRequest": {
         "name": "\"The name of the person to greet\"",
         "language": "\"The language of the greeting\""

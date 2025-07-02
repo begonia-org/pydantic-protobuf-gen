@@ -23,11 +23,12 @@ _sym_db = _symbol_database.Default()
 
 
 from google.protobuf import descriptor_pb2 as google_dot_protobuf_dot_descriptor__pb2
+from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
 from protobuf_pydantic_gen import pydantic_pb2 as protobuf__pydantic__gen_dot_pydantic__pb2
 from google.api import annotations_pb2 as google_dot_api_dot_annotations__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10helloworld.proto\x12\nhelloworld\x1a google/protobuf/descriptor.proto\x1a$protobuf_pydantic_gen/pydantic.proto\x1a\x1cgoogle/api/annotations.proto\"\x9f\x01\n\x0cHelloRequest\x12M\n\x04name\x18\x01 \x01(\tB?\xaa\xbb\x18;\n\x1fThe name of the person to greet\x12\n\'John Doe\'\x1a\n\'John Doe\'0\x01\x12@\n\x08language\x18\x02 \x01(\tB.\xaa\xbb\x18*\n\x1cThe language of the greeting\x12\x04\'en\'\x1a\x04\'en\'\"\xa5\x01\n\nHelloReply\x12U\n\x07message\x18\x01 \x01(\tBD\xaa\xbb\x18@\n\x14The greeting message\x12\x12\'Hello, John Doe!\'\x1a\x12\'Hello, John Doe!\'0\x01\x12@\n\x08language\x18\x02 \x01(\tB.\xaa\xbb\x18*\n\x1cThe language of the greeting\x12\x04\'en\'\x1a\x04\'en\'2\xf5\x03\n\x07Greeter\x12W\n\x08SayHello\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"\x19\x82\xd3\xe4\x93\x02\x13\"\x0e/v1/helloworld:\x01*\x12U\n\tGEEDelete\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"\x16\x82\xd3\xe4\x93\x02\x10*\x0e/v1/helloworld\x12k\n\x13SayHelloStreamReply\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\" \x82\xd3\xe4\x93\x02\x1a\"\x15/v1/helloworld/stream:\x01*0\x01\x12h\n\x12SayHelloBidiStream\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"\x1c\x82\xd3\xe4\x93\x02\x16\"\x11/v1/helloworld/ws:\x01*(\x01\x30\x01\x12\x63\n\x0eSayHelloStream\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"\x1d\x82\xd3\xe4\x93\x02\x17\"\x12/v1/helloworld/sse:\x01*(\x01\x42\x36\n\x1bio.grpc.examples.helloworldB\x0fHelloWorldProtoP\x01\xa2\x02\x03HLWb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x10helloworld.proto\x12\nhelloworld\x1a google/protobuf/descriptor.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a$protobuf_pydantic_gen/pydantic.proto\x1a\x1cgoogle/api/annotations.proto\"\x8e\x01\n\x0eHealthResponse\x12\x45\n\x07healthy\x18\x01 \x01(\x08\x42+\xaa\xbb\x18\'\n#Indicates if the service is healthy0\x01R\x07healthy\x12\x35\n\x07message\x18\x02 \x01(\tB\x1b\xaa\xbb\x18\x17\n\x15Health status messageR\x07message\"\x9f\x01\n\x0cHelloRequest\x12M\n\x04name\x18\x01 \x01(\tB?\xaa\xbb\x18;\n\x1fThe name of the person to greet\x12\n\'John Doe\'\x1a\n\'John Doe\'0\x01\x12@\n\x08language\x18\x02 \x01(\tB.\xaa\xbb\x18*\n\x1cThe language of the greeting\x12\x04\'en\'\x1a\x04\'en\'\"\xa5\x01\n\nHelloReply\x12U\n\x07message\x18\x01 \x01(\tBD\xaa\xbb\x18@\n\x14The greeting message\x12\x12\'Hello, John Doe!\'\x1a\x12\'Hello, John Doe!\'0\x01\x12@\n\x08language\x18\x02 \x01(\tB.\xaa\xbb\x18*\n\x1cThe language of the greeting\x12\x04\'en\'\x1a\x04\'en\'2\xc4\x04\n\x07Greeter\x12W\n\x08SayHello\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"\x19\x82\xd3\xe4\x93\x02\x13\"\x0e/v1/helloworld:\x01*\x12U\n\tGEEDelete\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"\x16\x82\xd3\xe4\x93\x02\x10*\x0e/v1/helloworld\x12k\n\x13SayHelloStreamReply\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\" \x82\xd3\xe4\x93\x02\x1a\"\x15/v1/helloworld/stream:\x01*0\x01\x12h\n\x12SayHelloBidiStream\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"\x1c\x82\xd3\xe4\x93\x02\x16\"\x11/v1/helloworld/ws:\x01*(\x01\x30\x01\x12\x63\n\x0eSayHelloStream\x12\x18.helloworld.HelloRequest\x1a\x16.helloworld.HelloReply\"\x1d\x82\xd3\xe4\x93\x02\x17\"\x12/v1/helloworld/sse:\x01*(\x01\x12M\n\x06Health\x12\x16.google.protobuf.Empty\x1a\x1a.helloworld.HealthResponse\"\x0f\x82\xd3\xe4\x93\x02\t\x12\x07/healthB6\n\x1bio.grpc.examples.helloworldB\x0fHelloWorldProtoP\x01\xa2\x02\x03HLWb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,6 +36,10 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'helloworld_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\033io.grpc.examples.helloworldB\017HelloWorldProtoP\001\242\002\003HLW'
+  _globals['_HEALTHRESPONSE'].fields_by_name['healthy']._loaded_options = None
+  _globals['_HEALTHRESPONSE'].fields_by_name['healthy']._serialized_options = b'\252\273\030\'\n#Indicates if the service is healthy0\001'
+  _globals['_HEALTHRESPONSE'].fields_by_name['message']._loaded_options = None
+  _globals['_HEALTHRESPONSE'].fields_by_name['message']._serialized_options = b'\252\273\030\027\n\025Health status message'
   _globals['_HELLOREQUEST'].fields_by_name['name']._loaded_options = None
   _globals['_HELLOREQUEST'].fields_by_name['name']._serialized_options = b'\252\273\030;\n\037The name of the person to greet\022\n\'John Doe\'\032\n\'John Doe\'0\001'
   _globals['_HELLOREQUEST'].fields_by_name['language']._loaded_options = None
@@ -53,10 +58,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GREETER'].methods_by_name['SayHelloBidiStream']._serialized_options = b'\202\323\344\223\002\026\"\021/v1/helloworld/ws:\001*'
   _globals['_GREETER'].methods_by_name['SayHelloStream']._loaded_options = None
   _globals['_GREETER'].methods_by_name['SayHelloStream']._serialized_options = b'\202\323\344\223\002\027\"\022/v1/helloworld/sse:\001*'
-  _globals['_HELLOREQUEST']._serialized_start=135
-  _globals['_HELLOREQUEST']._serialized_end=294
-  _globals['_HELLOREPLY']._serialized_start=297
-  _globals['_HELLOREPLY']._serialized_end=462
-  _globals['_GREETER']._serialized_start=465
-  _globals['_GREETER']._serialized_end=966
+  _globals['_GREETER'].methods_by_name['Health']._loaded_options = None
+  _globals['_GREETER'].methods_by_name['Health']._serialized_options = b'\202\323\344\223\002\t\022\007/health'
+  _globals['_HEALTHRESPONSE']._serialized_start=164
+  _globals['_HEALTHRESPONSE']._serialized_end=306
+  _globals['_HELLOREQUEST']._serialized_start=309
+  _globals['_HELLOREQUEST']._serialized_end=468
+  _globals['_HELLOREPLY']._serialized_start=471
+  _globals['_HELLOREPLY']._serialized_end=636
+  _globals['_GREETER']._serialized_start=639
+  _globals['_GREETER']._serialized_end=1219
 # @@protoc_insertion_point(module_scope)
