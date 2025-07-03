@@ -381,7 +381,7 @@ def safe_client_streaming_endpoint_decorator(
                 return BaseHttpResponse[response_cls](
                     code=0,
                     message="success",
-                    data=None
+                    data={}
                 )
 
         except Exception as e:
