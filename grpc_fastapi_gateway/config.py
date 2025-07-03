@@ -191,6 +191,7 @@ class GatewayConfig(BaseSettings):
         env_prefix = "GATEWAY_"
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"
 
 
 # Global config instance
