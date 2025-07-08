@@ -95,6 +95,30 @@ class GreeterServicer(helloworld_pb2_grpc.GreeterServicer):
         logger.info(f"Sending response: {response.message}")
         return response
 
+    async def SayHelloStream(self, request_iterator, context):
+        """流式问候 RPC - 服务器返回多个问候"""
+        logger.info("Starting streaming SayHello")
+
+        async for request in request_iterator:
+            logger.info(
+                f"Received SayHelloStream streaming request: name={request.name}, language={request.language}"
+            )
+
+            if not request.name.strip():
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                context.set_details("Name cannot be empty")
+                yield helloworld_pb2.HelloReply()
+                continue
+
+            # 生成问候消息
+            message = self._get_greeting(request.name, request.language or "en")
+            response = helloworld_pb2.HelloReply(
+                message=message, language=request.language or "en"
+            )
+
+            logger.info(f"Sending response: {response.message}")
+            yield response
+
     async def SayHelloStreamReply(self, request, context):
         """流式回复 RPC - 服务器返回多个问候"""
         logger.info(
@@ -129,7 +153,7 @@ class GreeterServicer(helloworld_pb2_grpc.GreeterServicer):
 
         async for request in request_iterator:
             logger.info(
-                f"Received streaming request: name={request.name}, language={request.language}"
+                f"Received SayHelloBidiStream streaming request: name={request.name}, language={request.language}"
             )
 
             if not request.name.strip():

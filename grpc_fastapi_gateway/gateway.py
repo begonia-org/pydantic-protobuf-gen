@@ -7,7 +7,7 @@ import importlib
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type, Tuple, TypeVar, Annotated
 from functools import lru_cache
-from google.protobuf import message as _message, message_factory
+from google.protobuf import message as _message
 from google.protobuf import empty_pb2
 from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ValidationError

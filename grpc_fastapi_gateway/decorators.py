@@ -1,6 +1,7 @@
 """
 Improved decorators for gRPC FastAPI Gateway endpoints
 """
+
 import json
 import logging
 from typing import Type, Callable
@@ -34,7 +35,9 @@ async def safe_websocket_connection(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WebSocket connection error: {e}")
         if not connection_established:
-            raise ConnectionError(f"Failed to establish WebSocket connection: {e}", "websocket")
+            raise ConnectionError(
+                f"Failed to establish WebSocket connection: {e}", "websocket"
+            )
         raise
     finally:
         if connection_established:
@@ -52,6 +55,7 @@ def safe_endpoint_decorator(
     """
     Safe endpoint decorator with improved error handling
     """
+
     async def endpoint(
         ctx: Request,
         response: Response,
@@ -59,38 +63,34 @@ def safe_endpoint_decorator(
     ) -> BaseHttpResponse:
         config = get_config()
         validator = get_validator()
-        
+
         try:
             # Create context
             context = GRPCServicerContextAdapter(ctx, response)
-            
+
             # Call service method
             rsp = await service_method(request.to_protobuf(), context)
-            
+
             # Convert response
             data = response_cls.from_protobuf(rsp)
-            
+
             # Update headers
             response.headers.update(context.trailing_metadata())
-            
-            return BaseHttpResponse[response_cls](
-                code=0,
-                message="success",
-                data=data
-            )
-            
+
+            return BaseHttpResponse[response_cls](code=0, message="success", data=data)
+
         except ValidationError as e:
             error_msg = validator.sanitize_error_message(str(e))
             logger.error(f"Validation error in {service_method.__name__}: {error_msg}")
             raise GatewayValidationError(error_msg, [str(err) for err in e.errors()])
-        
+
         except Exception as e:
             error_msg = validator.sanitize_error_message(str(e))
             if config.debug:
                 logger.exception(f"Error in {service_method.__name__}")
             else:
                 logger.error(f"Error in {service_method.__name__}: {type(e).__name__}")
-            
+
             # Re-raise with sanitized message
             raise type(e)(error_msg)
 
@@ -104,28 +104,29 @@ def safe_sse_endpoint_decorator(
     """
     Safe SSE endpoint decorator with improved error handling
     """
+
     async def sse_endpoint(
-        ctx: Request,
-        response: Response,
-        request: BaseModel
+        ctx: Request, response: Response, request: BaseModel
     ) -> EventSourceResponse:
         config = get_config()
         validator = get_validator()
-        
+
         async def safe_async_generator():
             try:
                 context = GRPCServicerContextAdapter(ctx, response)
-                
+
                 async for item in service_method(request.to_protobuf(), context):
                     data = response_cls.from_protobuf(item)
                     yield json.dumps(data.model_dump(), ensure_ascii=False)
-                    
+
             except Exception as e:
                 error_msg = validator.sanitize_error_message(str(e))
                 if config.debug:
                     logger.exception(f"Error in SSE stream {service_method.__name__}")
                 else:
-                    logger.error(f"Error in SSE stream {service_method.__name__}: {str(e)}")
+                    logger.error(
+                        f"Error in SSE stream {service_method.__name__}: {str(e)}"
+                    )
                 # Send error event
                 yield f"event: error\ndata: {json.dumps({'error': error_msg})}\n\n"
 
@@ -135,7 +136,7 @@ def safe_sse_endpoint_decorator(
             headers={
                 "Cache-Control": "no-cache",
                 "X-Accel-Buffering": "no",
-                "Connection": "keep-alive"
+                "Connection": "keep-alive",
             },
         )
 
@@ -151,57 +152,59 @@ def safe_websocket_endpoint_decorator(
     """
     Safe WebSocket endpoint decorator for bidirectional streaming
     """
+
     async def websocket_endpoint(websocket: WebSocket) -> None:
         config = get_config()
         validator = get_validator()
-        
+
         async with safe_websocket_connection(websocket) as ws:
             try:
+
                 async def request_stream():
                     """Generate request stream from WebSocket messages"""
                     async for message in ws.iter_text():
                         if not message.strip():
                             continue
-                            
+
                         try:
                             # Validate message
                             data = validator.validate_websocket_message(message)
                             request_obj = request_cls.model_validate(data)
                             yield request_obj.to_protobuf()
-                            
+
                         except (ValidationError, GatewayValidationError) as e:
                             error_msg = validator.sanitize_error_message(str(e))
-                            await ws.send_json({
-                                "type": "error",
-                                "error": f"Invalid request: {error_msg}"
-                            })
+                            await ws.send_json(
+                                {
+                                    "type": "error",
+                                    "error": f"Invalid request: {error_msg}",
+                                }
+                            )
                             continue
 
                 context = GRPCServicerContextAdapter(websocket, None)
-                
+
                 # Process bidirectional stream
                 async for response_item in service_method(request_stream(), context):
                     data = response_cls.from_protobuf(response_item)
-                    await ws.send_json({
-                        "type": "response",
-                        "data": data.model_dump()
-                    })
-                
+                    await ws.send_json({"type": "response", "data": data.model_dump()})
+
                 # Send completion signal
                 await ws.send_json({"type": "complete"})
-                
+
             except Exception as e:
                 error_msg = validator.sanitize_error_message(str(e))
                 if config.debug:
-                    logger.exception(f"Error in WebSocket stream {service_method.__name__}")
+                    logger.exception(
+                        f"Error in WebSocket stream {service_method.__name__}"
+                    )
                 else:
-                    logger.error(f"Error in WebSocket stream {service_method.__name__}: {type(e).__name__}")
-                
+                    logger.error(
+                        f"Error in WebSocket stream {service_method.__name__}: {type(e).__name__}"
+                    )
+
                 try:
-                    await ws.send_json({
-                        "type": "error",
-                        "error": error_msg
-                    })
+                    await ws.send_json({"type": "error", "error": error_msg})
                 except Exception:
                     pass  # Connection might be closed
 
@@ -209,7 +212,7 @@ def safe_websocket_endpoint_decorator(
         """HTTP streaming endpoint for bidirectional communication"""
         config = get_config()
         validator = get_validator()
-        
+
         async def process_stream():
             try:
                 context = GRPCServicerContextAdapter(request, None)
@@ -219,11 +222,11 @@ def safe_websocket_endpoint_decorator(
                     buffer = ""
                     async for chunk in request.stream():
                         if chunk:
-                            buffer += chunk.decode('utf-8')
-                            
+                            buffer += chunk.decode("utf-8")
+
                             # Process complete lines
-                            while '\n' in buffer:
-                                line, buffer = buffer.split('\n', 1)
+                            while "\n" in buffer:
+                                line, buffer = buffer.split("\n", 1)
                                 line = line.strip()
                                 if line:
                                     try:
@@ -245,21 +248,23 @@ def safe_websocket_endpoint_decorator(
 
                 async for response_item in service_method(request_stream(), context):
                     data = response_cls.from_protobuf(response_item)
-                    yield json.dumps(data.model_dump(), ensure_ascii=False) + '\n'
+                    yield json.dumps(data.model_dump(), ensure_ascii=False) + "\n"
 
             except Exception as e:
                 error_msg = validator.sanitize_error_message(str(e))
                 if config.debug:
                     logger.exception(f"Error in HTTP stream {service_method.__name__}")
                 else:
-                    logger.error(f"Error in HTTP stream {service_method.__name__}: {type(e).__name__}")
-                
-                yield json.dumps({"error": error_msg}) + '\n'
+                    logger.error(
+                        f"Error in HTTP stream {service_method.__name__}: {type(e).__name__}"
+                    )
+
+                yield json.dumps({"error": error_msg}) + "\n"
 
         return StreamingResponse(
             process_stream(),
             media_type="application/x-ndjson",
-            headers={"Connection": "keep-alive"}
+            headers={"Connection": "keep-alive"},
         )
 
     return websocket_endpoint if is_websocket else http_streaming_endpoint
@@ -274,59 +279,68 @@ def safe_client_streaming_endpoint_decorator(
     """
     Safe client streaming endpoint decorator
     """
+
     async def websocket_client_streaming_endpoint(websocket: WebSocket) -> None:
         config = get_config()
         validator = get_validator()
-        
+
         async with safe_websocket_connection(websocket) as ws:
             try:
+
                 async def request_stream():
                     """Generate request stream from WebSocket messages"""
                     async for message in ws.iter_text():
                         if not message.strip():
                             continue
-                            
+
                         try:
                             # Validate message
                             data = validator.validate_websocket_message(message)
                             request_obj = request_cls.model_validate(data)
                             yield request_obj.to_protobuf()
-                            
+
                         except (ValidationError, GatewayValidationError) as e:
                             error_msg = validator.sanitize_error_message(str(e))
-                            await ws.send_json({
-                                "type": "error",
-                                "error": f"Invalid request: {error_msg}"
-                            })
+                            await ws.send_json(
+                                {
+                                    "type": "error",
+                                    "error": f"Invalid request: {error_msg}",
+                                }
+                            )
                             continue
 
                 context = GRPCServicerContextAdapter(websocket, None)
-                
+
                 # Call streaming service method (returns single response)
-                response = await service_method(request_stream(), context)
-                
-                if response:
-                    data = response_cls.from_protobuf(response)
-                    await ws.send_json({
-                        "type": "response",
-                        "data": data.model_dump()
-                    })
-                
-                # Send completion signal
-                await ws.send_json({"type": "complete"})
-                
+                async for response in service_method(request_stream(), context):
+                    if response:
+                        data = response_cls.from_protobuf(response)
+                        await ws.send_json(
+                            {"type": "response", "data": data.model_dump()}
+                        )
+
+                    # Send completion signal
+                    await ws.send_json({"type": "complete"})
+
             except Exception as e:
                 error_msg = validator.sanitize_error_message(str(e))
+                import traceback
+
+                logger.debug(traceback.format_exc())
+                logger.error(
+                    f"Error in client streaming {service_method.__name__}: {error_msg}"
+                )
                 if config.debug:
-                    logger.exception(f"Error in client streaming {service_method.__name__}")
+                    logger.exception(
+                        f"Error in client streaming {service_method.__name__}"
+                    )
                 else:
-                    logger.error(f"Error in client streaming {service_method.__name__}: {type(e).__name__}")
-                
+                    logger.error(
+                        f"Error in client streaming {service_method.__name__}: {type(e).__name__}"
+                    )
+
                 try:
-                    await ws.send_json({
-                        "type": "error",
-                        "error": error_msg
-                    })
+                    await ws.send_json({"type": "error", "error": error_msg})
                 except Exception:
                     pass  # Connection might be closed
 
@@ -334,7 +348,7 @@ def safe_client_streaming_endpoint_decorator(
         """HTTP endpoint for client streaming"""
         config = get_config()
         validator = get_validator()
-        
+
         try:
             context = GRPCServicerContextAdapter(request, None)
 
@@ -343,11 +357,11 @@ def safe_client_streaming_endpoint_decorator(
                 buffer = ""
                 async for chunk in request.stream():
                     if chunk:
-                        buffer += chunk.decode('utf-8')
-                        
+                        buffer += chunk.decode("utf-8")
+
                         # Process complete lines
-                        while '\n' in buffer:
-                            line, buffer = buffer.split('\n', 1)
+                        while "\n" in buffer:
+                            line, buffer = buffer.split("\n", 1)
                             line = line.strip()
                             if line:
                                 try:
@@ -369,29 +383,34 @@ def safe_client_streaming_endpoint_decorator(
 
             # Call streaming service method
             response = await service_method(request_stream(), context)
-            
+
             if response:
                 data = response_cls.from_protobuf(response)
                 return BaseHttpResponse[response_cls](
-                    code=0,
-                    message="success",
-                    data=data
+                    code=0, message="success", data=data
                 )
             else:
                 return BaseHttpResponse[response_cls](
-                    code=0,
-                    message="success",
-                    data={}
+                    code=0, message="success", data={}
                 )
 
         except Exception as e:
             error_msg = validator.sanitize_error_message(str(e))
             if config.debug:
-                logger.exception(f"Error in HTTP client streaming {service_method.__name__}")
+                logger.exception(
+                    f"Error in HTTP client streaming {service_method.__name__}"
+                )
             else:
-                logger.error(f"Error in HTTP client streaming {service_method.__name__}: {type(e).__name__}")
-            
+                logger.error(
+                    f"Error in HTTP client streaming {service_method.__name__}: {type(e).__name__}"
+                )
+
             from fastapi import HTTPException
+
             raise HTTPException(status_code=500, detail=error_msg)
 
-    return websocket_client_streaming_endpoint if is_websocket else http_client_streaming_endpoint
+    return (
+        websocket_client_streaming_endpoint
+        if is_websocket
+        else http_client_streaming_endpoint
+    )

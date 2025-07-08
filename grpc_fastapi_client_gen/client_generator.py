@@ -161,7 +161,12 @@ class ClientCodeGenerator:
 
             for method_name, method_info in service_info.items():
                 input_type = method_info.get("input_type", "").split(".")[-1]
+                if method_info.get("input_type", "").startswith(".google"):
+                    input_type = method_info.get("input_type", "")
                 output_type = method_info.get("output_type", "").split(".")[-1]
+                if method_info.get("output_type", "").startswith(".google"):
+                    output_type = method_info.get("output_type", "")
+
                 streaming_type = method_info.get("streaming_type", "unary")
                 http_info = method_info.get("http", {})
 
@@ -169,7 +174,10 @@ class ClientCodeGenerator:
                 used_models.add(output_type)
 
                 snake_name = f"{self._to_snake_case(service_name)}_{self._to_snake_case(method_name)}"
-
+                if input_type == ".google.protobuf.Empty":
+                    input_type = "EmptyRequest"
+                if output_type == ".google.protobuf.Empty":
+                    output_type = "None"
                 processed_methods[method_name] = {
                     "snake_name": snake_name,
                     "input_type": input_type,
@@ -190,7 +198,16 @@ class ClientCodeGenerator:
             if model_name and model_name in model_imports:
                 import_statements.append(model_imports[model_name])
             elif model_name:
-                import_statements.append(f"# {model_name} = Any  # Model not found")
+                logging.warning(f"Model {model_name} not found in imports")
+                # if model_name.startswith(".google.protobuf"):
+                #     name = model_name.split(".")[-1]
+                #     pb = f"google.protobuf.{name.lower()}_pb2"
+                #     import_statements.append(f"from {pb} import {name}")
+                # elif model_name.startswith(".google.api"):
+                #     name = model_name.split(".")[-1]
+                #     pb = f"google.api.{name.lower()}_pb2"
+                #     import_statements.append(f"from {pb} import {name}")
+                # import_statements.append(f"# {model_name} = Any  # Model not found")
 
         return {
             "class_name": class_name,

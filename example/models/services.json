@@ -73,13 +73,13 @@
             "method_full_name": "/helloworld.Greeter/SayHelloStream",
             "options": {
                 "[google.api.http]": {
-                    "post": "/v1/helloworld/sse",
+                    "post": "/v1/helloworld/client_stream",
                     "body": "*"
                 }
             },
             "http": {
                 "method": "POST",
-                "path": "/v1/helloworld/sse",
+                "path": "/v1/helloworld/client_stream",
                 "body": "*"
             }
         },

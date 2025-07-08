@@ -13,11 +13,17 @@ import httpx
 import websockets
 
 # Import all required models
-from example.models.helloworld_model import HelloReply, HelloRequest
-from pydantic import ValidationError
+from example.models.helloworld_model import HealthResponse, HelloReply, HelloRequest
+from pydantic import BaseModel, ValidationError
 from websockets.exceptions import ConnectionClosed
 
 logger = logging.getLogger(__name__)
+
+
+class EmptyRequest(BaseModel):
+    """Empty request model for health check"""
+
+    pass
 
 
 class ExampleClient:
@@ -132,7 +138,11 @@ class ExampleClient:
                                 data = json.loads(data_str)
                                 yield HelloReply(**data)
                             except (json.JSONDecodeError, ValidationError) as e:
-                                logger.error(f"Failed to parse SSE data: {e}")
+                                if data_str.startswith("data") and len(line) > 6:
+                                    logger.error(
+                                        f"Failed to parse SSE data: {e} with {line}"
+                                    )
+                                    raise ValueError(f"Invalid SSE data: {line}") from e
 
     async def greeter_say_hello_bidi_stream(
         self,
@@ -175,6 +185,8 @@ class ExampleClient:
                 async for message in websocket:
                     try:
                         data = json.loads(message)
+                        if "data" in data:
+                            data = data["data"]
                         yield HelloReply(**data)
                     except (json.JSONDecodeError, ValidationError) as e:
                         logger.error(f"Failed to parse WebSocket message: {e}")
@@ -203,12 +215,12 @@ class ExampleClient:
         headers: Optional[Dict[str, Any]] = None,
     ) -> HelloReply:
         """SayHelloStream - Client streaming RPC call"""
-        uri = self._build_websocket_uri("/v1/helloworld/sse")
+        uri = self._build_websocket_uri("/v1/helloworld/client_stream")
         extra_headers = self._build_headers(headers)
 
         websocket = None
         try:
-            websocket = await websockets.connect(uri, extra_headers=extra_headers)
+            websocket = await websockets.connect(uri, additional_headers=extra_headers)
 
             # Send all input requests
             async for request in input_stream:
@@ -223,6 +235,8 @@ class ExampleClient:
 
             try:
                 data = json.loads(response_message)
+                if "data" in data:
+                    data = data["data"]
                 return HelloReply(**data)
             except (json.JSONDecodeError, ValidationError) as e:
                 logger.error(f"Failed to parse response: {e}")
@@ -237,3 +251,27 @@ class ExampleClient:
         finally:
             if websocket:
                 await websocket.close()
+
+    async def greeter_health(
+        self, request: EmptyRequest, headers: Optional[Dict[str, Any]] = None
+    ) -> HealthResponse:
+        """Health - Unary RPC call"""
+        url = f"{self.base_url}/health"
+        request_headers = self._build_headers(headers)
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(
+                url,
+                params=request.model_dump(exclude_none=True),
+                headers=request_headers,
+            )
+
+            if response.status_code >= 400:
+                raise httpx.HTTPStatusError(
+                    f"HTTP {response.status_code}",
+                    request=response.request,
+                    response=response,
+                )
+
+            data = response.json()
+            return HealthResponse(**data.get("data", data))

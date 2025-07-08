@@ -2,7 +2,7 @@
 # -*- encoding: utf-8 -*-
 """
 @File    :   helloworld_model.py
-@Time    :   2025-07-02 03:21:16
+@Time    :   2025-07-08 03:31:10
 @Desc    :   Generated Pydantic models from protobuf definitions
 """
 
@@ -60,7 +60,7 @@ class HelloReply(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
     message: str = _Field(
         description="The greeting message",
-        default="Hello, John Doe!",
+        default="Hello,World!",
         json_schema_extra={"example": "'Hello, John Doe!'"},
     )
     language: Optional[str] = _Field(
