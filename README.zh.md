@@ -48,8 +48,16 @@
 
 ## 安装
 
+- 安装 `protobuf-pydantic-gen`：
 ```shell
 pip install protobuf-pydantic-gen
+```
+
+- 安装 `pydantic.proto`:
+
+```shell
+mkdir -p your_proto_path/protobuf_pydantic_gen && \
+curl -o your_proto_path/protobuf_pydantic_gen/pydantic.proto https://raw.githubusercontent.com/begonia-org/pydantic-protobuf-gen/master/protobuf_pydantic_gen/pydantic.proto
 ```
 
 # protobuf-pydantic-gen 使用示例

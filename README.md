@@ -48,9 +48,19 @@ This tool automatically generates type-safe gRPC FastAPI clients from protobuf s
 
 ## Installation
 
+- Install the package:
+
 ```shell
 pip install protobuf-pydantic-gen
 ```
+
+- Install `pydantic.proto`
+
+```shell
+mkdir -p your_proto_path/protobuf_pydantic_gen && \
+curl -o your_proto_path/protobuf_pydantic_gen/pydantic.proto https://raw.githubusercontent.com/begonia-org/pydantic-protobuf-gen/master/protobuf_pydantic_gen/pydantic.proto
+```
+
 # Example Usage of protobuf-pydantic-gen
 ```protobuf
 syntax = "proto3";

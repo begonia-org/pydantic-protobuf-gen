@@ -886,7 +886,7 @@ wheels = [
 
 [[package]]
 name = "protobuf-pydantic-gen"
-version = "0.1.7"
+version = "0.1.8"
 source = { editable = "." }
 dependencies = [
     { name = "annotated-types" },
