@@ -21,8 +21,6 @@ This tool converts Protocol Buffer description language into gRPC services and t
 This tool automatically generates type-safe gRPC FastAPI clients from protobuf service definitions. It creates async HTTP clients that support unary calls, server streaming, and bidirectional streaming through WebSockets.
 
 ## 🚀 Quick Links
-
-- **[Quick Start Guide](QUICKSTART.md)** - Get running in 5 minutes
 - **[Example Project](./example/)** - Full working example with server and client
 
 ## Features
