@@ -439,7 +439,6 @@ class MessageProcessor:
                 if ext.get("primary_key"):
                     column_kwargs.append(f"primary_key={ext['primary_key']}")
                     ext.pop("primary_key", None)
-                    logging.info(f"primary_key={ext['primary_key']}")
                 if ext.get("foreign_key"):
                     column_kwargs.append(f"foreign_key={ext['foreign_key']}")
                     ext.pop("foreign_key", None)
