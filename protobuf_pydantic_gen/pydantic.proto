@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+package pydantic;
+// Annotation is used to add metadata to the generated code.
+// The metadata is used to generate the pydantic model.
+// See https://pydantic-docs.helpmanual.io/usage/model_config/
+message Annotation {
+	string description = 1;
+	string example = 2;
+	string default = 3;
+	string alias = 4;
+	string title = 5;
+	bool required = 6;
+    bool nullable = 7;
+    bool primary_key = 8[json_name="primary_key"];
+   bool  unique = 9;
+   bool index = 10;
+   bool const=18;
+   string field_type=11[json_name="field_type"];
+   string sa_column_type=20[json_name="sa_column_type"];
+   int32 min_length=12[json_name="min_length"];
+   int32 max_length=13[json_name="max_length"];
+   double gt=14;
+    double ge=15;
+    double lt=16;
+    double le=17;
+    string foreign_key=19;
+    string label=21;
+    string default_factory=22[json_name="default_factory"];
+    string enum_storage=23[json_name="enum_storage"];
+   bool sa_auto_update=24[json_name="sa_auto_update"];
+
+}
+
+message CompoundIndex {
+    repeated string indexs=1[json_name="indexs"];
+    string index_type=2[json_name="index_type"];
+    string name=3[json_name="name"];
+}
+message DatabaseAnnotation {
+    string table_name=1[json_name="table_name"];
+    repeated CompoundIndex compound_index=2[json_name="compound_index"];
+    bool as_table=3[json_name="as_table"];
+}
+extend google.protobuf.MessageOptions {
+    DatabaseAnnotation database = 50201;
+
+}
+extend google.protobuf.FieldOptions {
+	Annotation field = 50101;
+}
+
+// ------------------------------
+// Service / Method Auth Options
+// ------------------------------
+// 用于标记服务或具体 RPC 方法是否需要鉴权以及鉴权范围。
+message AuthOption {
+    // 是否需要鉴权
+    bool required = 1 [json_name="required"];
+    // 授权范围（如 OAuth2 scopes）
+    repeated string scopes = 2 [json_name="scopes"];
+    // 也可按需扩展角色/权限等
+    string role = 3 [json_name="role"];
+    string permission = 4 [json_name="permission"];
+}
+message MethodAuthOptions {
+    bool is_redirect = 1[json_name="is_redirect"];
+}
+// service 级别默认鉴权配置（可被 method 级别覆盖）
+extend google.protobuf.ServiceOptions {
+    AuthOption service_auth = 50301;
+}
+
+extend google.protobuf.MethodOptions {
+    AuthOption method_auth = 50302;
+    MethodAuthOptions method_extra = 50303;
+
+}
+
+message EnumValueOptions {
+  string description = 1;
+  string label = 2;
+}
+// 定义一个自定义的 option
+extend google.protobuf.EnumValueOptions {
+    EnumValueOptions options  = 50102;
+}

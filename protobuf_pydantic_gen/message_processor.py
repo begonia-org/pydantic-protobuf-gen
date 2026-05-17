@@ -380,7 +380,7 @@ class MessageProcessor:
                     _doc = str(ext["description"]).replace('"', "")
                     col_extra.append(f"doc={repr(_doc)}")
                 if ext.pop("sa_auto_update", False):
-                    col_extra.append("onupdate=datetime.datetime.utcnow")
+                    col_extra.append("onupdate=lambda: datetime.datetime.now(datetime.timezone.utc)")
                 ext["sa_column"] = f"Column(TIMESTAMP(timezone=True), {', '.join(col_extra)})"
 
             # Auto-inject sa_column for enum-typed fields in table models.
@@ -443,7 +443,7 @@ class MessageProcessor:
                     column_kwargs.append(f"foreign_key={ext['foreign_key']}")
                     ext.pop("foreign_key", None)
                 if ext.pop("sa_auto_update", False):
-                    column_kwargs.append("onupdate=datetime.datetime.utcnow")
+                    column_kwargs.append("onupdate=lambda: datetime.datetime.now(datetime.timezone.utc)")
 
                 # Add doc parameter
                 if ext.get("description"):
@@ -484,6 +484,15 @@ class MessageProcessor:
             label = ext["label"].replace('"', "")
             ext[extra_key].update({"label": label})
             ext.pop("label", None)
+        if ext.get("nullable") is not None:
+            if not msg_ext.get("as_table", False):
+                # Non-ORM (service message) field: move nullable into json_schema_extra
+                # to stay Pydantic V2 compatible (Field() does not accept nullable kwarg)
+                ext[extra_key] = ext.get(extra_key, {})
+                ext[extra_key]["nullable"] = ext.pop("nullable")
+            else:
+                # ORM table field: nullable should already be consumed by Column(); drop leftover
+                ext.pop("nullable", None)
 
         attr = ", ".join(
             f"{key}={self.safe_python_value(key, value, field)}"
