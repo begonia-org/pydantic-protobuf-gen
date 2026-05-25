@@ -2,3 +2,4 @@
 include *.j2
 include *.patch
 recursive-include protobuf_pydantic_gen/ **/*.j2
+recursive-include protos *.proto

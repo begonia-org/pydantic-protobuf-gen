@@ -4,18 +4,20 @@
 
 PROTOC       = python3 -m grpc_tools.protoc
 PROTO_FILE   = protobuf_pydantic_gen/pydantic.proto
-# proto_path must be the repo root so the source path recorded in the
-# generated _pb2.py matches "protobuf_pydantic_gen/pydantic.proto"
-PROTO_PATH   = ..
+PROTO_SOURCE = ../protos/$(PROTO_FILE)
+# proto_path must be the shared proto root so the source path recorded in the
+# generated _pb2.py still matches "protobuf_pydantic_gen/pydantic.proto"
+PROTO_PATH   = protos
+REPO_ROOT    = ..
 OUT_DIR      = .
 
 .PHONY: all clean
 
 all: $(OUT_DIR)/pydantic_pb2.py $(OUT_DIR)/pydantic_pb2.pyi $(OUT_DIR)/pydantic_pb2_grpc.py
 
-$(OUT_DIR)/pydantic_pb2.py $(OUT_DIR)/pydantic_pb2.pyi $(OUT_DIR)/pydantic_pb2_grpc.py: pydantic.proto
-	cd $(PROTO_PATH) && $(PROTOC) \
-		--proto_path=. \
+$(OUT_DIR)/pydantic_pb2.py $(OUT_DIR)/pydantic_pb2.pyi $(OUT_DIR)/pydantic_pb2_grpc.py: $(PROTO_SOURCE)
+	cd $(REPO_ROOT) && $(PROTOC) \
+		--proto_path=$(PROTO_PATH) \
 		--python_out=. \
 		--pyi_out=. \
 		--grpc_python_out=. \

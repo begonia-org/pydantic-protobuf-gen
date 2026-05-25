@@ -6,7 +6,7 @@ repos:
         language: system
         entry: make -C protobuf_pydantic_gen
         # 仅在 pydantic.proto 本身发生变更时触发
-        files: ^protobuf_pydantic_gen/pydantic\.proto$
+        files: ^protos/protobuf_pydantic_gen/pydantic\.proto$
         pass_filenames: false
         # 编译产物需要一并加入本次提交
         always_run: false

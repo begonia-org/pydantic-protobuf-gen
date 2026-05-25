@@ -16,7 +16,8 @@ from setuptools import setup
 from setuptools.command.build_py import build_py
 
 
-PROTO_FILE = Path("protobuf_pydantic_gen/pydantic.proto")
+PROTO_SOURCE_FILE = Path("protos/protobuf_pydantic_gen/pydantic.proto")
+PROTO_IMPORT_FILE = Path("protobuf_pydantic_gen/pydantic.proto")
 GENERATED_FILES = (
     Path("protobuf_pydantic_gen/pydantic_pb2.py"),
     Path("protobuf_pydantic_gen/pydantic_pb2.pyi"),
@@ -29,7 +30,7 @@ def _generated_files_missing() -> bool:
 
 
 def _generated_files_outdated() -> bool:
-    proto_mtime = PROTO_FILE.stat().st_mtime
+    proto_mtime = PROTO_SOURCE_FILE.stat().st_mtime
     return any(
         generated_file.stat().st_mtime < proto_mtime
         for generated_file in GENERATED_FILES
@@ -52,11 +53,11 @@ class BuildProtoThenPy(build_py):
                     sys.executable,
                     "-m",
                     "grpc_tools.protoc",
-                    "--proto_path=.",
+                    "--proto_path=protos",
                     "--python_out=.",
                     "--pyi_out=.",
                     "--grpc_python_out=.",
-                    str(PROTO_FILE),
+                    str(PROTO_IMPORT_FILE),
                 ]
             )
         elif should_compile:
