@@ -10,7 +10,19 @@ import importlib
 from datetime import datetime
 from enum import Enum
 from types import UnionType
-from typing import Any, Dict, Generic, List, Tuple, Type, TypeVar, Union, get_args, get_origin, get_type_hints
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    List,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from google.protobuf import any_pb2, descriptor_pb2, descriptor_pool
 from google.protobuf import message as _message
@@ -52,6 +64,7 @@ E = TypeVar("E", bound=Enum)
 
 class GenericEnumType(TypeDecorator, Generic[E]):
     """通用枚举类型，支持按 name 或 value 持久化枚举。"""
+
     impl = String
     cache_ok = True
 
@@ -78,7 +91,9 @@ class GenericEnumType(TypeDecorator, Generic[E]):
             raise ValueError(
                 f"Unsupported enum storage mode {self.storage_mode!r} for {self.enum_class.__name__}"
             )
-        invalid_modes = [mode for mode in self.read_modes if mode not in self._VALID_MODES]
+        invalid_modes = [
+            mode for mode in self.read_modes if mode not in self._VALID_MODES
+        ]
         if invalid_modes:
             raise ValueError(
                 f"Unsupported enum read modes {invalid_modes!r} for {self.enum_class.__name__}"
@@ -123,9 +138,7 @@ class GenericEnumType(TypeDecorator, Generic[E]):
                 return member
 
         if self.strict:
-            raise ValueError(
-                f"Cannot bind {value!r} as {self.enum_class.__name__}"
-            )
+            raise ValueError(f"Cannot bind {value!r} as {self.enum_class.__name__}")
         return value
 
     def process_bind_param(self, value: Any, dialect: Any) -> Any:
@@ -146,9 +159,7 @@ class GenericEnumType(TypeDecorator, Generic[E]):
             if member is not None:
                 return member
         if self.strict:
-            raise ValueError(
-                f"Cannot decode {value!r} as {self.enum_class.__name__}"
-            )
+            raise ValueError(f"Cannot decode {value!r} as {self.enum_class.__name__}")
         return value
 
 
@@ -208,11 +219,11 @@ def model2protobuf(model: BaseModel, proto: ProtobufMessage) -> ProtobufMessage:
                     ts.FromDatetime(dt)
                 return ts.ToJsonString()
             elif fd.message_type.full_name == Struct.DESCRIPTOR.full_name:
-                return value
+                return MessageToDict(AnyTransformer.python_to_struct(value))
             elif fd.message_type.full_name == ListValue.DESCRIPTOR.full_name:
-                return value
+                return MessageToDict(AnyTransformer.python_to_listvalue(value))
             elif fd.message_type.full_name == Value.DESCRIPTOR.full_name:
-                return value
+                return MessageToDict(AnyTransformer.python_to_value(value))
             elif fd.message_type.full_name == FieldMask.DESCRIPTOR.full_name:
                 if value is None:
                     return None
