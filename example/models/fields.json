@@ -1,4 +1,9 @@
 {
+    "ConfidenceAssessment": {
+        "self_report": "\"主观信心 0.0–1.0\"",
+        "score": "\"raw score\"",
+        "stage": "\"mastery stage\""
+    },
     "Example2": {
         "type": "\"Type of the example\""
     },

@@ -61,7 +61,9 @@ BASE_IMPORTS: Set[str] = set()
 # Conditional imports based on what's actually used
 CONDITIONAL_IMPORTS = {
     'datetime': "import datetime",
-    'enum': "from enum import Enum as _Enum",
+    # Proto enums are always integer-valued, so IntEnum is emitted to enable
+    # value-based comparison (<, >, sorted) that stdlib Enum does not support.
+    'enum': "from enum import IntEnum as _IntEnum",
     'pydantic_base': "from pydantic import BaseModel, ConfigDict",
     'pydantic_field': "from pydantic import Field as _Field",
     'sqlmodel': "from sqlmodel import SQLModel, Field",

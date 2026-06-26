@@ -1,4 +1,38 @@
 {
+    "ConfidenceAssessment": {
+        "self_report": {
+            "type": "float",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"主观信心 0.0–1.0\"",
+                "ge": 0.0,
+                "le": 1.0,
+                "default": "0.0"
+            },
+            "description": "\"主观信心 0.0–1.0\""
+        },
+        "score": {
+            "type": "float",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"raw score\"",
+                "default": "0.0"
+            },
+            "description": "\"raw score\""
+        },
+        "stage": {
+            "type": "MasteryStage",
+            "repeated": false,
+            "required": false,
+            "ext": {
+                "description": "\"mastery stage\"",
+                "default": "MasteryStage(0)"
+            },
+            "description": "\"mastery stage\""
+        }
+    },
     "Example2": {
         "type": {
             "type": "ExampleType",
@@ -80,7 +114,7 @@
             "required": false,
             "ext": {
                 "description": "\"Nested message\"",
-                "default": null,
+                "default": [],
                 "sa_column": "Column(JSON, doc=\"Nested message\")"
             },
             "description": "\"Nested message\""
@@ -136,6 +170,7 @@
             "ext": {
                 "description": "\"Score of the example\"",
                 "default": "0.0",
+                "gt": 0.0,
                 "le": 100.0,
                 "sa_column": "Column(Integer, doc=\"Score of the example\")"
             },
@@ -158,7 +193,7 @@
             "required": false,
             "ext": {
                 "description": "\"Embedding vector for the example\"",
-                "default": "0.0",
+                "default": [],
                 "sa_column": "Column(Vector(1563), doc=\"Embedding vector for the example\")"
             },
             "description": "\"Embedding vector for the example\""

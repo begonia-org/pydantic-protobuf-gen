@@ -104,7 +104,7 @@ class MessageProcessor:
             try:
                 enum_message = self._process_enum(enum_desc, filename, type_mapping)
                 messages.append(enum_message)
-                imports.add("from enum import Enum as _Enum")
+                imports.add("from enum import IntEnum as _IntEnum")
                 imports.add("from protobuf_pydantic_gen.ext import GenericEnumType")
             except Exception as e:
                 logger.error(f"Error processing enum {enum_desc.name}: {e}")
@@ -117,7 +117,7 @@ class MessageProcessor:
                 for enum_desc in self._extract_nested_enums(message_desc):
                     enum_message = self._process_enum(enum_desc, filename, type_mapping)
                     messages.append(enum_message)
-                    imports.add("from enum import Enum as _Enum")
+                    imports.add("from enum import IntEnum as _IntEnum")
                     imports.add("from protobuf_pydantic_gen.ext import GenericEnumType")
 
                 message = self._process_message(

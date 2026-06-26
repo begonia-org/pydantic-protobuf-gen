@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+import "protobuf_pydantic_gen/pydantic.proto";
+
+package constraints_example;
+
+// Regression coverage for generator PR01:
+//   - defect 1: a `ge: 0` lower bound (falsy double) must survive generation
+//   - defect 2: proto enums must compare/sort by value (IntEnum)
+//   - guardrail: an unconstrained numeric field must NOT gain spurious bounds
+
+enum MasteryStage {
+  MASTERY_STAGE_UNSPECIFIED = 0;
+  SEEN = 1;
+  UNDERSTOOD = 2;
+  RETRIEVED = 3;
+  CONSOLIDATING = 4;
+  MASTERED = 5;
+}
+
+message ConfidenceAssessment {
+  // `ge: 0` is a falsy double default; without proto3 presence it used to be
+  // dropped on the wire, leaving only `le: 1`.
+  float self_report = 1 [(pydantic.field) = {
+    description: "主观信心 0.0–1.0"
+    ge: 0
+    le: 1
+  }];
+  // Unconstrained numeric field — must remain free of ge/gt/lt/le bounds so
+  // negatives (e.g. -123.4) are still valid.
+  double score = 2 [(pydantic.field) = {description: "raw score"}];
+  MasteryStage stage = 3 [(pydantic.field) = {description: "mastery stage"}];
+}
