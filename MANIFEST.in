@@ -2,4 +2,7 @@
 include *.j2
 include *.patch
 recursive-include protobuf_pydantic_gen/ **/*.j2
+# Ship the canonical pydantic.proto inside the package so consumers compile
+# against the current option schema (proto3 `optional` on numeric constraints).
+include protobuf_pydantic_gen/pydantic.proto
 recursive-include protos *.proto

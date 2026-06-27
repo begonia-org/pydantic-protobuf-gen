@@ -13,7 +13,16 @@ OUT_DIR      = .
 
 .PHONY: all clean
 
-all: $(OUT_DIR)/pydantic_pb2.py $(OUT_DIR)/pydantic_pb2.pyi $(OUT_DIR)/pydantic_pb2_grpc.py
+# Sync the canonical pydantic.proto into the package as a distributable data
+# file so consumers compile against the always-current schema (not a stale
+# vendored copy). Constraint scalars use proto3 `optional` presence; a consumer
+# compiling against an older non-optional copy silently drops bounds like
+# `ge: 0`. Kept in sync by `make` (and the pre-commit hook).
+all: $(OUT_DIR)/pydantic_pb2.py $(OUT_DIR)/pydantic_pb2.pyi $(OUT_DIR)/pydantic_pb2_grpc.py $(OUT_DIR)/pydantic.proto
+
+$(OUT_DIR)/pydantic.proto: $(PROTO_SOURCE)
+	cp $(PROTO_SOURCE) $(OUT_DIR)/pydantic.proto
+	@echo "Synced pydantic.proto into package for distribution"
 
 $(OUT_DIR)/pydantic_pb2.py $(OUT_DIR)/pydantic_pb2.pyi $(OUT_DIR)/pydantic_pb2_grpc.py: $(PROTO_SOURCE)
 	cd $(REPO_ROOT) && $(PROTOC) \
