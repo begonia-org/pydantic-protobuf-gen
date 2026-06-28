@@ -350,6 +350,41 @@ class MessageProcessor:
 
         return val
 
+    def _resolve_sa_column_nullable(
+        self, ext: Dict[str, Any], field: Field, default: bool
+    ) -> bool:
+        """Resolve a SQLAlchemy ``Column`` ``nullable`` flag.
+
+        Priority: an explicit proto ``nullable`` value wins; otherwise a
+        ``required`` field is NOT NULL; otherwise the path-specific ``default``
+        applies. Emitting ``nullable`` explicitly keeps alembic drift
+        comparisons exact (sa_column fields otherwise default to nullable=True).
+        """
+        if "nullable" in ext:
+            return bool(ext.pop("nullable"))
+        if getattr(field, "required", False):
+            return False
+        return default
+
+    def _consume_sa_column_kwargs(self, ext: Dict[str, Any]) -> List[str]:
+        """Move field-level index/unique/primary_key/foreign_key/server_default
+        from the Pydantic ``Field()`` into the SQLAlchemy ``Column()``.
+
+        SQLModel raises at import time when ``sa_column`` is combined with
+        ``index``/``unique``/etc. on ``Field()``, so these must be folded into
+        the ``Column`` instead. ``server_default`` is rendered as a literal SQL
+        string (e.g. proto ``server_default: "0"`` -> ``server_default='0'``).
+        """
+        kwargs: List[str] = []
+        for flag in ("index", "unique", "primary_key"):
+            if ext.get(flag) is not None:
+                kwargs.append(f"{flag}={ext.pop(flag)}")
+        if ext.get("foreign_key"):
+            kwargs.append(f"foreign_key={ext.pop('foreign_key')}")
+        if ext.get("server_default") is not None:
+            kwargs.append(f"server_default={repr(ext.pop('server_default'))}")
+        return kwargs
+
     def _process_field_ext(
         self, imports: Set[str], field: Field, msg_ext: Dict[str, Any] = {}
     ) -> str:
@@ -374,8 +409,9 @@ class MessageProcessor:
             ):
                 sqlmodel_imports.add("Column")
                 imports.add("from sqlalchemy import TIMESTAMP")
-                nullable_val = ext.pop("nullable", True)
+                nullable_val = self._resolve_sa_column_nullable(ext, field, True)
                 col_extra: List[str] = [f"nullable={nullable_val}"]
+                col_extra.extend(self._consume_sa_column_kwargs(ext))
                 if ext.get("description"):
                     _doc = str(ext["description"]).replace('"', "")
                     col_extra.append(f"doc={repr(_doc)}")
@@ -397,9 +433,10 @@ class MessageProcessor:
                 enum_type_alias = (
                     f"{field.type}NameType" if enum_storage_mode == "name" else f"{field.type}Type"
                 )
-                # Use nullable from ext (proto nullable extension); default False
-                nullable_val = ext.pop("nullable", False)
+                # Resolve nullable: explicit proto value, else required->NOT NULL, else default False
+                nullable_val = self._resolve_sa_column_nullable(ext, field, False)
                 col_extra: List[str] = [f"nullable={nullable_val}"]
+                col_extra.extend(self._consume_sa_column_kwargs(ext))
                 if ext.get("description"):
                     _doc = str(ext["description"]).replace('"', "")
                     col_extra.append(f"doc={repr(_doc)}")
@@ -426,22 +463,14 @@ class MessageProcessor:
                 column_args = [sa_column_type] if sa_column_type else []
                 column_kwargs = []
 
-                # Move index/unique/nullable/primary_key to Column()
-                if ext.get("index"):
-                    column_kwargs.append(f"index={ext['index']}")
-                    ext.pop("index", None)
-                if ext.get("unique"):
-                    column_kwargs.append(f"unique={ext['unique']}")
-                    ext.pop("unique", None)
-                if ext.get("nullable") is not None:
-                    column_kwargs.append(f"nullable={ext['nullable']}")
-                    ext.pop("nullable", None)
-                if ext.get("primary_key"):
-                    column_kwargs.append(f"primary_key={ext['primary_key']}")
-                    ext.pop("primary_key", None)
-                if ext.get("foreign_key"):
-                    column_kwargs.append(f"foreign_key={ext['foreign_key']}")
-                    ext.pop("foreign_key", None)
+                # Emit nullable explicitly so alembic drift comparisons are exact:
+                # explicit proto value wins, else a required field is NOT NULL.
+                column_kwargs.append(
+                    f"nullable={self._resolve_sa_column_nullable(ext, field, True)}"
+                )
+                # Fold index/unique/primary_key/foreign_key/server_default into the
+                # Column (SQLModel rejects passing them alongside sa_column).
+                column_kwargs.extend(self._consume_sa_column_kwargs(ext))
                 if ext.pop("sa_auto_update", False):
                     column_kwargs.append("onupdate=lambda: datetime.datetime.now(datetime.timezone.utc)")
 

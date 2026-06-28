@@ -13,7 +13,11 @@ message Annotation {
 	string alias = 4;
 	string title = 5;
 	bool required = 6;
-    bool nullable = 7;
+    // `optional` so an explicit `nullable: false` survives on the wire.
+    // A plain proto3 bool drops false (its default) and never reaches the
+    // generator, making NOT NULL columns impossible to express. Same class of
+    // fix as the numeric bounds below.
+    optional bool nullable = 7;
     bool primary_key = 8[json_name="primary_key"];
    bool  unique = 9;
    bool index = 10;
@@ -34,6 +38,9 @@ message Annotation {
     string default_factory=22[json_name="default_factory"];
     string enum_storage=23[json_name="enum_storage"];
    bool sa_auto_update=24[json_name="sa_auto_update"];
+    // DB-level DEFAULT (emitted into Column(server_default=...)). `optional`
+    // so an empty-string default ("" ) survives; a plain string drops it.
+    optional string server_default=25[json_name="server_default"];
 
 }
 
