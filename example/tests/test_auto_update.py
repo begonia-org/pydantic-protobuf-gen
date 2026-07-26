@@ -35,7 +35,7 @@ def test_message_processor_adds_onupdate_for_implicit_datetime_columns():
 
     rendered = processor._process_field_ext(imports, field, {"as_table": True})
 
-    assert "sa_column=Column(TIMESTAMP(timezone=True), nullable=True, doc='更新时间', onupdate=datetime.datetime.utcnow)" in rendered
+    assert "sa_column=Column(TIMESTAMP(timezone=True), nullable=True, doc='更新时间', onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))" in rendered
     assert "sa_auto_update" not in rendered
     assert 'schema_extra={\'label\': \'更新时间\'}' in rendered
     assert "from sqlalchemy import TIMESTAMP" in imports
@@ -57,7 +57,7 @@ def test_message_processor_adds_onupdate_for_explicit_sa_column_type():
 
     rendered = processor._process_field_ext(imports, field, {"as_table": True})
 
-    assert 'sa_column=Column(TIMESTAMP(timezone=True), nullable=True, onupdate=datetime.datetime.utcnow, doc="更新时间")' in rendered
+    assert 'sa_column=Column(TIMESTAMP(timezone=True), nullable=True, onupdate=lambda: datetime.datetime.now(datetime.timezone.utc), doc="更新时间")' in rendered
     assert "sa_auto_update" not in rendered
     assert any(import_stmt.endswith(" import TIMESTAMP") for import_stmt in imports)
     assert "from sqlmodel import Column" in imports

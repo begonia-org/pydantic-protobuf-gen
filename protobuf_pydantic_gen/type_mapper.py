@@ -189,6 +189,10 @@ class TypeMapper:
             elif field_descriptor.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
                 enum_type_name = field_descriptor.type_name.split(".")[-1]
                 ext["default"] = f"{enum_type_name}(0)"
+            elif type_str == "datetime.datetime":
+                # datetime fields without explicit default: use default_factory so the
+                # type annotation (datetime.datetime, not Optional) stays valid for Pylance.
+                ext["default_factory"] = "lambda: datetime.datetime.now(datetime.timezone.utc)"
             else:
                 ext["default"] = None
         if "default_factory" in ext and "default" in ext:

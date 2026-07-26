@@ -19,7 +19,7 @@ OPTIONS_FIELD_NUMBER: _ClassVar[int]
 options: _descriptor.FieldDescriptor
 
 class Annotation(_message.Message):
-    __slots__ = ("description", "example", "default", "alias", "title", "required", "nullable", "primary_key", "unique", "index", "const", "field_type", "sa_column_type", "min_length", "max_length", "gt", "ge", "lt", "le", "foreign_key", "label", "default_factory", "enum_storage", "sa_auto_update")
+    __slots__ = ("description", "example", "default", "alias", "title", "required", "nullable", "primary_key", "unique", "index", "const", "field_type", "sa_column_type", "min_length", "max_length", "gt", "ge", "lt", "le", "foreign_key", "label", "default_factory", "enum_storage", "sa_auto_update", "server_default")
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     EXAMPLE_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_FIELD_NUMBER: _ClassVar[int]
@@ -44,6 +44,7 @@ class Annotation(_message.Message):
     DEFAULT_FACTORY_FIELD_NUMBER: _ClassVar[int]
     ENUM_STORAGE_FIELD_NUMBER: _ClassVar[int]
     SA_AUTO_UPDATE_FIELD_NUMBER: _ClassVar[int]
+    SERVER_DEFAULT_FIELD_NUMBER: _ClassVar[int]
     description: str
     example: str
     default: str
@@ -68,7 +69,8 @@ class Annotation(_message.Message):
     default_factory: str
     enum_storage: str
     sa_auto_update: bool
-    def __init__(self, description: _Optional[str] = ..., example: _Optional[str] = ..., default: _Optional[str] = ..., alias: _Optional[str] = ..., title: _Optional[str] = ..., required: bool = ..., nullable: bool = ..., primary_key: bool = ..., unique: bool = ..., index: bool = ..., const: bool = ..., field_type: _Optional[str] = ..., sa_column_type: _Optional[str] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., gt: _Optional[float] = ..., ge: _Optional[float] = ..., lt: _Optional[float] = ..., le: _Optional[float] = ..., foreign_key: _Optional[str] = ..., label: _Optional[str] = ..., default_factory: _Optional[str] = ..., enum_storage: _Optional[str] = ..., sa_auto_update: bool = ...) -> None: ...
+    server_default: str
+    def __init__(self, description: _Optional[str] = ..., example: _Optional[str] = ..., default: _Optional[str] = ..., alias: _Optional[str] = ..., title: _Optional[str] = ..., required: bool = ..., nullable: bool = ..., primary_key: bool = ..., unique: bool = ..., index: bool = ..., const: bool = ..., field_type: _Optional[str] = ..., sa_column_type: _Optional[str] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., gt: _Optional[float] = ..., ge: _Optional[float] = ..., lt: _Optional[float] = ..., le: _Optional[float] = ..., foreign_key: _Optional[str] = ..., label: _Optional[str] = ..., default_factory: _Optional[str] = ..., enum_storage: _Optional[str] = ..., sa_auto_update: bool = ..., server_default: _Optional[str] = ...) -> None: ...
 
 class CompoundIndex(_message.Message):
     __slots__ = ("indexs", "index_type", "name")

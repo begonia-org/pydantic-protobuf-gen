@@ -16,7 +16,7 @@ from __future__ import annotations
 {% endfor %}
 
 {% for enum in enums %}
-class {{ enum.message_name }}(_Enum):
+class {{ enum.message_name }}(_IntEnum):
 {%for field in enum.fields %}
     {{ field.name }} = {{ field.ext.value }}
 {%endfor %}

@@ -13,25 +13,34 @@ message Annotation {
 	string alias = 4;
 	string title = 5;
 	bool required = 6;
-    bool nullable = 7;
+    // `optional` so an explicit `nullable: false` survives on the wire.
+    // A plain proto3 bool drops false (its default) and never reaches the
+    // generator, making NOT NULL columns impossible to express. Same class of
+    // fix as the numeric bounds below.
+    optional bool nullable = 7;
     bool primary_key = 8[json_name="primary_key"];
    bool  unique = 9;
    bool index = 10;
    bool const=18;
    string field_type=11[json_name="field_type"];
    string sa_column_type=20[json_name="sa_column_type"];
-    // Numeric constraints use proto3 `optional` so explicit zero/false-equal
-    // bounds survive on the wire (otherwise `ge: 0` is dropped by protoc).
+    // Numeric constraints use proto3 `optional` so that explicit zero/false-equal
+    // bounds survive on the wire. Without presence, a bound like `ge: 0` is dropped
+    // by protoc (0.0 is the double default) and never reaches the generator.
     optional int32 min_length=12[json_name="min_length"];
     optional int32 max_length=13[json_name="max_length"];
     optional double gt=14;
     optional double ge=15;
     optional double lt=16;
     optional double le=17;
-    string foreign_key=19[json_name="foreign_key"];
+    string foreign_key=19;
     string label=21;
     string default_factory=22[json_name="default_factory"];
     string enum_storage=23[json_name="enum_storage"];
+   bool sa_auto_update=24[json_name="sa_auto_update"];
+    // DB-level DEFAULT (emitted into Column(server_default=...)). `optional`
+    // so an empty-string default ("" ) survives; a plain string drops it.
+    optional string server_default=25[json_name="server_default"];
 
 }
 
@@ -66,15 +75,18 @@ message AuthOption {
     string role = 3 [json_name="role"];
     string permission = 4 [json_name="permission"];
 }
-
+message MethodAuthOptions {
+    bool is_redirect = 1[json_name="is_redirect"];
+}
 // service 级别默认鉴权配置（可被 method 级别覆盖）
 extend google.protobuf.ServiceOptions {
     AuthOption service_auth = 50301;
 }
 
-// method 级别鉴权配置（优先级高于 service 级别）
 extend google.protobuf.MethodOptions {
     AuthOption method_auth = 50302;
+    MethodAuthOptions method_extra = 50303;
+
 }
 
 message EnumValueOptions {

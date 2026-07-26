@@ -46,16 +46,20 @@ where = ["."]
 include = ["protobuf_pydantic_gen*"]
 
 [tool.setuptools.package-data]
-"protobuf_pydantic_gen" = ["protobuf_pydantic_gen/*.j2"]
+# Ship the Jinja templates AND the canonical pydantic.proto so consumers
+# compile against the always-current option schema (proto3 `optional` presence
+# on numeric constraints requires the matching proto, else `ge: 0` is dropped).
+"protobuf_pydantic_gen" = ["protobuf_pydantic_gen/*.j2", "protobuf_pydantic_gen/pydantic.proto"]
 
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=42", "wheel", "grpcio-tools>=1.50.0"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = [
     "mypy>=1.16.0",
     "ruff>=0.11.13",
+    "pre-commit>=3.0.0",
 ]
 [tool.uv]
 package = true

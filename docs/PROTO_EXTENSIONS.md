@@ -76,6 +76,25 @@ message Example {
 }
 ```
 
+### Compiling against the canonical `pydantic.proto`
+
+The pip package ships the canonical option schema at `protobuf_pydantic_gen/pydantic.proto`. **Always compile your protos against this shipped proto instead of a hand-vendored copy** — otherwise the two drift and option semantics break silently.
+
+This matters concretely for numeric constraints (`gt`/`ge`/`lt`/`le`/`min_length`/`max_length`): they are declared with proto3 `optional` presence so that an explicit zero bound (e.g. `ge: 0`) survives on the wire. A stale, non-`optional` vendored copy causes protoc to drop `ge: 0` before the generator ever sees it — the generated model then silently loses its lower-bound validation.
+
+Reference the installed proto by pointing `--proto_path` at the package's parent (your site-packages):
+
+```bash
+PKG_DIR=$(python -c "import protobuf_pydantic_gen, os; print(os.path.dirname(os.path.dirname(protobuf_pydantic_gen.__file__)))")
+python -m grpc_tools.protoc \
+    --proto_path=. \
+    --proto_path="$PKG_DIR" \
+    --pydantic_out=models \
+    your.proto
+```
+
+Then in your proto: `import "protobuf_pydantic_gen/pydantic.proto";`. The well-known types (`google/protobuf/descriptor.proto`, etc.) are resolved automatically by `grpc_tools.protoc`, so you only need the single `--proto_path` for the shipped schema. After upgrading the generator, re-run generation — the shipped proto tracks the generator version.
+
 ### Scope Note
 
 The proto schema still contains legacy service and method auth extensions that were used by the deprecated gateway workstream. They are not part of the verified GA documentation path for this release, so they are intentionally not expanded here.
@@ -155,6 +174,25 @@ message Example {
   }];
 }
 ```
+
+### 引用规范的 `pydantic.proto`
+
+pip 包随附了规范选项 schema：`protobuf_pydantic_gen/pydantic.proto`。**请始终依据该随附 proto 编译，而不是手动 vendor 进仓库的副本** —— 否则两者会逐渐漂移，选项语义会静默出错。
+
+这对数值约束（`gt`/`ge`/`lt`/`le`/`min_length`/`max_length`）尤其关键：它们以 proto3 `optional` 显式 presence 声明，以便 `ge: 0` 这种「显式零值下界」能在 wire 上存活。若使用陈旧的非 `optional` vendor 副本，protoc 会在生成器看到之前就把 `ge: 0` 丢弃 —— 生成模型随之静默丢失下界校验。
+
+把 `--proto_path` 指向包的父目录（即你的 site-packages）即可引用已安装的 proto：
+
+```bash
+PKG_DIR=$(python -c "import protobuf_pydantic_gen, os; print(os.path.dirname(os.path.dirname(protobuf_pydantic_gen.__file__)))")
+python -m grpc_tools.protoc \
+    --proto_path=. \
+    --proto_path="$PKG_DIR" \
+    --pydantic_out=models \
+    your.proto
+```
+
+在你的 proto 中：`import "protobuf_pydantic_gen/pydantic.proto";`。Well-known 类型（`google/protobuf/descriptor.proto` 等）由 `grpc_tools.protoc` 自动解析，因此只需为随附 schema 添加这一个 `--proto_path`。升级生成器后重新生成即可 —— 随附 proto 与生成器版本保持同步。
 
 ### 范围说明
 

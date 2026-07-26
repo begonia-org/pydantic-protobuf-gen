@@ -1,4 +1,5 @@
-from typing import Any, Union, List, Dict
+from collections.abc import Mapping, Sequence
+from typing import Any, Optional, Union, List, Dict
 from google.protobuf import any_pb2
 from google.protobuf import wrappers_pb2
 from google.protobuf import struct_pb2
@@ -7,7 +8,9 @@ from pydantic import BaseModel
 
 class AnyTransformer:
     @classmethod
-    def any_type_to_protobuf(cls, value: Any, type_hint: str = None) -> any_pb2.Any:
+    def any_type_to_protobuf(
+        cls, value: Any, type_hint: Optional[str] = None
+    ) -> any_pb2.Any:
         """
         Convert a Python value to a protobuf Any message
         Args:
@@ -28,7 +31,7 @@ class AnyTransformer:
     def _convert_to_protobuf_message(
         cls,
         value: Any,
-        type_hint: str = None,
+        type_hint: Optional[str] = None,
     ) -> Union[
         wrappers_pb2.StringValue,
         wrappers_pb2.Int64Value,
@@ -62,28 +65,71 @@ class AnyTransformer:
             return wrappers_pb2.StringValue(value=value)
         elif isinstance(value, bytes):
             return wrappers_pb2.BytesValue(value=value)
+        elif isinstance(value, struct_pb2.Struct):
+            return value
+        elif isinstance(value, struct_pb2.ListValue):
+            return value
+        elif isinstance(value, struct_pb2.Value):
+            return value
         elif isinstance(value, dict):
-            return cls._dict_to_struct(value)
+            return cls.python_to_struct(value)
         elif isinstance(value, BaseModel):
             return cls._pydantic_model_to_protobuf(value)
         elif isinstance(value, (list, tuple)):
-            return cls._list_to_listvalue(value)
+            return cls.python_to_listvalue(value)
         else:
             return wrappers_pb2.StringValue(value=str(value))
 
     @classmethod
-    def _pydantic_model_to_protobuf(cls, model: BaseModel) -> any_pb2.Any:
+    def _pydantic_model_to_protobuf(cls, model: BaseModel) -> struct_pb2.Struct:
         """
-        Convert a Pydantic model to a protobuf Any message
+        Convert a Pydantic model to a protobuf Struct message
         """
-        data = model.model_dump(mode="json")
-        struct = cls._dict_to_struct(data)
-        any_value = any_pb2.Any()
-        any_value.Pack(struct)
-        return any_value
+        return cls.python_to_struct(model)
+
+    @staticmethod
+    def _has_model_dump(value: Any) -> bool:
+        return callable(getattr(value, "model_dump", None))
+
+    @staticmethod
+    def _is_supported_sequence(value: Any) -> bool:
+        return isinstance(value, Sequence) and not isinstance(
+            value, (str, bytes, bytearray)
+        )
 
     @classmethod
-    def _dict_to_struct(cls, data: Dict[str, Any]) -> struct_pb2.Struct:
+    def python_to_struct(cls, value: Any) -> struct_pb2.Struct:
+        if isinstance(value, struct_pb2.Struct):
+            return value
+        if cls._has_model_dump(value):
+            value = value.model_dump(mode="json")
+        if not isinstance(value, Mapping):
+            raise TypeError(
+                f"Struct fields require a mapping-compatible value, got {type(value)!r}"
+            )
+        return cls._dict_to_struct(value)
+
+    @classmethod
+    def python_to_listvalue(cls, value: Any) -> struct_pb2.ListValue:
+        if isinstance(value, struct_pb2.ListValue):
+            return value
+        if cls._has_model_dump(value):
+            value = value.model_dump(mode="json")
+        if not cls._is_supported_sequence(value):
+            raise TypeError(
+                "ListValue fields require a sequence-compatible value, got "
+                f"{type(value)!r}"
+            )
+        return cls._list_to_listvalue(value)
+
+    @classmethod
+    def python_to_value(cls, value: Any) -> struct_pb2.Value:
+        if isinstance(value, struct_pb2.Value):
+            return value
+        return cls._python_to_struct_value(value)
+
+    @classmethod
+    def _dict_to_struct(cls, data: Mapping[str, Any]) -> struct_pb2.Struct:
         """
         Convert a Python dictionary to protobuf Struct
         Args:
@@ -93,11 +139,13 @@ class AnyTransformer:
         """
         struct = struct_pb2.Struct()
         for key, value in data.items():
+            if not isinstance(key, str):
+                raise TypeError(f"Struct keys must be str, got {type(key)!r}")
             struct.fields[key].CopyFrom(cls._python_to_struct_value(value))
         return struct
 
     @classmethod
-    def _list_to_listvalue(cls, data: List[Any]) -> struct_pb2.ListValue:
+    def _list_to_listvalue(cls, data: Sequence[Any]) -> struct_pb2.ListValue:
         """
         Convert a Python list to protobuf ListValue
         Args:
@@ -121,29 +169,28 @@ class AnyTransformer:
         Raises:
             ValueError: If the value type is not supported
         """
+        if isinstance(value, struct_pb2.Value):
+            return value
         if value is None:
             return struct_pb2.Value(null_value=struct_pb2.NullValue.NULL_VALUE)
         elif isinstance(value, bool):
             return struct_pb2.Value(bool_value=value)
-        elif isinstance(value, int):
-            return struct_pb2.Value(number_value=float(value))
-        elif isinstance(value, float):
+        elif isinstance(value, (int, float)):
             return struct_pb2.Value(number_value=value)
         elif isinstance(value, str):
             return struct_pb2.Value(string_value=value)
-        elif isinstance(value, dict):
-            struct_val = struct_pb2.Struct()
-            for k, v in value.items():
-                struct_val.fields[k].CopyFrom(cls._python_to_struct_value(v))
-            return struct_pb2.Value(struct_value=struct_val)
-        elif isinstance(value, (list, tuple)):
-            list_val = struct_pb2.ListValue()
-            for item in value:
-                list_val.values.add().CopyFrom(cls._python_to_struct_value(item))
-            return struct_pb2.Value(list_value=list_val)
+        elif cls._has_model_dump(value):
+            return cls._python_to_struct_value(value.model_dump(mode="json"))
+        elif isinstance(value, struct_pb2.Struct):
+            return struct_pb2.Value(struct_value=value)
+        elif isinstance(value, struct_pb2.ListValue):
+            return struct_pb2.Value(list_value=value)
+        elif isinstance(value, Mapping):
+            return struct_pb2.Value(struct_value=cls._dict_to_struct(value))
+        elif cls._is_supported_sequence(value):
+            return struct_pb2.Value(list_value=cls._list_to_listvalue(value))
         else:
-            # 其他类型转换为字符串
-            return struct_pb2.Value(string_value=str(value))
+            raise TypeError(f"Unsupported Struct value type: {type(value)!r}")
 
     @classmethod
     def protobuf_any_to_python(cls, any_proto: any_pb2.Any) -> Any:
