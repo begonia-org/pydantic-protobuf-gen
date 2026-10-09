@@ -55,7 +55,14 @@ include = ["protobuf_pydantic_gen*"]
 "protobuf_pydantic_gen" = ["protobuf_pydantic_gen/*.j2", "protobuf_pydantic_gen/pydantic.proto"]
 
 [build-system]
-requires = ["setuptools>=42", "wheel", "grpcio-tools>=1.50.0"]
+# The codegen tool is pinned: setup.py recompiles the vendored pydantic_pb2.py with
+# `grpc_tools.protoc`, and the protoc version it bundles decides the gencode version
+# written into that file — which in turn is the runtime floor everything consuming
+# this package must satisfy (protobuf refuses a runtime older than gencode). An
+# unpinned upper bound resolves to the newest grpcio-tools, silently raising the
+# floor above the declared `protobuf>=5.29.0`. 1.71.0 is the version whose protoc
+# reproduces the committed pydantic_pb2.py byte-for-byte.
+requires = ["setuptools>=42", "wheel", "grpcio-tools==1.71.0"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]

@@ -51,6 +51,15 @@ jobs:
           python -c "import sys, google.protobuf; print(sys.version); print('protobuf', google.protobuf.__version__)"
           python -m pip list --format=freeze | grep -E '^(protobuf|grpcio-tools|googleapis-common-protos)='
 
+      - name: Building must not rewrite the vendored generated code
+        # setup.py recompiles protobuf_pydantic_gen/pydantic_pb2.py during the build
+        # and the protoc version behind it sets the gencode (and therefore the runtime
+        # floor). If a build rewrites the committed file, the declared floor no longer
+        # describes the package — fail loudly instead. One row is enough; the build is
+        # identical across the matrix.
+        if: matrix.protobuf == '5.29.0'
+        run: git diff --exit-code -- protobuf_pydantic_gen/
+
       - name: Tests
         # test_performance.py imports `example.client`, which does not exist in this
         # repo (it needs a running server), so it is excluded rather than marked.
