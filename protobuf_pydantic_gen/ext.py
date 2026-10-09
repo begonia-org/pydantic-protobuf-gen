@@ -7,6 +7,7 @@
 """
 
 import importlib
+import base64
 from datetime import datetime
 from enum import Enum
 from types import UnionType
@@ -37,7 +38,7 @@ from sqlmodel import SQLModel
 from sqlalchemy.types import TypeDecorator
 
 from protobuf_pydantic_gen.any_type_transformer import AnyTransformer
-from protobuf_pydantic_gen.utils import is_map_field
+from protobuf_pydantic_gen.utils import field_descriptor_to_proto, is_map_field, is_repeated_field
 
 pool = descriptor_pool.Default()
 
@@ -164,23 +165,12 @@ class GenericEnumType(TypeDecorator, Generic[E]):
 
 
 def get_type_name(fd):
-    """获取 FieldDescriptor 的 type_name"""
-    if fd.type == fd.TYPE_MESSAGE and hasattr(fd, "message_type") and fd.message_type:
-        return f".{fd.message_type.full_name}"
-    elif fd.type == fd.TYPE_ENUM and hasattr(fd, "enum_type") and fd.enum_type:
-        return f".{fd.enum_type.full_name}"
-    else:
-        return ""  # 基础类型没有 type_name
+    """获取 FieldDescriptor / FieldDescriptorProto 的 type_name"""
+    return field_descriptor_to_proto(fd).type_name
 
 
 def _to_field_proto(fd) -> descriptor_pb2.FieldDescriptorProto:
-    fd_proto = descriptor_pb2.FieldDescriptorProto()
-    fd_proto.name = fd.name
-    fd_proto.number = fd.number
-    fd_proto.label = fd.label
-    fd_proto.type_name = get_type_name(fd)
-    fd_proto.type = fd.type
-    return fd_proto
+    return field_descriptor_to_proto(fd)
 
 
 def _to_message_desc(proto) -> descriptor_pb2.DescriptorProto:
@@ -191,13 +181,111 @@ def _to_message_desc(proto) -> descriptor_pb2.DescriptorProto:
     return descriptor_proto
 
 
+def _proto3_optional_field_names(
+    descriptor_proto: descriptor_pb2.DescriptorProto,
+) -> set:
+    """Names of fields declared with proto3 `optional` (explicit presence)."""
+    return {field.name for field in descriptor_proto.field if field.proto3_optional}
+
+
+_FLOAT_FIELD_TYPES = {
+    descriptor_pb2.FieldDescriptorProto.TYPE_DOUBLE,
+    descriptor_pb2.FieldDescriptorProto.TYPE_FLOAT,
+}
+_INT_FIELD_TYPES = {
+    descriptor_pb2.FieldDescriptorProto.TYPE_INT32,
+    descriptor_pb2.FieldDescriptorProto.TYPE_INT64,
+    descriptor_pb2.FieldDescriptorProto.TYPE_UINT32,
+    descriptor_pb2.FieldDescriptorProto.TYPE_UINT64,
+    descriptor_pb2.FieldDescriptorProto.TYPE_SINT32,
+    descriptor_pb2.FieldDescriptorProto.TYPE_SINT64,
+    descriptor_pb2.FieldDescriptorProto.TYPE_FIXED32,
+    descriptor_pb2.FieldDescriptorProto.TYPE_FIXED64,
+    descriptor_pb2.FieldDescriptorProto.TYPE_SFIXED32,
+    descriptor_pb2.FieldDescriptorProto.TYPE_SFIXED64,
+}
+
+
+def _real_oneof_names(descriptor_proto: descriptor_pb2.DescriptorProto) -> List[str]:
+    """Names of non-synthetic oneofs (proto3 `optional` creates synthetic ones)."""
+    synthetic_indexes = {
+        field.oneof_index for field in descriptor_proto.field if field.proto3_optional
+    }
+    return [
+        oneof.name
+        for index, oneof in enumerate(descriptor_proto.oneof_decl)
+        if index not in synthetic_indexes
+    ]
+
+
+def _oneof_member_matches_exactly(field, value) -> bool:
+    if field.type == field.TYPE_MESSAGE:
+        return isinstance(value, BaseModel) and type(value).__name__ == field.message_type.name
+    if field.type == field.TYPE_ENUM:
+        return isinstance(value, Enum)
+    if field.type == field.TYPE_BOOL:
+        return isinstance(value, bool)
+    if field.type == field.TYPE_STRING:
+        return isinstance(value, str)
+    if field.type == field.TYPE_BYTES:
+        return isinstance(value, (bytes, bytearray))
+    if field.type in _FLOAT_FIELD_TYPES:
+        return isinstance(value, float)
+    if field.type in _INT_FIELD_TYPES:
+        return isinstance(value, int) and not isinstance(value, bool)
+    return False
+
+
+def _oneof_member_matches_loosely(field, value) -> bool:
+    """Fallback pass: allow the coercions a `Union[...]` annotation also allows."""
+    if field.type == field.TYPE_MESSAGE:
+        full_name = field.message_type.full_name
+        if full_name == Timestamp.DESCRIPTOR.full_name:
+            return isinstance(value, (datetime, str))
+        if full_name in (
+            Struct.DESCRIPTOR.full_name,
+            ListValue.DESCRIPTOR.full_name,
+            Value.DESCRIPTOR.full_name,
+        ):
+            return isinstance(value, (dict, list))
+        if full_name == FieldMask.DESCRIPTOR.full_name:
+            return isinstance(value, (str, list))
+        return isinstance(value, dict)
+    if field.type == field.TYPE_ENUM:
+        return isinstance(value, (str, int)) and not isinstance(value, bool)
+    if field.type in _FLOAT_FIELD_TYPES:
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    return False
+
+
+def _match_oneof_member(oneof, value):
+    """Pick the oneof member whose Python type matches `value`.
+
+    Exact matches win over coercible ones; within a pass, declaration order decides.
+    """
+    fields = list(oneof.fields)
+    for predicate in (_oneof_member_matches_exactly, _oneof_member_matches_loosely):
+        for field in fields:
+            if predicate(field, value):
+                return field
+    return None
+
+
+def _select_model_cls(candidates, message_name: str):
+    """Pick the candidate model class whose name matches a proto message name."""
+    for candidate in candidates:
+        if getattr(candidate, "__name__", None) == message_name:
+            return candidate
+    return candidates[0]
+
+
 def model2protobuf(model: BaseModel, proto: ProtobufMessage) -> ProtobufMessage:
     # 转为 DescriptorProto
     descriptor_proto = _to_message_desc(proto)
 
     def _convert_value(fd, value):
         if value is None:
-            return _get_default_value(fd, descriptor_proto)
+            return _get_default_value(_to_field_proto(fd), descriptor_proto)
         if fd.type == fd.TYPE_ENUM:
             if isinstance(value, str):
                 return value
@@ -233,32 +321,51 @@ def model2protobuf(model: BaseModel, proto: ProtobufMessage) -> ProtobufMessage:
                     return ",".join(str(item) for item in value if str(item))
                 return str(value)
             elif fd.message_type.has_options and fd.message_type.GetOptions().map_entry:
-                # Check if the key and value types are both strings
-                # key_field = fd.message_type.fields_by_name['key']
                 value_field = fd.message_type.fields_by_name["value"]
-                # key_type = key_field.fields_by_name['key'].type
-                value_type = fd.message_type.fields_by_name["value"].type
-                if value_type == value_field.TYPE_STRING:
-                    return scalar_map_to_dict(value)
-                else:
-                    nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
-                    nested_cls = message_factory.GetMessageClass(nested_proto)
-                    if (
-                        value_type == value_field.TYPE_MESSAGE
-                        and value_field.message_type == any_pb2.Any.DESCRIPTOR
-                    ):
+                value_type = value_field.type
+
+                if value_type == value_field.TYPE_MESSAGE:
+                    if value_field.message_type == any_pb2.Any.DESCRIPTOR:
                         return {
                             k: MessageToDict(AnyTransformer.any_type_to_protobuf(v))
                             for k, v in value.items()
                         }
+                    # Resolve the *value* type, never the map entry type: the entry
+                    # message only carries `key` / `value` fields.
+                    nested_proto = pool.FindMessageTypeByName(
+                        value_field.message_type.full_name
+                    )
+                    nested_cls = message_factory.GetMessageClass(nested_proto)
                     return {
                         k: MessageToDict(model2protobuf(v, nested_cls()))
                         for k, v in value.items()
                     }
+
+                if value_type == value_field.TYPE_ENUM:
+                    # ParseDict takes an enum name; the model may hold the generated
+                    # IntEnum member (or its name, depending on the read mode).
+                    return {
+                        k: v.name if isinstance(v, Enum) else v
+                        for k, v in value.items()
+                    }
+
+                # Scalars (string / numeric / bool) are already ParseDict-shaped.
+                if value_type == value_field.TYPE_BYTES:
+                    return {
+                        k: base64.b64encode(bytes(v)).decode("ascii")
+                        if isinstance(v, (bytes, bytearray))
+                        else v
+                        for k, v in value.items()
+                    }
+
+                return scalar_map_to_dict(value)
             else:
                 nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
                 nested_cls = message_factory.GetMessageClass(nested_proto)
                 return MessageToDict(model2protobuf(value, nested_cls()))
+        elif fd.type == fd.TYPE_BYTES and isinstance(value, (bytes, bytearray)):
+            # ParseDict expects base64 text for bytes fields.
+            return base64.b64encode(bytes(value)).decode("ascii")
         else:
             return value
 
@@ -266,6 +373,7 @@ def model2protobuf(model: BaseModel, proto: ProtobufMessage) -> ProtobufMessage:
         d = model
     else:
         d = model.model_dump()
+        proto3_optional_fields = _proto3_optional_field_names(descriptor_proto)
         for fd in proto.DESCRIPTOR.fields:
             fd_proto = _to_field_proto(fd)
             # fd_proto.type_name = fd.type.name
@@ -273,14 +381,36 @@ def model2protobuf(model: BaseModel, proto: ProtobufMessage) -> ProtobufMessage:
             if fd.name in d:
                 field_value = getattr(model, fd.name)
                 if field_value is None:
+                    if fd.name in proto3_optional_fields:
+                        # proto3 `optional`: None means "not set". Drop the key that
+                        # model_dump() added, so ParseDict does not write a default
+                        # value and HasField stays False.
+                        d.pop(fd.name, None)
+                        continue
                     d[fd.name] = _get_default_value(fd_proto, descriptor_proto)
                     continue
-                if fd.label == fd.LABEL_REPEATED and not is_map_field(
+                if is_repeated_field(fd) and not is_map_field(
                     fd_proto, descriptor_proto
                 ):
                     d[fd.name] = [_convert_value(fd, item) for item in field_value]
                 else:
                     d[fd.name] = _convert_value(fd, field_value)
+        # Oneofs: the model carries one attribute per oneof (named after the oneof),
+        # so the member actually set is decided by the value's Python type.
+        for oneof_name in _real_oneof_names(descriptor_proto):
+            oneof_value = getattr(model, oneof_name, None)
+            d.pop(oneof_name, None)
+            if oneof_value is None:
+                continue
+            oneof_descriptor = proto.DESCRIPTOR.oneofs_by_name[oneof_name]
+            member_fd = _match_oneof_member(oneof_descriptor, oneof_value)
+            if member_fd is None:
+                raise ValueError(
+                    f"Cannot map {type(oneof_value).__name__} value {oneof_value!r} to any "
+                    f"member of oneof {oneof_name!r} "
+                    f"({[field.name for field in oneof_descriptor.fields]})"
+                )
+            d[member_fd.name] = _convert_value(member_fd, oneof_value)
     proto = ParseDict(d, proto)
     return proto
 
@@ -325,7 +455,7 @@ def _get_default_value(
     message_desc: descriptor_pb2.DescriptorProto,
 ) -> Any:
     if (
-        fd.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
+        is_repeated_field(fd)
         and not is_map_field(fd, message_desc)
     ):
         return []
@@ -388,11 +518,17 @@ def protobuf2model(
     descriptor_proto = _to_message_desc(proto)
     # print(f"Converting {proto.DESCRIPTOR.full_name} to {model_cls.__pydantic_fields__}")
 
-    def _convert_value(fd, value, model_cls):
+    def _convert_value(fd, value, model_cls, model_field_name=None):
         if value is None:
             return None
         if fd.type == fd.TYPE_ENUM:
             return value
+        elif fd.type == fd.TYPE_BYTES and isinstance(value, str):
+            # MessageToDict renders bytes as base64 text.
+            try:
+                return base64.b64decode(value)
+            except Exception:  # noqa: BLE001 - not base64: keep the raw value
+                return value
         elif fd.type == fd.TYPE_MESSAGE:
             if fd.message_type.full_name == Timestamp.DESCRIPTOR.full_name:
                 if value:
@@ -431,8 +567,13 @@ def protobuf2model(
                         items[k] = AnyTransformer.protobuf_any_to_python(any_instance)
                     return items
                 return {
+                    # The value field carries the element type, but the *model*
+                    # attribute is the map field itself (`fd.name`).
                     k: _convert_value(
-                        fd.message_type.fields_by_name["value"], v, model_cls
+                        value_field,
+                        v,
+                        model_cls,
+                        model_field_name=fd.name,
                     )
                     for k, v in value.items()
                 }
@@ -440,12 +581,17 @@ def protobuf2model(
                 nested_proto = pool.FindMessageTypeByName(fd.message_type.full_name)
                 nested_cls = message_factory.GetMessageClass(nested_proto)
                 nested_instance = nested_cls()
-                nested_model_cls = _get_model_cls_by_field(model_cls, fd.name)
+                nested_model_cls = _get_model_cls_by_field(
+                    model_cls, model_field_name or fd.name
+                )
                 # 确保返回的是单个类型而不是类型列表
                 if isinstance(nested_model_cls, list):
-                    # 如果是联合类型列表，取第一个类型（通常是主类型）
-                    nested_model_cls = nested_model_cls[0]
-                if fd.label == fd.LABEL_REPEATED:
+                    # Union annotation (a oneof field): pick the member that matches
+                    # this message, instead of blindly taking the first one.
+                    nested_model_cls = _select_model_cls(
+                        nested_model_cls, fd.message_type.name
+                    )
+                if is_repeated_field(fd):
                     values = []
                     for item in value:
                         nested_instance = nested_cls()
@@ -467,8 +613,30 @@ def protobuf2model(
     )
 
     model_data = {}
+    proto3_optional_fields = _proto3_optional_field_names(descriptor_proto)
+    # Oneofs are read through WhichOneof(); their members are skipped below.
+    oneof_member_names = set()
+    for oneof_name in _real_oneof_names(descriptor_proto):
+        oneof_descriptor = proto.DESCRIPTOR.oneofs_by_name[oneof_name]
+        oneof_member_names.update(field.name for field in oneof_descriptor.fields)
+        which = proto.WhichOneof(oneof_name)
+        if which is None:
+            model_data[oneof_name] = None
+            continue
+        model_data[oneof_name] = _convert_value(
+            proto.DESCRIPTOR.fields_by_name[which],
+            proto_dict.get(which),
+            model_cls,
+            model_field_name=oneof_name,
+        )
     for fd in proto.DESCRIPTOR.fields:
         field_name = fd.name
+        if field_name in oneof_member_names:
+            continue
+        if field_name in proto3_optional_fields and not proto.HasField(field_name):
+            # Absent proto3 `optional` field: keep "not set" rather than a zero value.
+            model_data[field_name] = None
+            continue
         # if field_name in proto_dict:
         value = proto_dict.get(
             field_name,

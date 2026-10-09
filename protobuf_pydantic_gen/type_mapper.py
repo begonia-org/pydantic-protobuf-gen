@@ -7,6 +7,7 @@ import logging
 from typing import Dict, List, Set, Optional, Tuple, Any
 from google.protobuf import descriptor_pb2, descriptor_pool
 from .constants import FIELD_TYPE_MAPPING, SPECIAL_PROTOBUF_TYPES, DEFAULT_VALUES
+from .utils import field_descriptor_to_proto, is_repeated_field
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,10 @@ class TypeMapper:
         Returns:
             Python type string
         """
+        # Accept runtime FieldDescriptors as well as FieldDescriptorProto: runtime
+        # descriptors have no `type_name`, so without this every `type_name`-keyed
+        # branch below silently falls through to the "Any" fallback.
+        field = field_descriptor_to_proto(field)
         # Handle special Google protobuf types
         if hasattr(field, "type_name") and field.type_name in SPECIAL_PROTOBUF_TYPES:
             mapped = SPECIAL_PROTOBUF_TYPES[field.type_name]
@@ -107,12 +112,27 @@ class TypeMapper:
             type_name = field.type_name.split(".")[-1]
             type_mapping[type_name] = file_name
             return type_name
+        if field.type in (
+            descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE,
+            descriptor_pb2.FieldDescriptorProto.TYPE_ENUM,
+        ):
+            # Unreachable while the type name resolves above; log rather than
+            # silently degrade to "Any" — that silence is what hid the broken
+            # map-value resolution for message/enum-valued maps.
+            logger.error(
+                "Unresolved message/enum type for field %r (type=%s, type_name=%r); "
+                "falling back to 'Any'",
+                field.name,
+                field.type,
+                field.type_name,
+            )
         return FIELD_TYPE_MAPPING.get(field.type, "Any")
 
     def _is_map_field(self, field: descriptor_pb2.FieldDescriptorProto) -> bool:
         """Check if field is a map type"""
+        field = field_descriptor_to_proto(field)
         return (
-            field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
+            is_repeated_field(field)
             and field.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE
             and field.type_name.endswith("Entry")
         )
@@ -145,8 +165,8 @@ class TypeMapper:
                     )
 
             return key_type, value_type
-        except Exception as e:
-            logger.error(f"Error getting map field types: {e}")
+        except Exception:  # noqa: BLE001
+            logger.exception("Error getting map field types")
             return None, None
 
     def set_default_value(
@@ -157,7 +177,7 @@ class TypeMapper:
     ) -> Dict[str, Any]:
         """Set default value based on type and extensions"""
         is_repeated = (
-            field_descriptor.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
+            is_repeated_field(field_descriptor)
             and not self._is_map_field(field_descriptor)
         )
 
@@ -182,7 +202,12 @@ class TypeMapper:
                 ext.pop("default", None)
         else:
             # Set type-appropriate default
-            if is_repeated:
+            if field_descriptor.proto3_optional:
+                # proto3 `optional` carries explicit presence: the generated model
+                # must be able to express "not set", so the default stays None
+                # instead of a zero value.
+                ext["default"] = None
+            elif is_repeated:
                 ext["default"] = []
             elif type_str in DEFAULT_VALUES:
                 ext["default"] = DEFAULT_VALUES[type_str]

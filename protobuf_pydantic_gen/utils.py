@@ -55,6 +55,59 @@ def get_class_import_path(directory: str, class_name: str):
             return path
 
 
+def is_repeated_field(field) -> bool:
+    """Repeated-ness for either descriptor kind.
+
+    protobuf >= 7 removed ``FieldDescriptor.label`` from the runtime descriptor
+    (``is_repeated`` is the replacement), while ``FieldDescriptorProto.label``
+    is still valid.
+    """
+    if isinstance(field, descriptor_pb2.FieldDescriptorProto):
+        return field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
+    return field.is_repeated
+
+
+def is_required_field(field) -> bool:
+    """Required-ness for either descriptor kind (see ``is_repeated_field``)."""
+    if isinstance(field, descriptor_pb2.FieldDescriptorProto):
+        return field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REQUIRED
+    return field.is_required
+
+
+def field_descriptor_to_proto(field) -> descriptor_pb2.FieldDescriptorProto:
+    """Normalize a runtime ``FieldDescriptor`` into a ``FieldDescriptorProto``.
+
+    Runtime descriptors expose ``message_type`` / ``enum_type`` instead of
+    ``type_name``, so consumers keyed on ``type_name`` (type mapping,
+    ``is_map_field``) cannot read them directly — every such branch would fall
+    through to a fallback instead of the real type. A ``FieldDescriptorProto``
+    argument is returned unchanged.
+    """
+    if isinstance(field, descriptor_pb2.FieldDescriptorProto):
+        return field
+
+    fd_proto = descriptor_pb2.FieldDescriptorProto()
+    fd_proto.name = field.name
+    fd_proto.number = field.number
+    fd_proto.type = field.type
+    fd_proto.label = (
+        descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
+        if is_repeated_field(field)
+        else descriptor_pb2.FieldDescriptorProto.LABEL_REQUIRED
+        if is_required_field(field)
+        else descriptor_pb2.FieldDescriptorProto.LABEL_OPTIONAL
+    )
+    if field.type == descriptor_pb2.FieldDescriptorProto.TYPE_MESSAGE:
+        message_type = getattr(field, "message_type", None)
+        if message_type is not None:
+            fd_proto.type_name = f".{message_type.full_name}"
+    elif field.type == descriptor_pb2.FieldDescriptorProto.TYPE_ENUM:
+        enum_type = getattr(field, "enum_type", None)
+        if enum_type is not None:
+            fd_proto.type_name = f".{enum_type.full_name}"
+    return fd_proto
+
+
 def is_map_field(
     field_desc: descriptor_pb2.FieldDescriptorProto,
     message_desc: descriptor_pb2.DescriptorProto,

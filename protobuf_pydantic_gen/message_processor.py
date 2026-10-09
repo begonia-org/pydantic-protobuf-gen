@@ -6,11 +6,11 @@ import ast
 import json
 import logging
 import re
-from typing import List, Dict, Set, Any
+from typing import List, Dict, Set, Any, Optional
 from google.protobuf import descriptor_pb2
 from google.protobuf.json_format import MessageToDict
 
-from protobuf_pydantic_gen.utils import is_map_field
+from protobuf_pydantic_gen.utils import is_map_field, is_repeated_field
 from . import pydantic_pb2
 from .models import Message, Field, EnumField, MessageType
 from .type_mapper import TypeMapper
@@ -192,7 +192,29 @@ class MessageProcessor:
         message_ext = self._extract_message_extensions(message_desc)
 
         # Process fields
+        # Oneof handling: proto3 `optional` produces synthetic oneofs (each holding
+        # exactly one proto3_optional field) and they must not be treated as real
+        # oneofs. Members of real oneofs are merged into one field below, so they
+        # must not be emitted as individual fields.
+        synthetic_oneof_indexes = {
+            field_desc.oneof_index
+            for field_desc in message_desc.field
+            if field_desc.proto3_optional
+        }
+        real_oneofs = [
+            oneof_desc
+            for index, oneof_desc in enumerate(message_desc.oneof_decl)
+            if index not in synthetic_oneof_indexes
+        ]
+        oneof_member_names = {
+            field_desc.name
+            for field_desc in message_desc.field
+            if field_desc.HasField("oneof_index")
+            and field_desc.oneof_index not in synthetic_oneof_indexes
+        }
         for field_desc in message_desc.field:
+            if field_desc.name in oneof_member_names:
+                continue
             try:
                 field = self._process_field(
                     field_desc, message_desc, filename, imports, type_mapping
@@ -203,6 +225,15 @@ class MessageProcessor:
                 logger.error(f"Error processing field {field_desc.name}: {e}:{traceback.format_exc()}")
                 continue
 
+
+        # Oneof members are merged into a single `Optional[Union[...]]` field named
+        # after the oneof itself (see the PR doc §4.4, option A).
+        for oneof_desc in real_oneofs:
+            oneof_field = self._process_oneof_field(
+                oneof_desc, message_desc, filename, imports, type_mapping
+            )
+            if oneof_field is not None:
+                fields.append(oneof_field)
         # Add required imports
         imports.add("Type")
         imports.add("from google.protobuf import message as _message")
@@ -529,6 +560,54 @@ class MessageProcessor:
         )
         return attr
 
+    def _process_oneof_field(
+        self,
+        oneof_desc: descriptor_pb2.OneofDescriptorProto,
+        message_desc: descriptor_pb2.DescriptorProto,
+        filename: str,
+        imports: Set[str],
+        type_mapping: Dict[str, str],
+    ) -> Optional[Field]:
+        """Merge a oneof's members into one `Optional[Union[...]]` field.
+
+        The oneof name becomes the model attribute, so the "which member is set"
+        information is carried by the value's Python type (option A of §4.4).
+        """
+        members = [
+            field_desc
+            for field_desc in message_desc.field
+            if field_desc.HasField("oneof_index")
+            and message_desc.oneof_decl[field_desc.oneof_index].name == oneof_desc.name
+        ]
+        if not members:
+            return None
+
+        member_types: List[str] = []
+        message_info = None
+        for member_desc in members:
+            member_type = self.type_mapper.get_field_type(
+                member_desc, imports, type_mapping, filename
+            )
+            if member_type not in member_types:
+                member_types.append(member_type)
+            if message_info is None:
+                message_info = self.type_mapper.get_message_info(member_desc)
+
+        # `_Union` is aliased on import: a generated message may itself be called
+        # `Union`, which would shadow `typing.Union` inside the generated module.
+        imports.add("from typing import Union as _Union")
+        oneof_field = Field(
+            name=oneof_desc.name,
+            type=f"_Union[{', '.join(member_types)}]",
+            repeated=False,
+            required=False,
+            attributes="",
+            ext={"default": None},
+            message_info=message_info,
+        )
+        oneof_field.attributes = self._process_field_ext(imports, oneof_field, {})
+        return oneof_field
+
     def _process_field(
         self,
         field_desc: descriptor_pb2.FieldDescriptorProto,
@@ -545,7 +624,7 @@ class MessageProcessor:
 
         # Determine if field is repeated and required
         repeated = (
-            field_desc.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
+            is_repeated_field(field_desc)
         ) and not is_map_field(field_desc, message_desc)
         # required = field_desc.label == descriptor_pb2.FieldDescriptorProto.LABEL_REQUIRED
 

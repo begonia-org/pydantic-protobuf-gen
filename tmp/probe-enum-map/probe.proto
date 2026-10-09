@@ -1,0 +1,27 @@
+syntax = "proto3";
+package probe.v1;
+import "protobuf_pydantic_gen/pydantic.proto";
+
+enum Level {
+  LEVEL_UNSPECIFIED = 0;
+  LEVEL_LOW = 1;
+  LEVEL_HIGH = 2;
+}
+
+message Inner {
+  string outcome = 1;
+}
+
+message Union {
+  string metric = 1;
+  oneof value {
+    double numeric_value = 2;
+    string text_value = 3;
+  }
+  map<string, Inner> unavailable = 4;
+  map<string, Level> levels = 5;
+  map<string, string> tags = 6;
+  map<string, int32> counts = 7;
+  optional double opt_score = 8;
+  double plain_score = 9;
+}

@@ -1,0 +1,14 @@
+syntax = "proto3";
+package probe3.v1;
+import "protobuf_pydantic_gen/pydantic.proto";
+
+message Inner {
+  string outcome = 1;
+}
+
+message Union {
+  string metric = 1;
+  optional double opt_score = 2;
+  double plain_score = 3;
+  Inner inner = 4;
+}

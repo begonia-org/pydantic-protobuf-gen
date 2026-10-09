@@ -1,0 +1,18 @@
+syntax = "proto3";
+package probe2.v1;
+import "protobuf_pydantic_gen/pydantic.proto";
+
+message Inner {
+  string outcome = 1;
+}
+
+message Union {
+  string metric = 1;
+  oneof value {
+    double numeric_value = 2;
+    string text_value = 3;
+  }
+  map<string, Inner> unavailable = 4;
+  map<string, string> tags = 5;
+  double plain_score = 6;
+}
