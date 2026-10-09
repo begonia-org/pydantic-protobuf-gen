@@ -695,17 +695,60 @@ ParseError: Message type "probe2.v1.Union" should not have multiple "value" oneo
 
 **结论：声明 `protobuf>=5.29.0`（无上限）**：下限由包内 committed gencode 决定（可验证、可复现），上限不设 —— 7.x 及以上靠能力探测与下面的矩阵保持一致。若仍想加保护，可写 `>=5.29.0,<8.0.0`，但那属于「用一个未经证明的假设替代另一个」。
 
-**矩阵（`tmp/probe-enum-map/matrix.sh`，一条命令四版本）** —— 默认走 `uv run --no-project --with protobuf==X` 的**临时环境**（跑完不往仓库落任何东西），`PROBE_VENVS=1` 才用 `tmp/probe*/venv` 的预建环境（更快，但每个 ~70–100MB）；预建 venv 已在清理中删除，需要时按 `tmp/probe-enum-map/README.md` 重建。
+**运行时矩阵（`tmp/probe-enum-map/matrix.sh`，一条命令五版本）** —— 默认走 `uv run --no-project --with protobuf==X` 的**临时环境**（跑完不往仓库落任何东西），`PROBE_VENVS=1` 才用 `tmp/probe*/venv` 的预建环境（更快，但每个 ~70–100MB）；预建 venv 已在清理中删除，需要时按 `tmp/probe-enum-map/README.md` 重建。这里**不装 protoc / grpcio-tools**，所以能覆盖「与声明集合无法共解」的版本（如 7.34.0）。
 
 ```text
-protobuf 5.29.0            ============================== 71 passed in 0.80s ==============================
-protobuf 6.33.6            ============================== 71 passed in 0.74s ==============================
-protobuf 7.34.0            ============================== 71 passed in 0.76s ==============================
-protobuf 7.36.2            ============================== 71 passed in 0.76s ==============================
+protobuf 5.29.0            71 passed
+protobuf 6.33.6            71 passed
+protobuf 7.34.0            71 passed
+protobuf 7.35.1            71 passed
+protobuf 7.36.2            71 passed
 ```
 
 （含 2 项新增的回退分支用例：用只带 `label` 的桩对象验证 `is_repeated`/`is_required` 缺失时的回退。）
 
-**机制层面的遗留风险（建议，未实施）**：仓库**没有任何 CI**（无 `.github/workflows`），所以「声明支持一批版本、只在某一版上验证过」这类不一致只能靠人记得跑 `matrix.sh`。真实的下限耦合点是 `make -C protobuf_pydantic_gen`（pre-commit 钩子）重新生成 `pydantic_pb2.py` 时的 protoc 版本 —— 换用更旧的 protoc 才能把下限压到 5.29.0 以下；换用更新的 protoc 会**抬高**下限。建议至少加一个 CI 矩阵（5.29.x / 6.33.x / 7.x），否则这条约束还会再次漂移。
+#### 6.7 安装级约束：`protobuf==X` 能不能装，取决于整集合的可共解性（CI 首跑暴露）
 
-**环境事实（本次踩到，值得记住）**：工作区容器自带的 `python3`（protobuf 5.29.4）**跑不了生成器** —— `protobuf_pydantic_gen/__init__.py` → `generator` → `service_processor` 会 `import google.api`，而容器 env 没有 `googleapis-common-protos`，报 `ModuleNotFoundError: No module named 'google.api'`（测试套件同样有 8 个模块因此 import 失败）。所以所有 probe 入口（生成 / `run_checks.py` / `inproc_gen.py` / 套件）统一走 `uv run --no-project --with …`。另外：protobuf 每个解释器只能有一个版本，版本矩阵天然需要多个隔离解释器 —— 优先让它们待在 uv 缓存里（不落仓库）。
+第一版 CI 用的是「先 `pip install -e .`、再 `pip install protobuf==X`」两步 —— **在 GitHub 上红了三行**（5.29.0 / 6.33.6 / 7.34.0 失败，7.36.2 通过），而本地 `matrix.sh` 四行全绿。本地复现给出的原因很清楚：
+
+```text
+googleapis-common-protos 1.75.5 requires protobuf<8.0.0,>=6.33.5, but you have protobuf 5.29.0
+grpcio-tools 1.84.0 requires protobuf<8.0.0,>=7.35.1, but you have protobuf 5.29.0
+→ VersionError: Detected incompatible Protobuf Gencode/Runtime versions（8 个测试模块 import 失败）
+```
+
+即：**companion 包也有 gencode，也在抬高 runtime 下限**。把 protobuf 在第二次命令里降级，会让它们停在拒绝该 runtime 的版本上，它们的 pb2 gencode 比 runtime 新 → 连 import 都过不去。`grpcio-tools` 各版本对 protobuf 的要求（PyPI 元数据实测）：
+
+| grpcio-tools | 要求 protobuf |
+|---|---|
+| 1.71.2 | `>=5.26.1,<6.0dev` |
+| 1.81.1 | `>=6.33.5,<7.0.0` |
+| 1.82.0 | `>=6.33.5,<8.0.0` |
+| 1.83.1 / 1.84.0 | `>=7.35.1,<8.0.0` |
+
+⇒ 可共解的点是 **5.29.x**（配 1.71.x）、**6.33.5+**（配 1.81/1.82）、**7.35.1+**（配 1.83+）；**7.34.0 落在空洞里**（pip 直接 `ResolutionImpossible`：`grpcio-tools 1.83.1/1.84.0 depends on protobuf>=7.35.1`，而更低的候选无法完成解析）。
+
+于是维护两个矩阵，回答两个不同的问题：
+
+| | 覆盖 | 装什么 | 判据 |
+|---|---|---|---|
+| **安装级** `.github/workflows/tests.yml` | 5.29.0 / 6.33.6 / **7.35.1** / 7.36.2 | `pip install -e . "protobuf==X"`（**单次解析**） | 消费者真能装上的点 |
+| **运行时级** `tmp/probe-enum-map/matrix.sh` | 5.29.0 / 6.33.6 / **7.34.0** / 7.35.1 / 7.36.2 | `uv run --with`（**不装** protoc/grpcio-tools） | 生成器代码自身能跑的点 |
+
+单次解析是关键（`pip install -e . "protobuf==X"` 会让解析器回退 companion 包：5.29.0 行自动选 grpcio-tools 1.71.2 + googleapis-common-protos 1.75.0，7.35.1/7.36.2 行选 1.84.0 + 1.75.5）。四条 CI 行的命令都在本地按 CI 的原样跑过：**各 71 passed**。
+
+> 顺带确认了 `>=5.29.0` 这个声明是**可安装**的 —— 这一点此前只有「运行时能跑」的证据，没有「能装上」的证据。
+
+#### 6.8 本轮的其他发现
+
+- **上一提交 e90259a 的生成物没同步**：`example/models/example_model.py`（committed）与当前生成器输出不一致 —— 差异正是 e90259a 引入的 `nullable=`：
+
+```text
+-        sa_column=Column(JSON, doc="Emails of the example"),
++        sa_column=Column(JSON, nullable=True, doc="Emails of the example"),
+```
+
+  其余生成物（`constant_model.py` / `constraints_model.py` / `example2_model.py` / `example3_model.py` / `helloworld_model.py` / `tables.py`）与当前树一致。即 e90259a 改了生成逻辑但漏了刷新这份 checked-in 生成物（**不是本次改动造成的**；本文档早先「全量生成物 before/after 无差异」的对照是「旧码 vs 新码生成到临时目录」，结论仍然有效）。若要在 CI 里加「生成物最新」闸门，得先修这一处。
+- **容器环境事实更正**：项目环境其实存在 —— `/opt/.uv.venv`（Dockerfile `uv sync` 的产物），依赖齐全（`google.api` / pgvector / zstandard / starlette / pytest 都在），protobuf **5.29.4**，跑整套 `example/tests` **71 passed**。问题只是 **PATH 没把 `/opt/.uv.venv/bin` 前置**（`VIRTUAL_ENV` 却指向它），于是 `python3` 解析到系统解释器 `/usr/local/bin/python3`（缺 `googleapis-common-protos`）。所以准确说法是「**系统** python3 跑不了生成器」，而不是「容器 env 跑不了」；要用仓库环境就直接指名 `/opt/.uv.venv/bin/python`。
+
+**机制层面的遗留风险（CI 已加，剩两处漂移）**：`.github/workflows/tests.yml` 覆盖的是**安装级**四行；① 真实下限耦合点是 `make -C protobuf_pydantic_gen`（pre-commit 钩子）重新生成 `pydantic_pb2.py` 时的 protoc 版本 —— 换更旧的 protoc 才能把下限压到 5.29.0 以下，换更新的 protoc 会**抬高**下限，而 CI 的版本列表是硬编码的，protoc 换代时需人工同步；② **运行时级**矩阵（含 7.34.0 这类与声明集合无法共解的版本）CI 覆盖不到，仍需人工跑 `tmp/probe-enum-map/matrix.sh`。

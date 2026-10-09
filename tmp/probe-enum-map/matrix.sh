@@ -7,6 +7,12 @@
 # Why isolation is unavoidable: protobuf is one-version-per-interpreter, so a
 # 4-version matrix needs 4 interpreters. The default path keeps them inside uv's
 # shared cache (`~/.cache/uv`), so nothing lands in this working tree.
+#
+# This is the *runtime* matrix: nothing here installs protoc/grpcio-tools, so it can
+# probe releases that do not co-resolve with the declared dependency set (e.g.
+# 7.34.0, blocked by grpcio-tools 1.83+ requiring protobuf>=7.35.1). The install-level
+# matrix — what a consumer can actually pip install — lives in
+# .github/workflows/tests.yml and uses 7.35.1 instead of 7.34.0.
 set -u
 
 REPO=${REPO:-/app}
@@ -33,7 +39,7 @@ if [ "${PROBE_VENVS:-0}" = "1" ]; then
     exit 0
 fi
 
-for version in 5.29.0 6.33.6 7.34.0 7.36.2; do
+for version in 5.29.0 6.33.6 7.34.0 7.35.1 7.36.2; do
     printf '%-12s ' "$version"
     PYTHONPATH=$REPO uv run --no-project --python 3.11 --with "protobuf==$version" $DEPS \
         python -m pytest "$TESTS" $PYTEST_ARGS 2>&1 | summarize
