@@ -49,37 +49,54 @@ uv pip install --python /app/tmp/probe7/venv/bin/python --no-deps grpcio-tools==
 
 ## 跑法
 
+**所有入口都需要 `googleapis-common-protos`**（`protobuf_pydantic_gen/__init__.py` → `generator`
+→ `service_processor` 会 `import google.api`），而容器自带的 `python3` 没有它 —— 所以下面统一走
+`uv run --no-project --with …` 的临时环境（跑完不往仓库里落任何东西）：
+
 ```bash
 cd /app/tmp/probe-enum-map
+DEPS="--with sqlmodel --with googleapis-common-protos --with jinja2 --with grpcio --with peewee --with inflection --with autopep8 --with pgvector --with zstandard --with requests --with pydantic-settings"
 
-# 1) 生成（插件跑仓库源码；生成侧只需 5.27+ 的 protobuf）
+# 1) 生成（插件跑仓库源码；uv run 会把 env 的 bin 放进 PATH，所以 plugin.sh 里的 `python3` 就是该 env 的解释器）
 for p in probe probe2 probe3; do
-  PROBE_PYTHON=/app/tmp/probe7/venv/bin/python PROBE_REPO=/app \
-  python3 -m grpc_tools.protoc -I . -I /app \
-    --plugin=protoc-gen-pydantic=$PWD/plugin.sh \
-    --python_out=pb --pydantic_out=models --pydantic_opt=package_name=$p $p.proto
+  PYTHONPATH=/app uv run --no-project --python 3.11 --with "protobuf==7.36.2" $DEPS --with grpcio-tools \
+    python -m grpc_tools.protoc -I . -I /app \
+      --plugin=protoc-gen-pydantic=$PWD/plugin.sh \
+      --python_out=pb --pydantic_out=models --pydantic_opt=package_name=$p $p.proto
 done
 
-# 2) 运行时检查（换解释器即可切换 protobuf 版本）
-PYTHONPATH=/app /app/tmp/probe7/venv/bin/python run_checks.py
-PYTHONPATH=/app /app/tmp/probe-floor/venv/bin/python run_checks.py
+# 2) 运行时检查（改 --with protobuf==X 即可换版本；受 pb 的 gencode 约束，见下）
+PYTHONPATH=/app uv run --no-project --python 3.11 --with "protobuf==7.36.2" $DEPS run_checks.py
 
 # 3) 进程内生成（无 protoc）
-PYTHONPATH=/app /app/tmp/probe7/venv/bin/python inproc_gen.py
+PYTHONPATH=/app uv run --no-project --python 3.11 --with "protobuf==7.36.2" $DEPS inproc_gen.py
 ```
+
+（`$DEPS` 只为可读性拆出，等价于把每个 `--with` 逐个写全。）
 
 ## 仓库测试套件 / 基线对照
 
 ```bash
-# 当前代码
-cd /app && PYTHONPATH=/app /app/tmp/probe7/venv/bin/python -m pytest example/tests \
-  --ignore=example/tests/test_performance.py -q
+# 全部四版本（默认 uv 临时环境，仓库零新增）
+cd /app && sh tmp/probe-enum-map/matrix.sh
 
-# 未修复的基线（HEAD=e90259a 的纯副本，不触碰工作区）
-mkdir -p /tmp/ppgen-baseline-e90259a && git -C /app archive HEAD | tar -x -C /tmp/ppgen-baseline-e90259a
-cd /tmp/ppgen-baseline-e90259a && PYTHONPATH=/tmp/ppgen-baseline-e90259a \
-  /app/tmp/probe7/venv/bin/python -m pytest example/tests \
-  --ignore=example/tests/test_performance.py -q
+# 单版本示例（容器自带 python3 只有 5.29.4，且缺 googleapis-common-protos，
+# 直接用它跑整套会 import 失败 —— 所以套件统一走 uv）
+cd /app && PYTHONPATH=/app uv run --no-project --python 3.11 \
+  --with "protobuf==7.36.2" --with sqlmodel --with pytest --with pytest-asyncio \
+  --with googleapis-common-protos --with jinja2 --with grpcio --with autopep8 \
+  --with inflection --with peewee --with pgvector --with zstandard --with requests \
+  --with pydantic-settings \
+  python -m pytest example/tests --ignore=example/tests/test_performance.py -q
+
+# 未修复的基线（e90259a 的纯副本，不触碰工作区；把上面那条的目录换掉即可）
+mkdir -p /tmp/ppgen-baseline-e90259a && git -C /app archive e90259a | tar -x -C /tmp/ppgen-baseline-e90259a
+cd /tmp/ppgen-baseline-e90259a && PYTHONPATH=$PWD uv run --no-project --python 3.11 \
+  --with "protobuf==7.36.2" --with sqlmodel --with pytest --with pytest-asyncio \
+  --with googleapis-common-protos --with jinja2 --with grpcio --with autopep8 \
+  --with inflection --with peewee --with pgvector --with zstandard --with requests \
+  --with pydantic-settings \
+  python -m pytest example/tests --ignore=example/tests/test_performance.py -q
 ```
 
 `test_performance.py` 需要 `example.client`（仓库里不存在），两侧都排除。
