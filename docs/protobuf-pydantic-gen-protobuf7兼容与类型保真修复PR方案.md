@@ -695,7 +695,7 @@ ParseError: Message type "probe2.v1.Union" should not have multiple "value" oneo
 
 **结论：声明 `protobuf>=5.29.0`（无上限）**：下限由包内 committed gencode 决定（可验证、可复现），上限不设 —— 7.x 及以上靠能力探测与下面的矩阵保持一致。若仍想加保护，可写 `>=5.29.0,<8.0.0`，但那属于「用一个未经证明的假设替代另一个」。
 
-**矩阵（`tmp/probe-enum-map/matrix.sh`，一条命令四版本）**
+**矩阵（`tmp/probe-enum-map/matrix.sh`，一条命令四版本）** —— 默认走 `uv run --no-project --with protobuf==X` 的**临时环境**（跑完不往仓库落任何东西），`PROBE_VENVS=1` 才用 `tmp/probe*/venv` 的预建环境（更快，但每个 ~70–100MB）；预建 venv 已在清理中删除，需要时按 `tmp/probe-enum-map/README.md` 重建。
 
 ```text
 protobuf 5.29.0            ============================== 71 passed in 0.80s ==============================
@@ -707,3 +707,5 @@ protobuf 7.36.2            ============================== 71 passed in 0.76s ===
 （含 2 项新增的回退分支用例：用只带 `label` 的桩对象验证 `is_repeated`/`is_required` 缺失时的回退。）
 
 **机制层面的遗留风险（建议，未实施）**：仓库**没有任何 CI**（无 `.github/workflows`），所以「声明支持一批版本、只在某一版上验证过」这类不一致只能靠人记得跑 `matrix.sh`。真实的下限耦合点是 `make -C protobuf_pydantic_gen`（pre-commit 钩子）重新生成 `pydantic_pb2.py` 时的 protoc 版本 —— 换用更旧的 protoc 才能把下限压到 5.29.0 以下；换用更新的 protoc 会**抬高**下限。建议至少加一个 CI 矩阵（5.29.x / 6.33.x / 7.x），否则这条约束还会再次漂移。
+
+**环境事实（本次踩到，值得记住）**：工作区容器自带的 `python3`（protobuf 5.29.4）**跑不了生成器** —— `protobuf_pydantic_gen/__init__.py` → `generator` → `service_processor` 会 `import google.api`，而容器 env 没有 `googleapis-common-protos`，报 `ModuleNotFoundError: No module named 'google.api'`（测试套件同样有 8 个模块因此 import 失败）。所以所有 probe 入口（生成 / `run_checks.py` / `inproc_gen.py` / 套件）统一走 `uv run --no-project --with …`。另外：protobuf 每个解释器只能有一个版本，版本矩阵天然需要多个隔离解释器 —— 优先让它们待在 uv 缓存里（不落仓库）。
