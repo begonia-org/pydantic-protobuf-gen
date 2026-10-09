@@ -4,7 +4,15 @@ annotated-types==0.7.0
     # via
     #   protobuf-pydantic-gen (pyproject.toml)
     #   pydantic
+anyio==4.14.2
+    # via starlette
 autopep8==2.3.2
+    # via protobuf-pydantic-gen (pyproject.toml)
+certifi==2026.7.22
+    # via requests
+charset-normalizer==3.5.2
+    # via requests
+googleapis-common-protos==1.75.0
     # via protobuf-pydantic-gen (pyproject.toml)
 greenlet==3.2.2
     # via sqlalchemy
@@ -14,39 +22,78 @@ grpcio==1.71.0
     #   grpcio-tools
 grpcio-tools==1.71.0
     # via protobuf-pydantic-gen (pyproject.toml)
+idna==3.20
+    # via
+    #   anyio
+    #   requests
 inflection==0.5.1
     # via protobuf-pydantic-gen (pyproject.toml)
+iniconfig==2.3.1
+    # via pytest
 jinja2==3.1.6
     # via protobuf-pydantic-gen (pyproject.toml)
 markupsafe==3.0.2
     # via jinja2
+packaging==26.3
+    # via pytest
 peewee==3.18.1
     # via protobuf-pydantic-gen (pyproject.toml)
+pgvector==0.5.0
+    # via protobuf-pydantic-gen (pyproject.toml)
+pluggy==1.6.0
+    # via pytest
 protobuf==5.29.4
     # via
     #   protobuf-pydantic-gen (pyproject.toml)
+    #   googleapis-common-protos
     #   grpcio-tools
 pycodestyle==2.13.0
     # via autopep8
 pydantic==2.11.4
     # via
     #   protobuf-pydantic-gen (pyproject.toml)
+    #   pydantic-settings
     #   sqlmodel
 pydantic-core==2.33.2
     # via
     #   protobuf-pydantic-gen (pyproject.toml)
     #   pydantic
+pydantic-settings==2.15.0
+    # via protobuf-pydantic-gen (pyproject.toml)
+pygments==2.21.0
+    # via pytest
+pytest==9.1.1
+    # via
+    #   protobuf-pydantic-gen (pyproject.toml)
+    #   pytest-asyncio
+pytest-asyncio==1.4.0
+    # via protobuf-pydantic-gen (pyproject.toml)
+python-dotenv==1.2.4
+    # via pydantic-settings
+requests==2.34.2
+    # via protobuf-pydantic-gen (pyproject.toml)
 setuptools==80.4.0
     # via grpcio-tools
 sqlalchemy==2.0.40
     # via sqlmodel
 sqlmodel==0.0.24
     # via protobuf-pydantic-gen (pyproject.toml)
+starlette==1.7.0
+    # via protobuf-pydantic-gen (pyproject.toml)
 typing-extensions==4.13.2
     # via
+    #   anyio
     #   pydantic
     #   pydantic-core
+    #   pytest-asyncio
     #   sqlalchemy
+    #   starlette
     #   typing-inspection
 typing-inspection==0.4.0
-    # via pydantic
+    # via
+    #   pydantic
+    #   pydantic-settings
+urllib3==2.8.0
+    # via requests
+zstandard==0.25.0
+    # via protobuf-pydantic-gen (pyproject.toml)
