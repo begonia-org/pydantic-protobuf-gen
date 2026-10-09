@@ -751,4 +751,18 @@ grpcio-tools 1.84.0 requires protobuf<8.0.0,>=7.35.1, but you have protobuf 5.29
   其余生成物（`constant_model.py` / `constraints_model.py` / `example2_model.py` / `example3_model.py` / `helloworld_model.py` / `tables.py`）与当前树一致。即 e90259a 改了生成逻辑但漏了刷新这份 checked-in 生成物（**不是本次改动造成的**；本文档早先「全量生成物 before/after 无差异」的对照是「旧码 vs 新码生成到临时目录」，结论仍然有效）。若要在 CI 里加「生成物最新」闸门，得先修这一处。
 - **容器环境事实更正**：项目环境其实存在 —— `/opt/.uv.venv`（Dockerfile `uv sync` 的产物），依赖齐全（`google.api` / pgvector / zstandard / starlette / pytest 都在），protobuf **5.29.4**，跑整套 `example/tests` **71 passed**。问题只是 **PATH 没把 `/opt/.uv.venv/bin` 前置**（`VIRTUAL_ENV` 却指向它），于是 `python3` 解析到系统解释器 `/usr/local/bin/python3`（缺 `googleapis-common-protos`）。所以准确说法是「**系统** python3 跑不了生成器」，而不是「容器 env 跑不了」；要用仓库环境就直接指名 `/opt/.uv.venv/bin/python`。
 
-**机制层面的遗留风险（CI 已加，剩两处漂移）**：`.github/workflows/tests.yml` 覆盖的是**安装级**四行；① 真实下限耦合点是 `make -C protobuf_pydantic_gen`（pre-commit 钩子）重新生成 `pydantic_pb2.py` 时的 protoc 版本 —— 换更旧的 protoc 才能把下限压到 5.29.0 以下，换更新的 protoc 会**抬高**下限，而 CI 的版本列表是硬编码的，protoc 换代时需人工同步；② **运行时级**矩阵（含 7.34.0 这类与声明集合无法共解的版本）CI 覆盖不到，仍需人工跑 `tmp/probe-enum-map/matrix.sh`。
+#### 6.9 构建期上限：代码生成工具决定 vendored gencode（第二版 CI 红的根因）
+
+**现象**：第二版 CI（改为单次解析后）仍红两行 —— 5.29.0 / 6.33.6 的 `Tests` 失败，7.35.1 / 7.36.2 通过；而同样命令在本地四行全绿。
+
+**复现**（干净 checkout：`touch` 一下 `.proto` 触发构建钩子）：`setup.py` 的 `BuildProtoThenPy` 在「生成物缺失或比 `.proto` 旧」时，用**构建环境**里的 `grpc_tools.protoc` 重编译 `protobuf_pydantic_gen/pydantic_pb2.py`。而 `build-system.requires` 原来只写下界（`grpcio-tools>=1.50.0`），隔离构建环境于是装最新的 grpcio-tools（1.84，bundled protobuf 7.35/7.36）→ 生成物 gencode 从 committed 的 **5.29.0** 变成 **7.35.1** → 在这些 runtime 较旧的矩阵行上，9 个测试模块 collection 阶段就 `VersionError`（与 GH 现象一致）。
+
+**这意味着**：包的**真实下限由构建它的环境决定**，而 `pyproject.toml` 声明的是 `protobuf>=5.29.0` —— 与本分支主题（声明与实现脱节）**同一类问题**，也顺带解释了历史上 5.27 → 5.29 的漂移从哪来（谁构建，谁移动下限）。
+
+**修复**：钉住构建期的代码生成工具 —— `build-system.requires` 里 `grpcio-tools==1.71.0`。实测其 protoc 重新生成的 `pydantic_pb2.py` 与 committed 文件**逐字节相同**（gencode 5.29.0），于是构建可复现、声明为真；**升级 gencode 从此是一次显式动作**（必须同时改声明与生成物）。
+
+**闸门**：CI 增加 `git diff --exit-code -- protobuf_pydantic_gen/` —— 构建若改写了 vendored 生成物就**响亮失败**，而不是静默抬高下限。
+
+**验证**：在「强制重生成」场景下 gencode 保持 5.29.0、`git diff` 为空、5.29.0 行 71 passed；四条 CI 命令本地全绿；GitHub Actions 上 **4/4 success**（`bc62417`）。
+
+**遗留风险（钉住之后剩两处）**：`.github/workflows/tests.yml` 覆盖的是**安装级**四行；① 现在有**三条**生成 `pydantic_pb2.py` 的路径 —— 构建期（born by `build-system.requires` 的 pin）、`make -C protobuf_pydantic_gen` 与 pre-commit 钩子（用环境里的 protoc），它们必须在**同一 gencode** 上对齐（本机：requirements.txt 与容器 env 都已钉 1.71.0），偏移由 CI 的 `git diff --exit-code -- protobuf_pydantic_gen/` 闸门发现；② **运行时级**矩阵（含 7.34.0 这类与声明集合无法共解的版本）CI 覆盖不到，仍需人工跑 `tmp/probe-enum-map/matrix.sh`。
