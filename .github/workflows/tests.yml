@@ -60,6 +60,29 @@ jobs:
         if: matrix.protobuf == '5.29.0'
         run: git diff --exit-code -- protobuf_pydantic_gen/
 
+      - name: Generated code must be current
+        # Mirrors `make -C example/protos py` into a temp dir and compares the result
+        # with the checked-in output. The generated header carries a build timestamp
+        # (@Time), so that line is ignored; the recipe's own __init__.py files are not
+        # part of the comparison. One row is enough — generation is version-independent
+        # as long as the runtime can load the vendored proto code.
+        if: matrix.protobuf == '5.29.0'
+        run: |
+          mkdir -p /tmp/gen/pb /tmp/gen/models
+          python -m grpc_tools.protoc --proto_path=example/protos --proto_path=. \
+            --python_out=/tmp/gen/pb --pyi_out=/tmp/gen/pb --grpc_python_out=/tmp/gen/pb \
+            --pydantic_out=/tmp/gen/models example/protos/*.proto
+          sed -i '/from/!s/import \(.*\) as/from . import \1 as/g' /tmp/gen/pb/*pb2*.py
+          status=0
+          for generated in /tmp/gen/models/* /tmp/gen/pb/*; do
+            checked_in="example/$(basename "$(dirname "$generated")")/$(basename "$generated")"
+            diff -I '@Time' "$checked_in" "$generated" || status=1
+          done
+          if [ "$status" != 0 ]; then
+            echo "::error::checked-in generated code is stale — run 'make -C example/protos py' and commit the result"
+            exit 1
+          fi
+
       - name: Tests
         # test_performance.py imports `example.client`, which does not exist in this
         # repo (it needs a running server), so it is excluded rather than marked.
