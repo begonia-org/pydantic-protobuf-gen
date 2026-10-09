@@ -104,7 +104,7 @@
             "ext": {
                 "description": "\"Emails of the example\"",
                 "default": "\"[\"example@example.com\",\"example2@example.com\"]\"",
-                "sa_column": "Column(JSON, doc=\"Emails of the example\")"
+                "sa_column": "Column(JSON, nullable=True, doc=\"Emails of the example\")"
             },
             "description": "\"Emails of the example\""
         },
@@ -115,7 +115,7 @@
             "ext": {
                 "description": "\"Nested message\"",
                 "default": [],
-                "sa_column": "Column(JSON, doc=\"Nested message\")"
+                "sa_column": "Column(JSON, nullable=True, doc=\"Nested message\")"
             },
             "description": "\"Nested message\""
         },
@@ -126,7 +126,7 @@
             "ext": {
                 "description": "\"Properties of the example\"",
                 "default": {},
-                "sa_column": "Column(JSON, doc=\"Properties of the example\")"
+                "sa_column": "Column(JSON, nullable=True, doc=\"Properties of the example\")"
             },
             "description": "\"Properties of the example\""
         },
@@ -137,7 +137,7 @@
             "ext": {
                 "description": "\"Nested message\"",
                 "default": null,
-                "sa_column": "Column(JSON, doc=\"Nested message\")"
+                "sa_column": "Column(JSON, nullable=True, doc=\"Nested message\")"
             },
             "description": "\"Nested message\""
         },
@@ -148,7 +148,7 @@
             "ext": {
                 "description": "\"Creation date of the example\"",
                 "default_factory": "datetime.datetime.now",
-                "sa_column": "Column(TIMESTAMP(timezone=True), nullable=True, doc='Creation date of the example')"
+                "sa_column": "Column(TIMESTAMP(timezone=True), nullable=False, doc='Creation date of the example')"
             },
             "description": "\"Creation date of the example\""
         },
@@ -172,7 +172,7 @@
                 "default": "0.0",
                 "gt": 0.0,
                 "le": 100.0,
-                "sa_column": "Column(Integer, doc=\"Score of the example\")"
+                "sa_column": "Column(Integer, nullable=True, doc=\"Score of the example\")"
             },
             "description": "\"Score of the example\""
         },
@@ -183,7 +183,7 @@
             "ext": {
                 "description": "\"Metadata attributes and their values for the document\"",
                 "default": null,
-                "sa_column": "Column(JSON, doc=\"Metadata attributes and their values for the document\")"
+                "sa_column": "Column(JSON, nullable=True, doc=\"Metadata attributes and their values for the document\")"
             },
             "description": "\"Metadata attributes and their values for the document\""
         },
@@ -194,7 +194,7 @@
             "ext": {
                 "description": "\"Embedding vector for the example\"",
                 "default": [],
-                "sa_column": "Column(Vector(1563), doc=\"Embedding vector for the example\")"
+                "sa_column": "Column(Vector(1563), nullable=True, doc=\"Embedding vector for the example\")"
             },
             "description": "\"Embedding vector for the example\""
         }
