@@ -72,6 +72,8 @@ python-dotenv==1.2.4
     # via pydantic-settings
 requests==2.34.2
     # via protobuf-pydantic-gen (pyproject.toml)
+ruff==0.16.10
+    # via protobuf-pydantic-gen (pyproject.toml)
 setuptools==80.4.0
     # via grpcio-tools
 sqlalchemy==2.0.40

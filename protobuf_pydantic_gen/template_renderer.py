@@ -30,6 +30,22 @@ def get_ruff_path() -> str:
     # Fallback to system ruff if not found
     return "ruff"
 
+# The formatter must not inherit ruff's evolving defaults: with them, a newer ruff
+# rewrites the generated annotations (`Optional[x]` -> `x | None`,
+# `from __future__ import annotations`) and drops the coding header, so the same
+# template produced different modules per ruff version. The rules are pinned to
+# unused-import cleanup (F401) only:
+#   * F401 is stable across ruff releases (measured: 0.11.13 and 0.16.10 produce
+#     byte-identical output), unlike the default rule set — which also rewrites
+#     annotations and therefore moves the generated code's Python floor;
+#   * `I` (isort) is deliberately *not* selected: its first/third-party classification
+#     follows the project root, so the generated import layout would depend on the
+#     working directory generation is run from.
+# `--target-version` is pinned to the package's `requires-python` (>=3.9).
+RUFF_LINT_SELECT = "F401"
+RUFF_TARGET_VERSION = "py39"
+
+
 
 class TemplateRenderer:
     """Handles Jinja2 template rendering"""
@@ -104,7 +120,17 @@ class TemplateRenderer:
             try:
                 # First, fix linting issues (remove unused imports, sort imports, etc.)
                 subprocess.run(
-                    [ruff_cmd, "check", "--fix", "--unsafe-fixes", tmp_name],
+                    [
+                        ruff_cmd,
+                        "check",
+                        "--fix",
+                        "--unsafe-fixes",
+                        "--select",
+                        RUFF_LINT_SELECT,
+                        "--target-version",
+                        RUFF_TARGET_VERSION,
+                        tmp_name,
+                    ],
                     check=False,  # Don't fail if there are unfixable issues
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -112,21 +138,37 @@ class TemplateRenderer:
 
                 # Then format the code
                 subprocess.run(
-                    [ruff_cmd, "format", tmp_name],
+                    [
+                        ruff_cmd,
+                        "format",
+                        "--target-version",
+                        RUFF_TARGET_VERSION,
+                        tmp_name,
+                    ],
                     check=True,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    text=True,
                 )
 
                 with open(tmp_name, "r") as f:
                     formatted = f.read()
                 return formatted
-            except Exception as e:
-                logger.warning(f"ruff format failed: {e}")
-                return code
+            except FileNotFoundError as e:
+                # Returning the unformatted code here is how generation silently
+                # degraded to modules with unused imports and unstable whitespace.
+                raise RuntimeError(
+                    f"Code formatter {ruff_cmd!r} not found. Generated code is "
+                    "formatted with ruff, which is a declared dependency — install it "
+                    "with `pip install ruff` (or `uv sync`)."
+                ) from e
+            except subprocess.CalledProcessError as e:
+                detail = (e.stderr or "").strip()
+                raise RuntimeError(
+                    f"`{ruff_cmd} format` failed on {tmp_name} (exit {e.returncode})"
+                    + (f": {detail}" if detail else "")
+                ) from e
             finally:
-                import os
-
                 os.remove(tmp_name)
 
     def format_code(self, code: str) -> str:

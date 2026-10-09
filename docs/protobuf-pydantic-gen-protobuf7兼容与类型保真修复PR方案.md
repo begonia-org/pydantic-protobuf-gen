@@ -776,6 +776,30 @@ grpcio-tools 1.84.0 requires protobuf<8.0.0,>=7.35.1, but you have protobuf 5.29
 
 **闸门最终形态**：该步骤改用 `python -m pip install -q uv` + `uv sync --frozen`，在 **lock 环境**里生成再逐文件 `diff -I '@Time'` 比对（`@Time` 是生成时间戳，无法稳定）。这样闸门既抓住「改了生成器忘了重生成」，也不因环境差异误报。
 
-**遗留问题（产品侧，建议单独处理）**：`format_with_ruff` 的静默降级意味着 —— 任何用 `pip install protobuf-pydantic-gen` 安装（没有 ruff）的用户生成出来的代码都是**未格式化**的，且有未使用导入；这与本 PR 的主题（声明与实现脱节）同族。可选修法：①把 `ruff` 提为运行依赖（重）；②找不到格式化器时**响亮失败**（`logger.warning` → raise 或至少 WARNING 级别可被 CI 捕获）；③改用已声明的 `autopep8` 路径（会重排全部 committed 生成物，需另开一次格式化 diff）。**本次未改**，留给决策。
+**遗留问题（产品侧）→ 已处理**：见 6.11（`ruff` 进运行依赖 + 缺格式化器响亮失败 + 把 ruff 规则集显式化）。
+
+#### 6.11 生成器依赖 ruff：默认安装，且不再随 ruff 版本漂移（已实施）
+
+**决策**：`ruff` 进运行依赖（默认安装）+ 缺格式化器时**响亮失败**；不改用 autopep8 路径。
+
+**改动**
+
+- `pyproject.toml`：`dependencies` 增加 `ruff>=0.11.13`（附注释说明为何是运行依赖：格式化器缺失曾导致静默产出劣化代码）。`uv.lock` 同步（仅 8 行：root 依赖表 + ruff 条目），`uv sync --frozen` 仍有效。**用范围而非精确钉**：输出确定性由下面的参数显式化保证（见实测），精确钉只会给下游（如自带 ruff 的项目）带来解析冲突。
+- `template_renderer.format_with_ruff()`：`FileNotFoundError` / `CalledProcessError` 不再 `logger.warning` 后返回未格式化代码，改为抛 `RuntimeError`（带 `pip install ruff` 提示与 ruff 的 stderr）；调用参数显式化：`ruff check --fix --unsafe-fixes --select F401 --target-version py39`、`ruff format --target-version py39`。
+- 新增 `example/tests/test_formatter_required.py`（6 项）：ruff 必须可用、格式化确实生效（未使用导入被删）、缺 ruff 响亮失败、ruff 执行失败响亮失败、**注解不被现代化**、**输出不随工作目录变化**。全套 `example/tests` 现为 **77 passed**。
+
+**为什么必须显式化 ruff 规则集（实测，本轮最有价值的发现）**
+
+生成物 = 模板 + protos + **ruff 的规则集**。原先只调 `ruff check --fix --unsafe-fixes`（**吃默认规则集**），而默认规则集在版本间会漂移：
+
+| 调用 | ruff 0.11.13 | ruff 0.16.10 |
+|---|---|---|
+| 默认（改前） | 与 committed 生成物一致 | **改写注解**：`Optional[x]` → `x \| None`、`Type[...]` → `type[...]`、`-> "X"` → `-> X`，加 `from __future__ import annotations`，并删掉 `# -*- encoding: utf-8 -*-` 头（UP007 / UP009 / FA100 等被默认选上） |
+| `--select F401 --target-version py39`（改后） | 与 committed 生成物**逐字节一致** | 与 0.11.13 输出**逐字节一致** |
+
+改前的后果不小：用较新 ruff 生成的代码带 `x | None` 注解，在使用者 `requires-python = ">=3.9"` 的项目里是**运行期错误**（pydantic 会解析注解）—— 即"生成什么代码"取决于生成者装了哪个 ruff。
+
+顺带否掉一个方案：`--select F401,I`（加 isort）**不可用** —— `I` 的第一/三方判定跟随项目根目录，同一份 proto 在 `CWD=/app` 与 `CWD=/app/example/protos` 下生成的 import 布局不同（实测 4 个文件差异），等于用"取决于从哪运行"替换"取决于装了什么版本"。最终只选 `F401`（未使用导入清理），实测三项全绿：0.11.13 == 0.16.10、`CWD=/app` == `CWD=/app/example/protos`、且与 committed 生成物**零差异** —— 所以本次**没有任何生成物改动**。
+
 
 **遗留风险（钉住之后剩两处）**：`.github/workflows/tests.yml` 覆盖的是**安装级**四行；① 现在有**三条**生成 `pydantic_pb2.py` 的路径 —— 构建期（born by `build-system.requires` 的 pin）、`make -C protobuf_pydantic_gen` 与 pre-commit 钩子（用环境里的 protoc），它们必须在**同一 gencode** 上对齐（本机：requirements.txt 与容器 env 都已钉 1.71.0），偏移由 CI 的 `git diff --exit-code -- protobuf_pydantic_gen/` 闸门发现；② **运行时级**矩阵（含 7.34.0 这类与声明集合无法共解的版本）CI 覆盖不到，仍需人工跑 `tmp/probe-enum-map/matrix.sh`。

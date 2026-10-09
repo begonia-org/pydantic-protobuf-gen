@@ -23,6 +23,13 @@ dependencies = [
     "pydantic-core>=2.20.0",
     "annotated-types>=0.7.0",
     "autopep8>=2.3.1",
+    # The generator formats its output with ruff (`ruff check --fix` + `ruff format`).
+    # It is a *runtime* dependency on purpose: without it generation produced
+    # silently unformatted modules (unused imports, unstable whitespace), which is how
+    # the committed example artifacts became reproducible only where ruff happened to
+    # be installed. Ranged rather than pinned so it can co-resolve with a consumer's
+    # own ruff; the repository's exact version comes from uv.lock.
+    "ruff>=0.11.13",
     "starlette>=0.46.2",
     "googleapis-common-protos>=1.70.0",
     "zstandard>=0.23.0",
