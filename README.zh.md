@@ -40,7 +40,7 @@ protobuf-pydantic-gen 是一个面向 Python 的代码生成工具，用来把 P
 
 - Python 3.9 及以上。
 - 环境中可用 `protoc` 与 `grpcio-tools`。
-- `protobuf >= 7.34.0`。
+- `protobuf >= 5.29.0`。
 - `pydantic >= 2.4.1`。
 - 如需生成表模型，安装 `sqlmodel >= 0.0.19`。
 

@@ -56,22 +56,27 @@ def get_class_import_path(directory: str, class_name: str):
 
 
 def is_repeated_field(field) -> bool:
-    """Repeated-ness for either descriptor kind.
+    """Repeated-ness for either descriptor kind, on any supported protobuf.
 
-    protobuf >= 7 removed ``FieldDescriptor.label`` from the runtime descriptor
-    (``is_repeated`` is the replacement), while ``FieldDescriptorProto.label``
-    is still valid.
+    Runtime descriptors expose ``is_repeated`` from protobuf 6.32.1 onwards and
+    protobuf 7 removed ``label``; earlier runtimes only have ``label``. The probe
+    below therefore has to ask the object, not the installed version.
+    ``FieldDescriptorProto.label`` is valid on every version.
     """
     if isinstance(field, descriptor_pb2.FieldDescriptorProto):
         return field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
-    return field.is_repeated
+    if hasattr(field, "is_repeated"):
+        return field.is_repeated
+    return field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
 
 
 def is_required_field(field) -> bool:
     """Required-ness for either descriptor kind (see ``is_repeated_field``)."""
     if isinstance(field, descriptor_pb2.FieldDescriptorProto):
         return field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REQUIRED
-    return field.is_required
+    if hasattr(field, "is_required"):
+        return field.is_required
+    return field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REQUIRED
 
 
 def field_descriptor_to_proto(field) -> descriptor_pb2.FieldDescriptorProto:

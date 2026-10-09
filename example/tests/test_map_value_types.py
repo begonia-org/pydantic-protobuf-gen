@@ -139,6 +139,32 @@ def test_is_required_field_accepts_both_descriptor_kinds():
     )
 
 
+class _LegacyRuntimeFieldDescriptor:
+    """A runtime descriptor as protobuf < 6.32.1 exposes it: `label` only."""
+
+    def __init__(self, label):
+        self.label = label
+
+
+def test_is_repeated_field_falls_back_to_label_without_is_repeated():
+    """protobuf < 6.32.1 has no `is_repeated`; the probe must not assume it."""
+    legacy = _LegacyRuntimeFieldDescriptor(LABEL_REPEATED)
+
+    assert not hasattr(legacy, "is_repeated")
+    assert is_repeated_field(legacy) is True
+    assert is_repeated_field(_LegacyRuntimeFieldDescriptor(LABEL_OPTIONAL)) is False
+
+
+def test_is_required_field_falls_back_to_label_without_is_required():
+    legacy = _LegacyRuntimeFieldDescriptor(
+        descriptor_pb2.FieldDescriptorProto.LABEL_REQUIRED
+    )
+
+    assert not hasattr(legacy, "is_required")
+    assert is_required_field(legacy) is True
+    assert is_required_field(_LegacyRuntimeFieldDescriptor(LABEL_OPTIONAL)) is False
+
+
 # --------------------------------------------------------------------------- #
 # end-to-end: generated model source + runtime round trip
 # --------------------------------------------------------------------------- #

@@ -234,7 +234,7 @@ google.protobuf.json_format.ParseError: Message type "probe2.v1.Union" should no
 ### 2.5 版本常量与分支/文档声明漂移
 
 - `protobuf_pydantic_gen/constants.py:8` `__version__ = "0.1.8"`，而包版本是 `0.1.9`
-- `develop` 的 `pyproject.toml` 是 `protobuf>=7.0.0`，`master` 仍是 `protobuf>=5.27.0,<7.0.0`，`README.md` / `README.zh.md` 跟的是 master 的写法 —— 两分支在这一点上已经分叉，读者按 README 会得到与 develop 相反的结论。**已修（2026-10-09）**：声明与两份 README 统一为 `protobuf>=7.34.0`（PyPI 上不存在 `7.0.0`，Python 端最低的 7.x 是 7.34.0）；`master` 分支未动
+- `develop` 的 `pyproject.toml` 是 `protobuf>=7.0.0`，`master` 仍是 `protobuf>=5.27.0,<7.0.0`，`README.md` / `README.zh.md` 跟的是 master 的写法 —— 两分支在这一点上已经分叉。**已修（2026-10-09）**：代码改成能力探测后不再需要 7.x 专属路径，声明与两份 README 统一为 **`protobuf>=5.29.0`**（真实下限由 committed vendored `*_pb2.py` 的 gencode 决定，见 6.6）—— 这同时**消解了分叉**：master 的 `>=5.27.0,<7.0.0` 与本声明方向一致，只差把 `<7.0.0` 上限去掉（`master` 分支本身未动）
 
 ---
 
@@ -283,7 +283,7 @@ google.protobuf.json_format.ParseError: Message type "probe2.v1.Union" should no
 
 ## 4. 建议实现方式
 
-### 4.1 `label` → `is_repeated` / `is_required`
+### 4.1 `label` → `is_repeated` / `is_required`（**已实施：能力探测，不设版本分支**）
 
 ```python
 fd_proto.label = (
@@ -293,7 +293,20 @@ fd_proto.label = (
 )
 ```
 
-`is_repeated` / `is_required` 在 protobuf 7.36.2 上实测存在（见 2.1）。若希望同时兼容 `<7.0.0`，可做一次能力探测后择一，但**既然 develop 已声明 `>=7.0.0`，直接改用新 API 更简单**。
+**已采纳的不是「硬切新 API」，而是能力探测（capability probe）** —— 这也是 protobuf 官方迁移文档给旧版本 runtime/生成物混用时推荐的写法（同型做法见 ray 的 `is_repeated` + `label` 回退）：
+
+- `FieldDescriptor.is_repeated` / `is_required` 自 **protobuf 6.32.1** 起才有；**7.x 删掉了 `label`**；5.27–6.31 的运行时描述符**只有 `label`**。
+- 所以判据必须是 `hasattr(field, "is_repeated")` —— 问对象，而不是问安装的版本（版本号比较在 patch 版本上会错，protobuf 自己也这么建议）。
+- 实测确认这条分支真的会被走到：`protobuf 5.29.0` 上 `hasattr(FieldDescriptor, "is_repeated") == False`、`label` 存在；`7.36.2` 上相反。四版本矩阵（5.29.0 / 6.33.6 / 7.34.0 / 7.36.2）全绿，见附二·六 6.6。
+
+```python
+def is_repeated_field(field) -> bool:
+    if isinstance(field, descriptor_pb2.FieldDescriptorProto):
+        return field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED
+    if hasattr(field, "is_repeated"):          # protobuf >= 6.32.1
+        return field.is_repeated
+    return field.label == descriptor_pb2.FieldDescriptorProto.LABEL_REPEATED  # < 6.32.1
+```
 
 ### 4.2 map value 类型
 
@@ -418,7 +431,7 @@ def _get_map_field_types(self, field, imports, type_mapping, file_name):
 
 - 下游业务仓库的兼容 shim，以及已落盘生成物的手工补丁
 - `master` 与 `develop` 在 protobuf 声明上的分叉如何合并（需要单独决策：要么把 master 也提到 `>=7.0.0`，要么把 develop 的代码做成双版本兼容）
-- `master` 与 `develop` 在 protobuf 声明上的分叉：本 PR 只把声明改成 **`protobuf>=7.34.0`**（PyPI 上不存在 `protobuf==7.0.0`；Python 端最低的 7.x 是 7.34.0）并同步 `README.md` / `README.zh.md` 的版本要求，**`master` 分叉未合并**，仍需单独决策
+- `master` 分支与 `develop` 在 protobuf 声明上的分叉：本 PR 在 develop 侧把声明定为 **`protobuf>=5.29.0`** 并同步两份 `README`（真实下限 = committed vendored `*_pb2.py` 的 gencode 5.29.0）；**`master` 分支本身未动**，但它只需去掉 `<7.0.0` 上限即可两边一致
 - `constants.py` 的 `__version__ = "0.1.8"` 与包版本 `0.1.9` 的漂移（§2.5，未在本 PR 范围内）
 - oneof 之外的其他 proto3 语义（`proto3_optional` 之外的 presence 细节、`Any` / `Struct` 的既有兼容方案）
 
@@ -612,7 +625,7 @@ google.protobuf.json_format.ParseError: Message type "probe2.v1.Union" should no
 | 既有测试套件（`example/tests`，排除需 server 的 `test_performance.py`） | **3 failed / 36 passed**（`test_ext_forward_refs`、`test_models` ×2，全部是 `fd.label`） | **53 passed / 0 failed** |
 | `example/protos/*.proto` 全量生成物 before/after diff | — | **无差异**（忽略 `@Time` 头） |
 
-**声明下限本身是空区间（新发现）**：PyPI 上**不存在 `protobuf==7.0.0`** —— Python 端在 **7.34.0** 才跳到 7（最低 7.x = `7.34.0`），所以 develop 的 `protobuf>=7.0.0` 实际等价于 `>=7.34.0`，读代码的人会误以为 7.0–7.33 存在。§6.3 要求的「在声明下限上跑一次」已按 **7.34.0** 执行：修复后 **53 passed**（7.34.0），而未修复的基线在同一环境下 **3 failed / 36 passed**。建议把声明改写成 `>=7.34.0`。
+**声明下限与真实下限是两回事（新发现，最终结论见 6.6）**：PyPI 上**不存在 `protobuf==7.0.0`** —— Python 端在 **7.34.0** 才跳到 7（最低 7.x = `7.34.0`）。但把下限写成 `>=7.34.0` **也是错的**：包内**committed 的 vendored `*_pb2.py`**（`pydantic_pb2.py`、`example/pb/*_pb2.py`）gencode 是 **5.29.0**，protobuf 拒绝「runtime 比 gencode 旧」，所以真正的下限是 **5.29.0**（实测：5.29.0 上 71 passed；5.27.0 上连 `pydantic_pb2` 都 import 不了）。最终把声明改成 **`protobuf>=5.29.0`**。
 
 #### 6.3 本次实施中新发现的缺陷（原清单没有，已一并修复或登记）
 
@@ -647,17 +660,20 @@ ParseError: Message type "probe2.v1.Union" should not have multiple "value" oneo
 | `ext.py` | 新增 `_proto3_optional_field_names()`、`_real_oneof_names()`（跳过 synthetic oneof）、`_match_oneof_member()` 及两条匹配谓词、`_select_model_cls()`；`model2protobuf` 增加「proto3 optional 的 `None` → 不写」与「oneof 只设置被选中成员」；`protobuf2model` 增加「未设置的 optional → `None`」「oneof 走 `WhichOneof`」「Union 注解里按 message 名选类」；bytes 正向 base64 编码（标量 + map 值）、反向 base64 解码 |
 | `type_mapper.py` | `set_default_value()` 增加 `proto3_optional` 分支（默认值 `None`） |
 | `message_processor.py` | 新增 `_process_oneof_field()`；`_process_message()` 识别 synthetic oneof、跳过 oneof 成员、追加合并后的字段 |
-| `pyproject.toml` / `README.md` / `README.zh.md` | 声明下限 → **`protobuf>=7.34.0`**（本地检出原为 `>=5.27.0,<7.0.0`，develop 为 `>=7.0.0`） |
+| `pyproject.toml` / `README.md` / `README.zh.md` | 声明 → **`protobuf>=5.29.0`**（第二轮从 `>=7.34.0` 调整过来，理由见 6.6：真实下限由 committed vendored `*_pb2.py` 的 gencode 决定） |
 | `example/tests/probe_schema.py` | 新增共享的进程内 probe 构造/加载工具（map+bytes+presence 与 oneof 两个 schema，不依赖 protoc） |
 | `example/tests/test_presence_and_bytes.py` | 新增 8 项 |
 | `example/tests/test_oneof.py` | 新增 7 项 |
 | `example/tests/test_map_value_types.py` | 改为复用 `probe_schema`，并补 bytes map 的解析用例 |
 
-**验证（protobuf 7.36.2 与 7.34.0 两个版本都跑过）**
+**验证（四版本 protobuf 矩阵，见 6.6）**
 
 | 项 | 结果 |
 |---|---|
-| `example/tests`（排除需 server 的 `test_performance.py`） | **69 passed / 0 failed**（修复前基线 3 failed / 36 passed） |
+| `example/tests`（排除需 server 的 `test_performance.py`） | **71 passed / 0 failed**（修复前基线 3 failed / 36 passed） |
+| 声明下限那一版（**5.29.0**，运行时描述符只有 `label`） | **71 passed** —— 能力探测的回退分支被真实走到 |
+| 中间版（6.33.6，`label` 已废弃、`is_repeated` 已存在） | **71 passed**（走 `is_repeated`，不触发废弃警告） |
+| 最低 7.x 与当前 7.x（7.34.0 / 7.36.2，`label` 已删除） | 各 **71 passed** |
 | `example/protos/*.proto` 全量生成物 before/after | **无差异**（忽略 `@Time`） |
 | `tmp/probe-enum-map/` protoc 全链路（`run_checks.py`） | oneof 三态、message map、enum map、optional 三态全部 OK |
 
@@ -666,3 +682,28 @@ ParseError: Message type "probe2.v1.Union" should not have multiple "value" oneo
 - **R13（已修）**：`bytes` 的 base64 处理缺失 —— 正向把 `bytes` 直接交给 `ParseDict`（它要 base64 文本）、反向把 `MessageToDict` 的 base64 文本直接当 `bytes`。**不止 map 值**：普通 `bytes` 标量字段同样不保真（`from_protobuf` 拿到的是 base64 文本的 utf-8 编码）。已在 `ext.py` 的两条转换路径统一处理。
 - **R14（已修）**：名为 `Union` 的 proto message 会遮蔽生成模块里的 `typing.Union`，使 `Optional[Union[...]]` 在 pydantic 解析时报 `TypeError: cannot be parametrized`。生成的 oneof 注解改用 `_Union` 别名。**§附 的最小复现 proto 里 message 就叫 `Union`**，属真实触发路径。同类遮蔽风险对 `Dict` / `List` / `Any` / `Optional` 同样存在（既有行为，本次未处理）。
 - **R15（文档更正）**：见 6.4 的更正框。
+
+#### 6.6 版本兼容性（第三轮，2026-10-09）
+
+**为什么不能用「切到新 API + 抬高下限」了事**：那会把兼容性换成声明，而这次事故的起因恰恰是**声明与实现脱节**。`.proto` 生态里 runtime / gencode / 生成器三者版本各自漂移，唯一稳的判据是**能力探测**。
+
+**三条独立的版本约束**（本次全部实测）：
+
+1. **生成器 import**：`pydantic_pb2.py` 依赖 `google.protobuf.runtime_version` → 至少要 5.27；且 committed 的 `pydantic_pb2.py` gencode 是 **5.29.0**，protobuf 拒绝 runtime < gencode → **5.29.0 是真正能 import 的下限**（5.27.0 上直接 `VersionError`）。
+2. **运行时描述符 API**：`is_repeated` / `is_required` 自 **6.32.1** 起存在，`label` 在 **7.x 被删除** → 代码必须两者都能走（`hasattr` 探测），否则任一侧区间都会炸。实测 5.29.0：`hasattr(FieldDescriptor, "is_repeated") == False`。
+3. **生成物 pb2**：由 protoc 版本决定 gencode，消费方 runtime 不得更旧 —— 所以「在哪个环境生成」也决定了消费侧下限（`example/pb` 是 5.29.0，`tmp/probe-enum-map/pb` 由 5.29.4 生成，故 `run_checks.py` 只能在 ≥5.29.4 的解释器上跑）。
+
+**结论：声明 `protobuf>=5.29.0`（无上限）**：下限由包内 committed gencode 决定（可验证、可复现），上限不设 —— 7.x 及以上靠能力探测与下面的矩阵保持一致。若仍想加保护，可写 `>=5.29.0,<8.0.0`，但那属于「用一个未经证明的假设替代另一个」。
+
+**矩阵（`tmp/probe-enum-map/matrix.sh`，一条命令四版本）**
+
+```text
+protobuf 5.29.0            ============================== 71 passed in 0.80s ==============================
+protobuf 6.33.6            ============================== 71 passed in 0.74s ==============================
+protobuf 7.34.0            ============================== 71 passed in 0.76s ==============================
+protobuf 7.36.2            ============================== 71 passed in 0.76s ==============================
+```
+
+（含 2 项新增的回退分支用例：用只带 `label` 的桩对象验证 `is_repeated`/`is_required` 缺失时的回退。）
+
+**机制层面的遗留风险（建议，未实施）**：仓库**没有任何 CI**（无 `.github/workflows`），所以「声明支持一批版本、只在某一版上验证过」这类不一致只能靠人记得跑 `matrix.sh`。真实的下限耦合点是 `make -C protobuf_pydantic_gen`（pre-commit 钩子）重新生成 `pydantic_pb2.py` 时的 protoc 版本 —— 换用更旧的 protoc 才能把下限压到 5.29.0 以下；换用更新的 protoc 会**抬高**下限。建议至少加一个 CI 矩阵（5.29.x / 6.33.x / 7.x），否则这条约束还会再次漂移。

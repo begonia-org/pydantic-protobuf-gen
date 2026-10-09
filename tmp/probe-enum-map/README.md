@@ -16,20 +16,34 @@
 
 ## 环境
 
-两个隔离 venv（容器内、位于本仓库 `tmp/` 下，可随时删除后用下面命令重建）：
+四个隔离 venv（容器内、位于本仓库 `tmp/` 下，命中 `.gitignore` 的 `venv/` 规则；可随时删除后用下面命令重建）：
 
 ```bash
-# 7.36.2（zenmpai 实际运行时版本）
+# 5.29.0 —— 声明的下限（由 committed vendored *_pb2.py 的 gencode 决定）
+uv venv /app/tmp/probe529/venv
+uv pip install --python /app/tmp/probe529/venv/bin/python "protobuf==5.29.0" sqlmodel \
+  googleapis-common-protos jinja2 grpcio pytest pytest-asyncio autopep8 inflection peewee pgvector
+
+# 6.33.6 —— label 已废弃、is_repeated 已存在
+uv venv /app/tmp/probe633/venv
+uv pip install --python /app/tmp/probe633/venv/bin/python "protobuf==6.33.6" sqlmodel \
+  googleapis-common-protos jinja2 grpcio pytest pytest-asyncio autopep8 inflection peewee pgvector
+
+# 7.34.0 —— PyPI 上最低的 7.x（不存在 protobuf==7.0.0）
+uv venv /app/tmp/probe-floor/venv
+uv pip install --python /app/tmp/probe-floor/venv/bin/python "protobuf==7.34.0" sqlmodel \
+  googleapis-common-protos jinja2 grpcio pytest pytest-asyncio autopep8 inflection peewee pgvector
+
+# 7.36.2 —— 当前 7.x（zenmpai 实际运行时版本）
 uv venv /app/tmp/probe7/venv
 uv pip install --python /app/tmp/probe7/venv/bin/python "protobuf==7.36.2" sqlmodel \
   googleapis-common-protos jinja2 grpcio pytest pytest-asyncio autopep8 inflection peewee pgvector
 uv pip install --python /app/tmp/probe7/venv/bin/python --no-deps grpcio-tools==1.71.0
-
-# 7.34.0（PyPI 上最低的 7.x —— 不存在 protobuf==7.0.0）
-uv venv /app/tmp/probe-floor/venv
-uv pip install --python /app/tmp/probe-floor/venv/bin/python "protobuf==7.34.0" sqlmodel \
-  googleapis-common-protos jinja2 grpcio pytest pytest-asyncio autopep8 inflection peewee pgvector
 ```
+
+一条命令跑完整矩阵：`sh /app/tmp/probe-enum-map/matrix.sh`。
+
+> **两个版本坑**：① `tmp/` 下这几个 gencode 由生成时用的 protoc 决定，而 protobuf 拒绝 runtime < gencode —— 所以 `run_checks.py`（读 `pb/`）只能在 **≥ 生成该 pb 的 protoc 版本**（当前 5.29.4）的解释器上跑；`example/tests` 走**进程内** probe，不受此限，四版本都能跑。② `protobuf==5.27.0` 在 PyPI 上已被 yank，且 5.27/5.28 连 committed 的 `pydantic_pb2.py`（gencode 5.29.0）都 import 不了 —— 所以下限是 **5.29.0**，不是 5.27。
 
 ## 跑法
 

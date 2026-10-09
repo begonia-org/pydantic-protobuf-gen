@@ -40,7 +40,7 @@ The following repository example covers the main project workflow: generate Pyth
 
 - Python 3.9 or newer.
 - `protoc` and `grpcio-tools` available in your environment.
-- `protobuf >= 7.34.0`.
+- `protobuf >= 5.29.0`.
 - `pydantic >= 2.4.1`.
 - `sqlmodel >= 0.0.19` when you generate table models.
 

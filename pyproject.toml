@@ -11,7 +11,10 @@ license = "Apache-2.0"
 dependencies = [
     "grpcio>=1.50.0",
     "grpcio-tools>=1.50.0",
-    "protobuf>=7.34.0",
+    # Floor comes from the gencode version of the committed vendored *_pb2.py files
+    # (protobuf refuses to load gencode newer than the runtime); the generator itself
+    # works back to 5.27 via the descriptor API probes in utils.py.
+    "protobuf>=5.29.0",
     "pydantic>=2.4.1",
     "jinja2>=3.0.0",
     "peewee>=3.17.5",
