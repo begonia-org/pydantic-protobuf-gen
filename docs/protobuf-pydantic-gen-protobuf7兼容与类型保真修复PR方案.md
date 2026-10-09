@@ -765,4 +765,17 @@ grpcio-tools 1.84.0 requires protobuf<8.0.0,>=7.35.1, but you have protobuf 5.29
 
 **验证**：在「强制重生成」场景下 gencode 保持 5.29.0、`git diff` 为空、5.29.0 行 71 passed；四条 CI 命令本地全绿；GitHub Actions 上 **4/4 success**（`bc62417`）。
 
+#### 6.10 生成物的可复现性：依赖「谁生成」而不只是「生成什么」（第三版 CI 红，闸门首跑暴露）
+
+「生成物最新」闸门第一版在 CI 上红（本地却绿），根因有两条，都是**生成环境**而非源码差异：
+
+1. **格式化器是 dev-only 依赖**：模板渲染后由 `template_renderer.format_with_ruff()` 调用 `ruff check --fix --unsafe-fixes` + `ruff format` 收尾；`ruff` 只在 `[dependency-groups] dev`（uv.lock）里，`pip install -e .` 的环境里**没有**。找不到时该函数只 `logger.warning("ruff format failed")` 然后**静默返回未格式化代码** —— 表现就是生成物里留下未使用的 `from typing import Type`、空行位置不同，且**不报错**。
+2. **pb2_grpc 带工具版本戳**：`example/pb/*_pb2_grpc.py` 里的 `GRPC_GENERATED_VERSION` 由 grpcio-tools 版本决定 —— lock 是 `1.71.0`，而 CI 的矩阵环境解析到 `1.71.2`，于是 6 个文件全部“过期”。
+
+⇒ 结论：**committed 生成物只在 lock 环境（uv.lock：protobuf 5.29.4 / grpcio-tools 1.71.0 / ruff 0.11.13 / sqlmodel 0.0.24 / pydantic 2.11.4）下可复现**。实测：`uv sync --frozen` 出来的环境生成 → 与 committed **0 个文件差异**（忽略 `@Time`）；只在 lock 环境里补装 `ruff` 也同样 0 差异（说明除了 ruff 与 grpcio-tools 版本戳外无其他环境敏感项）。
+
+**闸门最终形态**：该步骤改用 `python -m pip install -q uv` + `uv sync --frozen`，在 **lock 环境**里生成再逐文件 `diff -I '@Time'` 比对（`@Time` 是生成时间戳，无法稳定）。这样闸门既抓住「改了生成器忘了重生成」，也不因环境差异误报。
+
+**遗留问题（产品侧，建议单独处理）**：`format_with_ruff` 的静默降级意味着 —— 任何用 `pip install protobuf-pydantic-gen` 安装（没有 ruff）的用户生成出来的代码都是**未格式化**的，且有未使用导入；这与本 PR 的主题（声明与实现脱节）同族。可选修法：①把 `ruff` 提为运行依赖（重）；②找不到格式化器时**响亮失败**（`logger.warning` → raise 或至少 WARNING 级别可被 CI 捕获）；③改用已声明的 `autopep8` 路径（会重排全部 committed 生成物，需另开一次格式化 diff）。**本次未改**，留给决策。
+
 **遗留风险（钉住之后剩两处）**：`.github/workflows/tests.yml` 覆盖的是**安装级**四行；① 现在有**三条**生成 `pydantic_pb2.py` 的路径 —— 构建期（born by `build-system.requires` 的 pin）、`make -C protobuf_pydantic_gen` 与 pre-commit 钩子（用环境里的 protoc），它们必须在**同一 gencode** 上对齐（本机：requirements.txt 与容器 env 都已钉 1.71.0），偏移由 CI 的 `git diff --exit-code -- protobuf_pydantic_gen/` 闸门发现；② **运行时级**矩阵（含 7.34.0 这类与声明集合无法共解的版本）CI 覆盖不到，仍需人工跑 `tmp/probe-enum-map/matrix.sh`。

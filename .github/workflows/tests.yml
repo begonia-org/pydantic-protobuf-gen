@@ -61,15 +61,22 @@ jobs:
         run: git diff --exit-code -- protobuf_pydantic_gen/
 
       - name: Generated code must be current
-        # Mirrors `make -C example/protos py` into a temp dir and compares the result
-        # with the checked-in output. The generated header carries a build timestamp
-        # (@Time), so that line is ignored; the recipe's own __init__.py files are not
-        # part of the comparison. One row is enough — generation is version-independent
-        # as long as the runtime can load the vendored proto code.
+        # Mirrors `make -C example/protos py` and compares the result with the
+        # checked-in output, ignoring the generated `@Time` header. It runs in the
+        # lock environment (`uv sync --frozen`) rather than the matrix environment on
+        # purpose: the generated output depends on the *generation* toolchain, not
+        # just the source — the generator formats with `ruff` (a dev dependency;
+        # without it, `ruff check --fix` silently fails and the output keeps unused
+        # imports) and the pb2_grpc files embed grpcio-tools' version as
+        # `GRPC_GENERATED_VERSION`. Only the lock pins both to the versions that
+        # produced the committed artifacts.
         if: matrix.protobuf == '5.29.0'
         run: |
+          python -m pip install -q uv
+          uv sync --frozen
           mkdir -p /tmp/gen/pb /tmp/gen/models
-          python -m grpc_tools.protoc --proto_path=example/protos --proto_path=. \
+          PATH="$PWD/.venv/bin:$PATH" .venv/bin/python -m grpc_tools.protoc \
+            --proto_path=example/protos --proto_path=. \
             --python_out=/tmp/gen/pb --pyi_out=/tmp/gen/pb --grpc_python_out=/tmp/gen/pb \
             --pydantic_out=/tmp/gen/models example/protos/*.proto
           sed -i '/from/!s/import \(.*\) as/from . import \1 as/g' /tmp/gen/pb/*pb2*.py
@@ -79,7 +86,7 @@ jobs:
             diff -I '@Time' "$checked_in" "$generated" || status=1
           done
           if [ "$status" != 0 ]; then
-            echo "::error::checked-in generated code is stale — run 'make -C example/protos py' and commit the result"
+            echo "::error::checked-in generated code is stale — run 'make -C example/protos py' in the lock environment and commit the result"
             exit 1
           fi
 
