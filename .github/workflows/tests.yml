@@ -1,0 +1,51 @@
+name: tests
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+
+jobs:
+  protobuf-matrix:
+    name: protobuf ${{ matrix.protobuf }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # One job per protobuf release, because protobuf is one-version-per-interpreter
+        # and the supported range spans three descriptor-API regimes: runtime
+        # descriptors expose only `label` up to 6.31, both `label` and `is_repeated`
+        # from 6.32.1, and only `is_repeated` from 7.x.
+        #   5.29.0 - the floor, set by the gencode version of the committed vendored
+        #            *_pb2.py files (protobuf refuses a runtime older than gencode)
+        #   6.33.6 - `label` deprecated, `is_repeated` available
+        #   7.34.0 - lowest 7.x published on PyPI (there is no protobuf==7.0.0)
+        #   7.36.2 - current 7.x
+        # Local twin: sh tmp/probe-enum-map/matrix.sh
+        protobuf: ["5.29.0", "6.33.6", "7.34.0", "7.36.2"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          # The editable install brings the declared runtime and test dependencies —
+          # pytest, pytest-asyncio, googleapis-common-protos, pgvector and zstandard
+          # are all listed in pyproject.toml.
+          python -m pip install -e .
+          # Pin the matrix release *after* the resolver ran, so the job really tests
+          # that release; every version here satisfies the declared `protobuf>=5.29.0`.
+          python -m pip install "protobuf==${{ matrix.protobuf }}"
+
+      - name: Show versions
+        run: |
+          python -c "import sys, google.protobuf; print(sys.version); print('protobuf', google.protobuf.__version__)"
+
+      - name: Tests
+        # test_performance.py imports `example.client`, which does not exist in this
+        # repo (it needs a running server), so it is excluded rather than marked.
+        run: python -m pytest example/tests --ignore=example/tests/test_performance.py -q
